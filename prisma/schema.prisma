@@ -1,0 +1,46 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model EconomicEvent {
+  id            String    @id @default(cuid())
+  eventKey      String    @unique
+  title         String
+  titleFa       String?
+  country       String    @default("USD")
+  date          DateTime?
+  allDay        Boolean   @default(false)
+  impact        String    @default("Low")
+  forecast      String?
+  previous      String?
+  actual        String?
+  direction     String?
+  explanationFa String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([date])
+  @@index([country, date])
+}
+
+model DailyDigest {
+  id        String   @id @default(cuid())
+  digestKey String   @unique
+  contentFa String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AppMeta {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
