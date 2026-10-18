@@ -40,3 +40,39 @@ export interface NewsResponse {
   pendingTranslation: number;
   events: NewsEvent[];
 }
+
+/* ---------- ساختار بازار چند تایم‌فریمی ---------- */
+
+export type MSTrend = "bullish" | "bearish" | "neutral";
+export type MSTimeframe = "15m" | "1h" | "4h" | "1d" | "1wk" | "1mo";
+
+/** وضعیت ساختار بازار در یک تایم‌فریم */
+export interface MSRow {
+  tf: MSTimeframe;
+  /** روند کلی ترکیبی — null یعنی داده ناکافی */
+  trend: MSTrend | null;
+  /** قدرت روند ۰ تا ۱۰۰ */
+  strength: number;
+  /** مولفه میانگین متحرک (EMA20/EMA50) */
+  ma: MSTrend | null;
+  /** مولفه سقف/کف‌های سوئینگ (HH/HL در برابر LH/LL) */
+  swing: MSTrend | null;
+  bars: number;
+}
+
+/** وضعیت ساختار یک نماد در همه تایم‌فریم‌ها */
+export interface MSSymbol {
+  key: "xau" | "dji";
+  price: number | null;
+  prevClose: number | null;
+  changePct: number | null;
+  rows: MSRow[];
+  okCount: number;
+}
+
+export interface MarketStructureResponse {
+  status: "live" | "cached" | "stale" | "error";
+  updatedAtISO: string | null;
+  xau: MSSymbol | null;
+  dji: MSSymbol | null;
+}

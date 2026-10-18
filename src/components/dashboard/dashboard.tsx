@@ -30,6 +30,7 @@ import {
   addDaysToKey,
 } from "@/lib/tehran";
 import { EventCard } from "./event-card";
+import { MarketStructurePanel } from "./market-structure-panel";
 
 type TabKey = "today" | "tomorrow" | "week" | "all";
 type ImpactFilter = "all" | "High" | "Medium" | "low";
@@ -450,6 +451,9 @@ export function Dashboard() {
             </section>
           ))
         )}
+
+        {/* جدول ساختار بازار — انتهای صفحه */}
+        <MarketStructurePanel />
       </main>
 
       {/* فوتر چسبیده به پایین */}
