@@ -1,5 +1,5 @@
-import { Dashboard } from "@/components/dashboard/dashboard";
+import { PhoneShell } from "@/components/phone/phone-shell";
 
 export default function Home() {
-  return <Dashboard />;
+  return <PhoneShell />;
 }

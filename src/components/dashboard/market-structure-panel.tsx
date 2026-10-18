@@ -159,42 +159,92 @@ function SummaryLine({ sym }: { sym: MSSymbol | null }) {
   );
 }
 
-export function MarketStructurePanel() {
-  const [data, setData] = useState<MarketStructureResponse | null>(null);
+/**
+ * حالت کنترل‌شده: با پاس‌دادن data، پولینگ داخلی غیرفعال و داده از پوسته تامین می‌شود
+ * (برای یکپارچگی ویجت‌ها و اپ‌ها در پوسته موبایل).
+ */
+export function MarketStructurePanel({
+  data: externalData,
+  onExternalRefresh,
+  refreshing: externalRefreshing,
+}: {
+  data?: MarketStructureResponse | null;
+  onExternalRefresh?: () => void;
+  refreshing?: boolean;
+}) {
+  const controlled = externalData !== undefined;
+  const [internalData, setInternalData] = useState<MarketStructureResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [internalRefreshing, setInternalRefreshing] = useState(false);
+  const [internalFailed, setInternalFailed] = useState(false);
   const lastFetchRef = useRef(0);
 
-  const fetchMS = useCallback(async (force: boolean) => {
-    if (force) setRefreshing(true);
-    try {
-      const res = await fetch(force ? "/api/market-structure?force=1" : "/api/market-structure", {
-        cache: "no-store",
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = (await res.json()) as MarketStructureResponse;
-      setData(json);
-      setFailed(json.status === "error" || (!json.xau && !json.dji));
-      lastFetchRef.current = Date.now();
-    } catch {
-      setFailed(true);
-    } finally {
+  const data = controlled ? externalData : internalData;
+  const refreshing = controlled ? (externalRefreshing ?? false) : internalRefreshing;
+  const failed = controlled
+    ? !!externalData &&
+      (externalData.status === "error" || (!externalData.xau && !externalData.dji))
+    : internalFailed;
+
+  const fetchMS = useCallback(
+    async (force: boolean) => {
+      if (controlled) {
+        onExternalRefresh?.();
+        return;
+      }
+      if (force) setInternalRefreshing(true);
+      try {
+        const res = await fetch(force ? "/api/market-structure?force=1" : "/api/market-structure", {
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = (await res.json()) as MarketStructureResponse;
+        setInternalData(json);
+        setInternalFailed(json.status === "error" || (!json.xau && !json.dji));
+        lastFetchRef.current = Date.now();
+      } catch {
+        setInternalFailed(true);
+      } finally {
+        setLoading(false);
+        setInternalRefreshing(false);
+      }
+    },
+    [controlled, onExternalRefresh]
+  );
+
+  useEffect(() => {
+    if (controlled) {
       setLoading(false);
-      setRefreshing(false);
+      return;
     }
-  }, []);
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/market-structure", { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const json = (await res.json()) as MarketStructureResponse;
+        if (!alive) return;
+        setInternalData(json);
+        setInternalFailed(json.status === "error" || (!json.xau && !json.dji));
+        lastFetchRef.current = Date.now();
+      } catch {
+        if (alive) setInternalFailed(true);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [controlled]);
 
   useEffect(() => {
-    fetchMS(false);
-  }, [fetchMS]);
-
-  useEffect(() => {
+    if (controlled) return;
     const id = setInterval(() => {
       if (document.visibilityState === "visible") fetchMS(false);
     }, CLIENT_REFRESH_MS);
     return () => clearInterval(id);
-  }, [fetchMS]);
+  }, [controlled, fetchMS]);
 
   const statusMeta = (() => {
     if (!data) return null;

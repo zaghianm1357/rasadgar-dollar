@@ -203,3 +203,84 @@
     box-shadow: none;
   }
 }
+
+/* ---------- پوسته موبایل (صفحه اصلی گوشی‌مانند) ---------- */
+
+/* حالت لرزش مرتب‌سازی آیکون‌ها */
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(-1.6deg) scale(1.04);
+  }
+  50% {
+    transform: rotate(1.6deg) scale(1.04);
+  }
+}
+.wiggling {
+  animation: wiggle 0.3s ease-in-out infinite;
+}
+
+/* پالس ملایم ویجت هنگام بروزرسانی داده */
+@keyframes widget-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(52 211 153 / 0.4);
+  }
+  45% {
+    transform: scale(1.035);
+    box-shadow: 0 0 0 8px rgb(52 211 153 / 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(52 211 153 / 0);
+  }
+}
+.animate-widget-pulse {
+  animation: widget-pulse 0.7s ease-out;
+}
+
+/* اسکرول مخفی برای صفحات لمسی */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* مات شیشه‌ای (فراست) برای مراکز اعلان و کنترل */
+.frost {
+  backdrop-filter: blur(28px) saturate(1.5);
+  -webkit-backdrop-filter: blur(28px) saturate(1.5);
+  background: oklch(0.22 0.02 240 / 0.72);
+}
+
+/* ترنزیشن فنری شبیه iOS */
+.spring {
+  transition:
+    transform 0.42s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.3s ease;
+}
+
+/* راهنمای اولیه — محو خودکار پس از چند ثانیه */
+@keyframes hint-fade {
+  0%,
+  72% {
+    opacity: 1;
+    visibility: visible;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+.hint-toast {
+  animation: hint-fade 9s ease forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wiggling,
+  .animate-widget-pulse {
+    animation: none;
+  }
+}

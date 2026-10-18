@@ -15,11 +15,12 @@ import { faDigits, faTime } from "@/lib/tehran";
  * وقتی جهت روند یک تایم‌فریم ساختاری (۱۵m تا ماهانه) برای طلا یا داو بین دو محاسبه
  * متوالی سرور عوض شود، این اعلان به‌صورت چشمک‌زن نمایش داده می‌شود.
  * کاربر می‌تواند آن را ببندد؛ با تغییر جدید دوباره ظاهر می‌شود.
+ * حالت کنترل‌شده: با پاس‌دادن data از پولینگ داخلی صرف‌نظر می‌شود.
  */
 
 const CLIENT_REFRESH_MS = 5 * 60 * 1000; // هم‌تراز با پولینگ پنل ساختار بازار
 const DISMISS_KEY = "trend_banner_dismissed_v1";
-const MAX_ROWS = 3; // حداکثر ردیف قابل نمایش — بقیه به‌صورت «+N تغییر دیگر»
+export const MAX_BANNER_ROWS = 3; // حداکثر ردیف در بنر — بقیه «+N تغییر دیگر»
 
 const TF_LABEL: Record<MSTimeframe, string> = {
   "5m": "۵ دقیقه",
@@ -36,11 +37,11 @@ const SYMBOL_LABEL: Record<MSTrendChange["symbol"], string> = {
   dji: "داوجونز",
 };
 
-function trendText(t: MSTrend): string {
+export function trendText(t: MSTrend): string {
   return t === "bullish" ? "صعودی" : t === "bearish" ? "نزولی" : "خنثی";
 }
 
-function trendCls(t: MSTrend): string {
+export function trendCls(t: MSTrend): string {
   return t === "bullish"
     ? "border-emerald-500/35 bg-emerald-500/12 text-emerald-400"
     : t === "bearish"
@@ -55,7 +56,8 @@ function changesSignature(changes: MSTrendChange[]): string {
     .join("|");
 }
 
-function ChangeRow({ change }: { change: MSTrendChange }) {
+/** ردیف یک تغییر جهت — مشترک بین بنر و مرکز اعلان‌ها */
+export function ChangeRow({ change }: { change: MSTrendChange }) {
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border/60 bg-background/50 px-2.5 py-1.5">
       <span className="text-[11px] font-extrabold">{SYMBOL_LABEL[change.symbol]}</span>
@@ -81,8 +83,8 @@ function ChangeRow({ change }: { change: MSTrendChange }) {
   );
 }
 
-export function TrendChangeBanner() {
-  const [changes, setChanges] = useState<MSTrendChange[] | null>(null);
+export function TrendChangeBanner({ data }: { data?: MarketStructureResponse | null }) {
+  const [polled, setPolled] = useState<MSTrendChange[] | null>(null);
   // خواندن تنبل localStorage — تنها پس از لود تغییرها اثرگذار است (رندر اول همیشه null است)
   const [dismissedSig, setDismissedSig] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -93,25 +95,29 @@ export function TrendChangeBanner() {
     }
   });
 
+  const controlled = data !== undefined;
+  const changes = controlled ? (data?.changes ?? []) : polled;
+
   const fetchChanges = useCallback(async () => {
     try {
       const res = await fetch("/api/market-structure", { cache: "no-store" });
       if (!res.ok) return;
       const json = (await res.json()) as MarketStructureResponse;
-      setChanges(json.changes ?? []);
+      setPolled(json.changes ?? []);
     } catch {
       /* خطای شبکه — اعلان قبلی حفظ می‌شود */
     }
   }, []);
 
   useEffect(() => {
+    if (controlled) return;
     let alive = true;
     (async () => {
       try {
         const res = await fetch("/api/market-structure", { cache: "no-store" });
         if (!res.ok) return;
         const json = (await res.json()) as MarketStructureResponse;
-        if (alive) setChanges(json.changes ?? []);
+        if (alive) setPolled(json.changes ?? []);
       } catch {
         /* خطای شبکه — اعلان قبلی حفظ می‌شود */
       }
@@ -119,14 +125,15 @@ export function TrendChangeBanner() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [controlled]);
 
   useEffect(() => {
+    if (controlled) return;
     const id = setInterval(() => {
       if (document.visibilityState === "visible") fetchChanges();
     }, CLIENT_REFRESH_MS);
     return () => clearInterval(id);
-  }, [fetchChanges]);
+  }, [controlled, fetchChanges]);
 
   const visible = useMemo(() => {
     if (!changes || changes.length === 0) return false;
@@ -146,13 +153,13 @@ export function TrendChangeBanner() {
   };
 
   if (!visible || !changes || changes.length === 0) return null;
-  const shown = changes.slice(0, MAX_ROWS);
+  const shown = changes.slice(0, MAX_BANNER_ROWS);
   const extra = changes.length - shown.length;
 
   return (
     <div
       role="alert"
-      className="animate-fade-up animate-alert-blink rounded-xl border border-amber-500/60 bg-amber-500/5 p-3 sm:p-4"
+      className="animate-fade-up animate-alert-blink rounded-xl border border-amber-500/60 bg-amber-500/5 p-3"
     >
       {/* سربرگ اعلان */}
       <div className="flex items-center gap-2">
@@ -189,11 +196,6 @@ export function TrendChangeBanner() {
           </p>
         )}
       </div>
-
-      <p className="mt-2 px-1 text-[9px] leading-4 text-muted-foreground/70">
-        مقایسه دو محاسبه متوالی ساختار بازار (هر ۱۵ دقیقه)؛ تغییرهای واقعی جهت —
-        نه ظاهر شدن روند از حالت ناکافی. بروزرسانی خودکار هر ۵ دقیقه.
-      </p>
     </div>
   );
 }
