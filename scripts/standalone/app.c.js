@@ -359,6 +359,138 @@ function renderSuggestionApp() {
   bindSug();
 }
 
+/* ---------- اپ چارت TradingView ---------- */
+var CHART_KEY = 'sd_chart_v1';
+var CHART_SYMS = [
+  ['OANDA:XAUUSD', 'طلا — XAUUSD'],
+  ['OANDA:XAGUSD', 'نقره — XAGUSD'],
+  ['OANDA:EURUSD', 'یورو/دلار — EURUSD'],
+  ['BINANCE:BTCUSDT', 'بیت‌کوین — BTC']
+];
+var CHART_TFS = [['5', '۵ دقیقه'], ['15', '۱۵ دقیقه'], ['60', '۱ ساعته'], ['240', '۴ ساعته'], ['D', 'روزانه']];
+var S_CHART = { sym: 'OANDA:XAUUSD', tf: '15' };
+try {
+  var _c = JSON.parse(lsGet(CHART_KEY) || 'null');
+  if (_c && typeof _c.sym === 'string' && _c.sym && typeof _c.tf === 'string') S_CHART = { sym: _c.sym, tf: _c.tf };
+} catch (e) {}
+function validChartTf(t) {
+  for (var i = 0; i < CHART_TFS.length; i++) if (CHART_TFS[i][0] === t) return t;
+  return '15';
+}
+S_CHART.tf = validChartTf(S_CHART.tf);
+
+var TV_JS_SRC = 'https://s3.tradingview.com/tv.js';
+var _tvPromise = null;
+var chartLoaded = { key: null };
+function tvReady() { return !!(window.TradingView && window.TradingView.widget); }
+function ensureTVScript() {
+  if (tvReady()) return Promise.resolve();
+  if (_tvPromise) return _tvPromise;
+  _tvPromise = new Promise(function (resolve, reject) {
+    var s = document.createElement('script');
+    s.src = TV_JS_SRC;
+    s.async = true;
+    s.onload = function () { tvReady() ? resolve() : reject(new Error('tv-broken')); };
+    s.onerror = function () { reject(new Error('tv-network')); };
+    document.head.appendChild(s);
+    setTimeout(function () { if (!tvReady()) reject(new Error('tv-timeout')); }, 15000);
+  });
+  _tvPromise.catch(function () { _tvPromise = null; }); /* اجازه تلاش مجدد */
+  return _tvPromise;
+}
+function chartShowError(el) {
+  chartLoaded.key = null;
+  el.innerHTML = '<div class="tv-state tv-error">' +
+    '<span class="tv-err-ic">' + icon('wifi', 24) + '</span>' +
+    '<p class="tv-err-t">اتصال به TradingView برقرار نشد</p>' +
+    '<p class="tv-err-s">چارت به سرورهای TradingView وصل نمی‌شود؛ اتصال اینترنت یا VPN را بررسی کنید و دوباره تلاش کنید.</p>' +
+    '<button type="button" class="btn" data-tv-retry>' + icon('refresh', 14) + 'تلاش مجدد</button>' +
+    '</div>';
+  var rb = el.querySelector('[data-tv-retry]');
+  if (rb) rb.addEventListener('click', function () { window.loadChart(S_CHART.sym, S_CHART.tf); });
+}
+/* ساخت مجدد ویجت با نماد/تایم‌فریم جدید — از هر جای ابزار قابل صدازدن است: loadChart('OANDA:XAUUSD','60') */
+function loadChart(symbol, interval) {
+  var el = document.getElementById('tv_chart');
+  if (!el) return; /* صفحه چارت باز نیست */
+  S_CHART.sym = symbol || 'OANDA:XAUUSD';
+  S_CHART.tf = validChartTf(interval || '15');
+  lsSet(CHART_KEY, JSON.stringify(S_CHART));
+  syncChartChips();
+  var frame = S_CHART.sym + '@' + S_CHART.tf;
+  if (chartLoaded.key === frame && el.querySelector('iframe')) return;
+  chartLoaded.key = null;
+  el.innerHTML = '<div class="tv-state tv-loading">در حال بارگذاری چارت TradingView…</div>';
+  ensureTVScript().then(function () {
+    el = document.getElementById('tv_chart');
+    if (!el) return;
+    el.innerHTML = ''; /* پاک کردن محتوای قبلی */
+    new window.TradingView.widget({
+      container_id: 'tv_chart',
+      autosize: true,
+      symbol: S_CHART.sym,
+      interval: S_CHART.tf,
+      theme: 'dark',
+      timezone: 'Asia/Tehran',
+      locale: 'en',
+      allow_symbol_change: true,
+      hide_side_toolbar: false
+    });
+    chartLoaded.key = S_CHART.sym + '@' + S_CHART.tf;
+  }).catch(function () {
+    el = document.getElementById('tv_chart');
+    if (el) chartShowError(el);
+  });
+}
+window.loadChart = loadChart;
+function chartChipRowHTML(list, kind) {
+  var cur = kind === 'sym' ? S_CHART.sym : S_CHART.tf;
+  return list.map(function (it) {
+    return '<button type="button" class="cchip' + (it[0] === cur ? ' on' : '') + '" data-ckind="' + kind + '" data-cval="' + it[0] + '">' + it[1] + '</button>';
+  }).join('');
+}
+function syncChartChips() {
+  var chips = appScroll.querySelectorAll('.cchip');
+  for (var i = 0; i < chips.length; i++) {
+    var c = chips[i];
+    var on = c.dataset.cval === (c.dataset.ckind === 'sym' ? S_CHART.sym : S_CHART.tf);
+    c.classList.toggle('on', on);
+  }
+}
+function bindChartChips() {
+  var chips = appScroll.querySelectorAll('.cchip');
+  for (var i = 0; i < chips.length; i++) {
+    (function (b) {
+      b.addEventListener('click', function () {
+        if (b.dataset.ckind === 'sym') S_CHART.sym = b.dataset.cval;
+        else S_CHART.tf = b.dataset.cval;
+        window.loadChart(S_CHART.sym, S_CHART.tf);
+      });
+    })(chips[i]);
+  }
+}
+function chartEnsureAuto() {
+  if (chartLoaded.key === S_CHART.sym + '@' + S_CHART.tf && appScroll.querySelector('#tv_chart iframe')) return;
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () { window.loadChart(S_CHART.sym, S_CHART.tf); });
+  });
+}
+function renderChartApp() {
+  if (appScroll.querySelector('#tv_chart')) { /* باز شدن مجدد — ویجت قبلی حفظ شود */
+    syncChartChips();
+    chartEnsureAuto();
+    return;
+  }
+  appScroll.innerHTML = '<div class="chart-wrap">' +
+    '<div class="chart-chips no-scrollbar" data-chart-syms>' + chartChipRowHTML(CHART_SYMS, 'sym') + '</div>' +
+    '<div class="chart-chips no-scrollbar" data-chart-tfs>' + chartChipRowHTML(CHART_TFS, 'tf') + '</div>' +
+    '<div id="tv_chart"><div class="tv-state tv-loading">در حال بارگذاری چارت TradingView…</div></div>' +
+    '<p class="chart-note">ویجت رسمی Advanced Chart از TradingView — تغییر نماد و تایم‌فریم از دکمه‌های بالا یا داخل خود چارت؛ بدون نیاز به API key یا حساب کاربری. نمایش چارت نیازمند اتصال اینترنت است.</p>' +
+    '</div>';
+  bindChartChips();
+  chartEnsureAuto();
+}
+
 /* ---------- اپ درباره ---------- */
 function renderAboutApp() {
   var gen = GEN_ISO ? new Date(GEN_ISO) : new Date();
@@ -393,6 +525,7 @@ function renderApp(id, keep) {
   if (id === 'news') renderNewsApp();
   else if (id === 'structure') renderStructureApp();
   else if (id === 'suggestion') renderSuggestionApp();
+  else if (id === 'chart') renderChartApp();
   else renderAboutApp();
   appScroll.scrollTop = 0;
 }

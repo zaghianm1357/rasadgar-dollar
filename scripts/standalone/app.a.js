@@ -31,7 +31,7 @@ function saveSettings() { lsSet(SETTINGS_KEY, JSON.stringify(settings)); }
 var GRID_KEY = 'sd_grid_order_v1';
 var HINT_KEY = 'sd_hint_v1';
 var DISMISS_KEY = 'sd_banner_dismiss_v1';
-var DEFAULT_ORDER = ['news', 'structure', 'suggestion', 'about'];
+var DEFAULT_ORDER = ['news', 'structure', 'suggestion', 'chart', 'about'];
 
 /* ---------- توابع تاریخ تهران ---------- */
 var TEHRAN = 'Asia/Tehran';
@@ -100,7 +100,8 @@ var IC = {
   ext: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
   menu: '<line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/>',
   arrowBack: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
-  chevL: '<polyline points="15 18 9 12 15 6"/>'
+  chevL: '<polyline points="15 18 9 12 15 6"/>',
+  candles: '<path d="M9 5v4"/><rect width="4" height="6" x="7" y="9" rx="1"/><path d="M9 15v2"/><path d="M17 3v2"/><rect width="4" height="8" x="15" y="5" rx="1"/><path d="M17 19v2"/><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M13 11h8"/>'
 };
 function icon(n, sz, cls) {
   return '<svg class="ic ' + (cls || '') + '" style="width:' + (sz || 16) + 'px;height:' + (sz || 16) + 'px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + IC[n] + '</svg>';
@@ -110,14 +111,23 @@ function buzz() { try { if (navigator.vibrate) navigator.vibrate(12); } catch (e
 /* ---------- وضعیت پوسته ---------- */
 var S = {
   gridOrder: (function () {
+    var order = DEFAULT_ORDER.slice();
     try {
       var raw = lsGet(GRID_KEY);
       if (raw) {
         var arr = JSON.parse(raw);
-        if (Array.isArray(arr) && arr.length === 4 && arr.every(function (a) { return DEFAULT_ORDER.indexOf(a) >= 0; })) return arr;
+        if (Array.isArray(arr)) {
+          /* ادغام سازگار با نسخه قبل: ترتیب ذخیره‌شده حفظ و اپ‌های جدید به انتها اضافه می‌شوند */
+          var merged = [];
+          for (var i = 0; i < arr.length; i++)
+            if (DEFAULT_ORDER.indexOf(arr[i]) >= 0 && merged.indexOf(arr[i]) < 0) merged.push(arr[i]);
+          for (var j = 0; j < order.length; j++)
+            if (merged.indexOf(order[j]) < 0) merged.push(order[j]);
+          if (merged.length === order.length) return merged;
+        }
       }
     } catch (e) {}
-    return DEFAULT_ORDER.slice();
+    return order;
   })(),
   wiggle: false,
   drag: null,
@@ -173,6 +183,7 @@ var APPS = {
   news: { label: 'اخبار دلار', cls: 'g-news', ic: 'newspaper' },
   structure: { label: 'ساختار بازار', cls: 'g-structure', ic: 'activity' },
   suggestion: { label: 'پیشنهاد معامله', cls: 'g-suggestion', ic: 'crosshair' },
+  chart: { label: 'چارت تریدینگ‌ویو', cls: 'g-chart', ic: 'candles' },
   about: { label: 'درباره', cls: 'g-about', ic: 'info' }
 };
 var TF_LONG = { '5m': '۵ دقیقه', '15m': '۱۵ دقیقه', '1h': '۱ ساعته', '4h': '۴ ساعته', '1d': 'روزانه', '1wk': 'هفتگی', '1mo': 'ماهانه' };

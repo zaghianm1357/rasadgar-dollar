@@ -173,3 +173,23 @@ Stage Summary:
 - باگ بی‌صدا مصرف شدن کلیک دکمه‌های نوار وضعیت/خانه توسط حرکات لمسی در هر دو نسخه رفع شد
 - فایل نهایی: /home/z/my-project/download/rasadgar-dollar.html — آماده ارسال با ایمیل و استفاده موبایل
 - تکمیلی: رفع خطاه React Compiler lint در phone-shell (انتقال state اپ به بالای بخش تاریخچه + انتقال نوشتن stateRef.current به useEffect) — lint نهایی 0 خطا؛ تست نهایی مرورگر هر دو نسخه موفق
+
+---
+Task ID: 9
+Agent: Main Agent (Z.ai)
+Task: افزودن «صفحه مجزای چارت TradingView» به ابزار HTML محلی (ویجت رسمی Advanced Chart + loadChart سراسری + خطای فارسی) به درخواست کاربر
+
+Work Log:
+- بررسی worklog: تسک ۷ (فایل مستقل) و ۸ (منوی جانبی/دکمه برگشت) کامل بودند؛ فایل download/rasadgar-dollar.html موجود
+- head.html: بلاک CSS جدید «اپ چارت TradingView» (گرادیان آیکون g-chart، chart-wrap تمام‌ارتفاع بدون اسکرول، چیپ‌های نماد/تایم‌فریم، #tv_chart با flex:1 و overflow:hidden، حالت‌های loading/error)
+- app.a.js: آیکون candles (لوسید chart-candlestick)، ثبت APPS.chart با عنوان «چارت تریدینگ‌ویو»، DEFAULT_ORDER پنج‌تایی و منطق ادغام سازگار با ترتیب قدیمی کاربران (اپ جدید به انتها اضافه می‌شود) — بدون شکستن ترتیب ذخیره‌شده
+- app.c.js: اپ کامل چارت — S_CHART با ذخیره sd_chart_v1، پریست نمادها/تایم‌فریم‌ها، renderChartApp (حفظ iframe در باز شدن مجدد + rAF×2 برای اندازه غیرصفر قبل از ساخت ویجت)، ensureTVScript با Promise + timeout 15s + ریست در خطا برای تلاش مجدد، chartShowError با پیام فارسی «اتصال به TradingView برقرار نشد» + دکمه «تلاش مجدد»، loadChart سراسری (پاک‌سازی div، اعتبارسنجی تایم‌فریم، جلوگیری از ساخت تکراری، sync چیپ‌ها) و window.loadChart برای فراخوانی از هر جای ابزار
+- renderApp: شاخه chart اضافه شد؛ منوی جانبی و آیکون‌های صفحه ۱ خودکار آیتم جدید را گرفتند
+- کشف مهم تست: نمادهای ایندکسی (TVC:DXY، FX_IDC:DXY) روی ویجت رایگان widgetembed نمایش داده نمی‌شوند (پیام «only available on TradingView» / «This symbol doesn't exist»)؛ تست واقعی انجام شد و پریست‌ها به نمادهای کارا تغییر کرد: OANDA:XAUUSD، OANDA:XAGUSD، OANDA:EURUSD، BINANCE:BTCUSDT (هر ۴ با اسکرین‌شات تایید شد)
+- تست کامل agent-browser (390px): باز شدن از آیکون و منو، عنوان نوار بالا، سوئیچ تایم‌فریم ۵د→۱س و نماد با rebuild موفق + ماندگاری localStorage، دکمه برگشت اپ، history.back گوشی، ناوبری منو→چارت؛ مسیر خطا با network route --abort روی s3.tradingview.com → پیام فارسی + retry → پس از رفع مسدودی، تلاش مجدد چارت را لود کرد؛ بدون خطای کنسول؛ بدون سرریز افقی؛ [hidden] و اندازه iframe (374×636) درست
+- بیلد نهایی: node scripts/build-standalone.mjs → download/rasadgar-dollar.html (داده زنده، ۴۷ خبر، ~158KB)؛ localStorage مرورگر تست پاک و اسکرین‌شات‌های تست حذف شدند
+
+Stage Summary:
+- اپ «چارت تریدینگ‌ویو» به‌صورت صفحه مجزای تمام‌صفحه با دکمه برگشت و دسترسی از منوی جانبی فعال شد — دقیقاً با تنظیمات خواسته‌شده (OANDA:XAUUSD، 15، dark، Asia/Tehran، en، allow_symbol_change، hide_side_toolbar:false، autosize)
+- loadChart(symbol, interval) سراسری است و از هر جای ابزار قابل فراخوانی؛ خطای لود اسکریپت با پیام فارسی و تلاش مجدد مدیریت می‌شود
+- محدودیت شناخته‌شده: فقط نمادهای فارکس/کریپتو روی ویجت رایگان رندر می‌شوند؛ ایندکس‌ها (DXY/DJI) در ویجت رایگان مسدودند
