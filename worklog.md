@@ -193,3 +193,25 @@ Stage Summary:
 - اپ «چارت تریدینگ‌ویو» به‌صورت صفحه مجزای تمام‌صفحه با دکمه برگشت و دسترسی از منوی جانبی فعال شد — دقیقاً با تنظیمات خواسته‌شده (OANDA:XAUUSD، 15، dark، Asia/Tehran، en، allow_symbol_change، hide_side_toolbar:false، autosize)
 - loadChart(symbol, interval) سراسری است و از هر جای ابزار قابل فراخوانی؛ خطای لود اسکریپت با پیام فارسی و تلاش مجدد مدیریت می‌شود
 - محدودیت شناخته‌شده: فقط نمادهای فارکس/کریپتو روی ویجت رایگان رندر می‌شوند؛ ایندکس‌ها (DXY/DJI) در ویجت رایگان مسدودند
+
+---
+Task ID: 10
+Agent: Main Agent (Z.ai)
+Task: کاربر گفت «هنوز پنجره چارت رو من نمیبینم» — علت: اپ چارت فقط به فایل مستقل اضافه شده بود و پوسته اصلی (پیش‌نمایش وب) فاقد آن بود؛ افزودن اپ چارت TradingView به پوسته اصلی
+
+Work Log:
+- عیب‌یابی: grep تأیید کرد فایل download/rasadgar-dollar.html اپ چارت را دارد (۱۶ مورد tv_chart/loadChart) ولی src/components/phone هیچ اثری از چارت نداشت → کاربر پیش‌نمایش وب را می‌دید
+- ساخت src/components/phone/apps/chart-app.tsx: بارگذاری یک‌باره اسکریپت رسمی s3.tradingview.com/tv.js با Promise ماژول‌سطح + timeout ۱۵ ثانیه + ریست در خطا برای تلاش مجدد؛ ویجت رسمی Advanced Chart با تنظیمات درخواستی (container_id: tv_chart، autosize: true، OANDA:XAUUSD، 15، dark، Asia/Tehran، en، allow_symbol_change: true، hide_side_toolbar: false)
+- loadChart سراسری window.loadChart(symbol, interval): پاک‌سازی div، اعتبارسنجی تایم‌فریم، بازسازی ویجت + sync چیپ‌ها؛ window.loadChart(window) در unmount حذف می‌شود
+- چیپ‌های نماد (طلا/نقره/یورو-دلار/بیت‌کوین — فقط نمادهای کارا روی ویجت رایگان) و تایم‌فریم (۵د/۱۵د/۱س/۴س/روزانه) با ذخیره sd_chart_v1 و lazy init از localStorage
+- خطای بارگذاری: پیام فارسی «اتصال به TradingView برقرار نشد» + دکمه «تلاش مجدد»؛ حالت لودینگ با اسپینر
+- چیدمان: flex ستونی h-full؛ #tv_chart با absolute inset-0 در wrapper min-h-0 flex-1 → پر شدن کامل فضا بدون اسکرول اضافه؛ سازگار با pt-14/pb-8 شیت اپ
+- phone-shell.tsx: آیکون CandlestickChart + اپ chart (کهربایی) در APPS؛ DEFAULT_GRID_ORDER پنج‌تایی؛ منطق ادغام ترتیب قدیمی کاربر با اپ‌های جدید (اپ جدید به انتها)؛ شاخه chart در appContent؛ وارد شدن خودکار به منوی جانبی
+- lint: 0 خطا (۲ هشدار قدیمی بی‌ضرر)
+- تست agent-browser: آیکون روی صفحه اصلی؛ باز شدن → iframe واقعی TradingView (XAUUSD/15 دقیقه با قیمت زنده)؛ سوئیچ نماد → EURUSD در src iframe + ذخیره localStorage؛ سوئیچ ۱ساعت → ماندگاری؛ دکمه برگشت اپ را بست؛ بازگشایی → تنظیمات قبلی بازیابی شد؛ موبایل ۳۹۰px تمام‌صفحه بدون سرریز؛ مسیر خطا با route --abort روی s3.tradingview.com → پیام فارسی کامل + تلاش مجدد پس از رفع مسدودی → چارت لود شد (۳۶۴×۶۵۹)؛ صفر خطای کنسول
+- پاکسازی localStorage مرورگر تست و حذف اسکرین‌شات‌ها؛ بیلد مجدد فایل مستقل با داده زنده (۴۷ خبر، ۱۴۳KB) — اپ چارت و منو در فایل تأیید شد
+
+Stage Summary:
+- حالا هر دو نسخه اپ چارت دارند: پیش‌نمایش وب (Next.js) و فایل مستقل download/rasadgar-dollar.html
+- در پیش‌نمایش: آیکون «چارت تریدینگ‌ویو» در صفحه اصلی + منوی جانبی؛ در فایل مستقل: اپ چارت از تسک ۹
+- ویجت رسمی TradingView با همه تنظیمات درخواستی + loadChart سراسری + fallback فارسی با تلاش مجدد

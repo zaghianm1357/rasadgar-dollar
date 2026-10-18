@@ -10,6 +10,7 @@ import {
   Newspaper,
   Activity,
   Crosshair,
+  CandlestickChart,
   Info,
   BellRing,
   SlidersHorizontal,
@@ -43,10 +44,11 @@ import { MarketStructurePanel } from "@/components/dashboard/market-structure-pa
 import { TradeSuggestion } from "@/components/dashboard/trade-suggestion";
 import { NewsApp } from "./apps/news-app";
 import { AboutApp } from "./apps/about-app";
+import { ChartApp } from "./apps/chart-app";
 
 /* ---------- تعریف اپ‌ها ---------- */
 
-type AppId = "news" | "structure" | "suggestion" | "about";
+type AppId = "news" | "structure" | "suggestion" | "chart" | "about";
 
 const APPS: Record<
   AppId,
@@ -55,10 +57,11 @@ const APPS: Record<
   news: { label: "اخبار دلار", icon: Newspaper, cls: "from-emerald-500 to-teal-700" },
   structure: { label: "ساختار بازار", icon: Activity, cls: "from-sky-500 to-indigo-700" },
   suggestion: { label: "پیشنهاد معامله", icon: Crosshair, cls: "from-violet-500 to-fuchsia-700" },
+  chart: { label: "چارت تریدینگ‌ویو", icon: CandlestickChart, cls: "from-amber-500 to-orange-700" },
   about: { label: "درباره", icon: Info, cls: "from-zinc-500 to-zinc-700" },
 };
 
-const DEFAULT_GRID_ORDER: AppId[] = ["news", "structure", "suggestion", "about"];
+const DEFAULT_GRID_ORDER: AppId[] = ["news", "structure", "suggestion", "chart", "about"];
 const GRID_ORDER_KEY = "home_grid_order_v1";
 const SHELL_HINT_KEY = "shell_hint_v1";
 const LONG_PRESS_MS = 450;
@@ -336,8 +339,11 @@ function Shell() {
         const raw = localStorage.getItem(GRID_ORDER_KEY);
         if (raw) {
           const arr = JSON.parse(raw) as AppId[];
-          if (Array.isArray(arr) && arr.every((a) => a in APPS) && alive) {
-            setGridOrder(arr);
+          if (Array.isArray(arr)) {
+            /* ادغام ترتیب ذخیره‌شده با اپ‌های جدید (اپ جدید به انتها اضافه می‌شود) */
+            const known = arr.filter((a) => a in APPS);
+            const merged = [...known, ...DEFAULT_GRID_ORDER.filter((d) => !known.includes(d))];
+            if (merged.length && alive) setGridOrder(merged);
           }
         }
       } catch {
@@ -509,6 +515,7 @@ function Shell() {
     if (!app) return null;
     if (app.id === "news") return <NewsApp />;
     if (app.id === "about") return <AboutApp />;
+    if (app.id === "chart") return <ChartApp />;
     if (app.id === "structure")
       return (
         <div className="p-4">
