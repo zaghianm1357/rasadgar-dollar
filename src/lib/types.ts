@@ -44,7 +44,7 @@ export interface NewsResponse {
 /* ---------- ساختار بازار چند تایم‌فریمی ---------- */
 
 export type MSTrend = "bullish" | "bearish" | "neutral";
-export type MSTimeframe = "15m" | "1h" | "4h" | "1d" | "1wk" | "1mo";
+export type MSTimeframe = "5m" | "15m" | "1h" | "4h" | "1d" | "1wk" | "1mo";
 
 /** وضعیت ساختار بازار در یک تایم‌فریم */
 export interface MSRow {

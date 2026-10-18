@@ -10,12 +10,13 @@ import type { MarketStructureResponse, MSRow, MSSymbol, MSTimeframe, MSTrend } f
  *  ۱) میانگین متحرک نمایی: رابطه EMA20 و EMA50 + موقعیت قیمت نسبت به EMA50
  *  ۲) سقف و کف‌های سوئینگ: مقایسه ۳ سقف و ۳ کف آخر (HH/HL در برابر LH/LL)
  * امتیاز کل = امتیاز MA (±۲) + امتیاز سوئینگ (±۲) → صعودی (≥۲)، نزولی (≤−۲)، خنثی (بین این دو)
+ * تایم‌فریم ۵ دقیقه صرفاً برای «پیشنهاد معامله» (ورود) استفاده می‌شود و در جدول ساختار نمایش داده نمی‌شود.
  */
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
-const CACHE_KEY = "ms_cache_v1";
+const CACHE_KEY = "ms_cache_v2";
 const FAIL_KEY = "ms_last_fail";
 const TTL_MS = 15 * 60 * 1000; // بروزرسانی هر ۱۵ دقیقه (هم‌تراز با کوچک‌ترین تایم‌فریم)
 const FAIL_BACKOFF_MS = 5 * 60 * 1000; // بعد از خطا ۵ دقیقه تلاش مجدد نکن
@@ -213,6 +214,7 @@ interface TFConfig {
 }
 
 const TF_CONFIGS: TFConfig[] = [
+  { tf: "5m", fetchId: "5m", lookback: 3 },
   { tf: "15m", fetchId: "15m", lookback: 3 },
   { tf: "1h", fetchId: "1h", lookback: 3 },
   { tf: "4h", fetchId: "1h", lookback: 3, agg4h: true },
@@ -222,6 +224,7 @@ const TF_CONFIGS: TFConfig[] = [
 ];
 
 const FETCH_SPECS = [
+  { id: "5m", interval: "5m", range: "5d" },
   { id: "15m", interval: "15m", range: "5d" },
   { id: "1h", interval: "1h", range: "3mo" },
   { id: "1d", interval: "1d", range: "1y" },

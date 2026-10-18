@@ -21,10 +21,12 @@ import type {
   MSTrend,
 } from "@/lib/types";
 import { faDigits, faTime } from "@/lib/tehran";
+import { TradeSuggestion } from "./trade-suggestion";
 
 const CLIENT_REFRESH_MS = 5 * 60 * 1000; // کلاینت هر ۵ دقیقه می‌پرسد؛ سرور کش ۱۵ دقیقه‌ای دارد
 
 const TF_LABEL: Record<MSTimeframe, string> = {
+  "5m": "۵ دقیقه",
   "15m": "۱۵ دقیقه",
   "1h": "۱ ساعته",
   "4h": "۴ ساعته",
@@ -33,6 +35,7 @@ const TF_LABEL: Record<MSTimeframe, string> = {
   "1mo": "ماهانه",
 };
 
+/** تایم‌فریم‌های نمایش‌داده‌شده در جدول ساختار (۵ دقیقه فقط برای پیشنهاد معامله است) */
 const TF_ORDER: MSTimeframe[] = ["15m", "1h", "4h", "1d", "1wk", "1mo"];
 
 /* ---------- نشان روند ---------- */
@@ -313,13 +316,16 @@ export function MarketStructurePanel() {
               <SummaryLine sym={data.dji} />
             </div>
 
+            {/* پیشنهاد معامله (ترکیب تایم‌فریم ساختار و ورود) */}
+            <TradeSuggestion data={data} />
+
             <p className="text-[9px] leading-4 text-muted-foreground/70">
               روش تحلیل: رابطه EMA۲۰ و EMA۵۰ + موقعیت قیمت (امتیاز میانگین متحرک) به‌همراه مقایسه
               آخرین سقف‌ها و کف‌های سوئینگ HH/HL در برابر LH/LL (امتیاز ساختار) — مجموع ≥۲ صعودی،
               ≤−۲ نزولی، بین این دو خنثی. طلا بر مبنای فیوچرز COMEX (همبستگی نزدیک به اسپات
               XAUUSD)؛ آخرین کندل هر تایم‌فریم در حال شکل‌گیری است. بروزرسانی خودکار هر ۱۵ دقیقه
-              {updated ? ` — آخرین محاسبه: ${updated}` : ""}. این تحلیل صرفاً اطلاع‌رسانی است و
-              سیگنال معاملاتی نیست.
+              {updated ? ` — آخرین محاسبه: ${updated}` : ""}. پیشنهاد معامله صرفاً ترکیب ساده جهت
+              دو تایم‌فریم است و به هیچ عنوان سیگنال معاملاتی یا توصیه سرمایه‌گذاری نیست.
             </p>
           </>
         )}
