@@ -21,7 +21,20 @@ const TRANSLATE_SYSTEM = `تو یک مترجم حرفه‌ای و تحلیلگر
    - برای Medium: ۱ تا ۲ جمله با ذکر منطق افزایش/کاهش دلار.
    - برای Low و Holiday: یک جمله کوتاه.
 
-پاسخ را فقط و فقط به صورت JSON معتبر برگردان: یک آرایه از آبجکت‌ها با کلیدهای "id" (همان id ورودی)، "titleFa"، "direction"، "explanationFa" — به همان ترتیب ورودی. بدون هیچ متن اضافه، بدون markdown، بدون توضیح اضافه.`;
+4) تأثیر بر طلا (XAUUSD) و شاخص داو جونز (DJI) — چهار فیلد "xauAbove"، "xauBelow"، "djiAbove"، "djiBelow" و هرکدام فقط یکی از "bullish"/"bearish"/"mixed"/"neutral":
+   - "xauAbove": اگر داده بالاتر/بهتر از پیش‌بینی منتشر شود قیمت طلا افزایش می‌یابد ("bullish") یا کاهش ("bearish")؟
+   - "xauBelow": همین تحلیل برای سناریوی پایین‌تر از پیش‌بینی.
+   - "djiAbove" و "djiBelow": همین دو حالت برای شاخص داو جونز.
+   منطق مرسوم بازار (این اصول را رعایت کن):
+   • داده اقتصادی قوی‌تر (اشتغال، GDP، خرده‌فروشی، ISM بالاتر) → دلار و بازده اوراق تقویت → طلا معمولاً کاهش (bearish)؛ داو جونز معمولاً افزایش (bullish) چون رشد اقتصاد را نشان می‌دهد.
+   • تورم بالاتر از انتظار (CPI، PPI، PCE) → انتظار سیاست انقباضی فدرال رزرو → طلا کاهش (bearish) و داو جونز نیز کاهش (bearish).
+   • داده ضعیف‌تر → امید به سیاست انبساطی → طلا افزایش (bullish)؛ داو برای داده ضعیف اقتصادی معمولاً کاهش (bearish) به‌دلیل نگرانی رکود، مگر اینکه ضعف داده صرفاً به‌معنای کاهش نرخ بهره تلقی شود که در آن حالت mixed بگذار.
+   • Claims (درخواست‌های بیمه بیکاری) بالاتر → ضعف بازار کار → دلار تضعیف، طلا افزایش (bullish)، داو کاهش یا mixed.
+   • افزایش نرخ بهره/هوکیش فدرال رزرو → دلار تقویت، طلا کاهش (bearish)، داو کاهش (bearish). کاهش نرخ → برعکس.
+   • سخنرانی‌ها و بیانیه‌ها → "mixed" برای هر دو. تعطیلات رسمی → "neutral" برای هر دو.
+   • اگر رویداد کم‌اهمیت است ولی منطق جهتی دارد، همان منطق را بده؛ اگر واقعاً بی‌تأثیر است "neutral" بگذار.
+
+پاسخ را فقط و فقط به صورت JSON معتبر برگردان: یک آرایه از آبجکت‌ها با کلیدهای "id" (همان id ورودی)، "titleFa"، "direction"، "explanationFa"، "xauAbove"، "xauBelow"، "djiAbove"، "djiBelow" — به همان ترتیب ورودی. بدون هیچ متن اضافه، بدون markdown، بدون توضیح اضافه.`;
 
 const DIGEST_SYSTEM = `تو تحلیلگر ارشد بازار ارز هستی. یک «خلاصه روزانه» فارسی و حرفه‌ای (حداکثر ۴ جمله، حدود ۶۰ تا ۹۰ کلمه) از رویدادهای اقتصادی امروز دلار آمریکا بنویس.
 ساختار پیشنهادی: اول تصویر کلی روز (چند خبر مهم داریم و مضمون اصلی چیست)، بعد اشاره به مهم‌ترین رویدادها با ساعت تهران و تأثیر مورد انتظار بر نرخ دلار (تقویت/تضعیف)، و در پایان یک نکته معاملاتی کوتاه.
@@ -60,6 +73,10 @@ interface TranslateOut {
   titleFa: string;
   direction: "bullish" | "bearish" | "mixed" | "neutral";
   explanationFa: string;
+  xauAbove: string | null;
+  xauBelow: string | null;
+  djiAbove: string | null;
+  djiBelow: string | null;
 }
 
 async function callTranslateBatch(items: EconomicEvent[]): Promise<TranslateOut[]> {
@@ -96,6 +113,10 @@ async function callTranslateBatch(items: EconomicEvent[]): Promise<TranslateOut[
       titleFa,
       direction: normalizeDirection(obj.direction),
       explanationFa: String(obj.explanationFa ?? "").trim(),
+      xauAbove: normalizeDirection(obj.xauAbove),
+      xauBelow: normalizeDirection(obj.xauBelow),
+      djiAbove: normalizeDirection(obj.djiAbove),
+      djiBelow: normalizeDirection(obj.djiBelow),
     });
   }
   return outs;
@@ -103,11 +124,14 @@ async function callTranslateBatch(items: EconomicEvent[]): Promise<TranslateOut[
 
 const IMPACT_WEIGHT: Record<string, number> = { High: 0, Medium: 1, Low: 2, Holiday: 3 };
 
-/** رویدادهای بدون ترجمه را به‌صورت دسته‌ای ترجمه می‌کند (مهم‌ترین‌ها اول) و تعداد ترجمه‌شده‌ها را برمی‌گرداند. */
+/** رویدادهای بدون ترجمه یا بدون تحلیل نمادها را دسته‌ای تکمیل می‌کند (مهم‌ترین‌ها اول) و تعداد تکمیل‌شده‌ها را برمی‌گرداند. */
 export async function translatePendingEvents(limit = 32, batchSize = 8): Promise<number> {
   return runExclusive(translateLock, async () => {
     const pending = await db.economicEvent.findMany({
-      where: { country: "USD", titleFa: null },
+      where: {
+        country: "USD",
+        OR: [{ titleFa: null }, { xauAbove: null }, { xauBelow: null }, { djiAbove: null }, { djiBelow: null }],
+      },
     });
     if (pending.length === 0) return 0;
 
@@ -120,9 +144,20 @@ export async function translatePendingEvents(limit = 32, batchSize = 8): Promise
       try {
         const outs = await callTranslateBatch(chunk);
         for (const o of outs) {
+          const data: Record<string, string> = {};
+          if (o.titleFa) {
+            data.titleFa = o.titleFa;
+            data.direction = o.direction;
+            data.explanationFa = o.explanationFa;
+          }
+          if (o.xauAbove) data.xauAbove = o.xauAbove;
+          if (o.xauBelow) data.xauBelow = o.xauBelow;
+          if (o.djiAbove) data.djiAbove = o.djiAbove;
+          if (o.djiBelow) data.djiBelow = o.djiBelow;
+          if (Object.keys(data).length === 0) continue;
           await db.economicEvent.updateMany({
             where: { eventKey: o.id },
-            data: { titleFa: o.titleFa, direction: o.direction, explanationFa: o.explanationFa },
+            data,
           });
           done++;
         }

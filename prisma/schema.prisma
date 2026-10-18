@@ -24,6 +24,10 @@ model EconomicEvent {
   actual        String?
   direction     String?
   explanationFa String?
+  xauAbove      String?
+  xauBelow      String?
+  djiAbove      String?
+  djiBelow      String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

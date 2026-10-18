@@ -3,10 +3,69 @@ import { db } from "@/lib/db";
 import { refreshFeed, getMeta } from "@/lib/ff";
 import { translatePendingEvents, ensureDailyDigest } from "@/lib/translate";
 import { dateKeyInTehran, todayKeyInTehran, tehranDayStart, addDaysToKey } from "@/lib/tehran";
-import type { Direction, Impact, NewsEvent, NewsResponse } from "@/lib/types";
+import type { AssetOutlook, Direction, Impact, NewsEvent, NewsResponse } from "@/lib/types";
 import type { EconomicEvent } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
+
+function parseDir(v: string | null): Direction | null {
+  return ["bullish", "bearish", "mixed", "neutral"].includes(v || "") ? (v as Direction) : null;
+}
+
+/** استخراج اولین عدد از رشته‌هایی مثل "0.3%" ، "220K" ، "-169.8B" */
+function parseNum(s: string | null): number | null {
+  if (!s) return null;
+  const m = s.replace(/,/g, "").match(/-?\d+(\.\d+)?/);
+  if (!m) return null;
+  const n = parseFloat(m[0]);
+  return isNaN(n) ? null : n;
+}
+
+/**
+ * برآورد احتمال افزایش/کاهش طلا و داو بر اساس مقایسه forecast با previous.
+ * گام اول: احتمال سناریوی «بالاتر از انتظار» از فاصله پیش‌بینی تا مقدار قبلی.
+ * گام دوم: ترکیب با جهت تأثیر هر نماد در هر سناریو (mixed/neutral = 50/50).
+ */
+function computeOutlook(e: EconomicEvent): AssetOutlook | null {
+  const f = parseNum(e.forecast);
+  const p = parseNum(e.previous);
+  const dirs = [e.xauAbove, e.xauBelow, e.djiAbove, e.djiBelow];
+  if (f === null || p === null || !dirs.some((d) => d)) return null;
+
+  const pPrev = Math.abs(p) > 1e-9 ? Math.abs(p) : 1e-9;
+  const deltaPct = Math.min(1, Math.abs(f - p) / pPrev);
+  // انحراف از 50/50: حداقل 10 واحد، حداکثر 25 واحد (سقف 75/25 برای خوش‌بینی مسئولانه)
+  const tilt = Math.min(0.25, 0.1 + deltaPct * 1.5);
+
+  let pAbove: number;
+  let cmp: "above" | "below" | "equal";
+  if (f > p) {
+    pAbove = 0.5 + tilt;
+    cmp = "above";
+  } else if (f < p) {
+    pAbove = 0.5 - tilt;
+    cmp = "below";
+  } else {
+    pAbove = 0.5;
+    cmp = "equal";
+  }
+  const pBelow = 1 - pAbove;
+
+  const upProb = (aboveDir: string | null, belowDir: string | null): number => {
+    const upIfAbove = aboveDir === "bullish" ? 1 : aboveDir === "bearish" ? 0 : 0.5;
+    const upIfBelow = belowDir === "bullish" ? 1 : belowDir === "bearish" ? 0 : 0.5;
+    const raw = pAbove * upIfAbove + pBelow * upIfBelow;
+    // رُند به نزدیک‌ترین ۵ درصد
+    return Math.round(raw * 20) / 20;
+  };
+
+  return {
+    pAbove: Math.round(pAbove * 20) / 20,
+    xauUp: upProb(e.xauAbove, e.xauBelow),
+    djiUp: upProb(e.djiAbove, e.djiBelow),
+    cmp,
+  };
+}
 
 function serialize(e: EconomicEvent): NewsEvent {
   return {
@@ -19,10 +78,13 @@ function serialize(e: EconomicEvent): NewsEvent {
     forecast: e.forecast,
     previous: e.previous,
     actual: e.actual,
-    direction: (["bullish", "bearish", "mixed", "neutral"].includes(e.direction || "")
-      ? e.direction
-      : null) as Direction | null,
+    direction: parseDir(e.direction),
     explanationFa: e.explanationFa,
+    xauAbove: parseDir(e.xauAbove),
+    xauBelow: parseDir(e.xauBelow),
+    djiAbove: parseDir(e.djiAbove),
+    djiBelow: parseDir(e.djiBelow),
+    outlook: computeOutlook(e),
   };
 }
 
@@ -31,7 +93,7 @@ export async function GET() {
     // ۱) در صورت نیاز فید را تازه کنیم (خطا غیرمرگبار است)
     const feed = await refreshFeed();
 
-    // ۲) ترجمه رویدادهای بدون ترجمه (مهم‌ترین‌ها اول)
+    // ۲) ترجمه/تحلیل رویدادهای ناقص (مهم‌ترین‌ها اول)
     let translatedNow = 0;
     try {
       translatedNow = await translatePendingEvents(32, 8);
@@ -70,7 +132,7 @@ export async function GET() {
     }
 
     const lastFetch = await getMeta("ff_feed_last_ok");
-    const pendingTranslation = ranged.filter((e) => !e.titleFa).length;
+    const pendingTranslation = ranged.filter((e) => !e.titleFa || !e.xauAbove).length;
 
     const payload: NewsResponse = {
       feedStatus: feed.status,
