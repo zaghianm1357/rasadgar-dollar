@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#12181e">
+<title>رصدگر دلار — نسخه موبایل</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* ---------- پایه ---------- */
+*,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+:root{
+  --bg:#12181e; --fg:#e8ecf0; --card:#1c232b; --muted:#272f39; --mutedfg:#a0aab4;
+  --primary:#34d399; --border:rgba(255,255,255,.09);
+  --emerald:#34d399; --emerald-d:#10b981; --rose:#fb7185; --rose-d:#f43f5e;
+  --amber:#fbbf24; --amber-d:#f59e0b; --amber-l:#fcd34d; --zinc:#a1a1aa;
+  --sky:#38bdf8; --violet:#a78bfa; --red:#f87171; --teal:#2dd4bf;
+}
+body{
+  min-height:100dvh;background:#0a0e13;color:var(--fg);
+  font-family:'Vazirmatn',-apple-system,'Segoe UI',Tahoma,sans-serif;
+  font-size:14px;line-height:1.55;overscroll-behavior:none;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+[hidden]{display:none!important}
+a{color:var(--primary)}
+[dir="ltr"]{unicode-bidi:isolate}
+.ms-auto{margin-inline-start:auto}
+.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clamp3{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.no-scrollbar{scrollbar-width:none;-ms-overflow-style:none}
+.no-scrollbar::-webkit-scrollbar{display:none}
+.ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;display:inline-block;vertical-align:middle}
+
+/* ---------- صحنه و قاب ---------- */
+#stage{min-height:100dvh;display:flex;align-items:center;justify-content:center}
+#device{
+  position:relative;width:100%;height:100dvh;overflow:hidden;background:var(--bg);
+  user-select:none;-webkit-user-select:none;touch-action:manipulation;
+}
+@media (min-width:640px){
+  #device{
+    width:400px;height:min(840px,94dvh);border-radius:48px;
+    border:1px solid rgba(255,255,255,.1);
+    box-shadow:0 40px 90px -24px rgba(0,0,0,.85);
+  }
+}
+
+/* کاغذدیواری با پارالاکس */
+#wall{position:absolute;inset:-10%;will-change:transform}
+.wall-a{position:absolute;inset:0;background:
+  radial-gradient(120% 85% at 88% -8%, rgba(13,148,136,.5), transparent 58%),
+  radial-gradient(95% 75% at 8% 108%, rgba(79,70,229,.45), transparent 55%),
+  linear-gradient(180deg,#182230,#10161d)}
+.wall-b{position:absolute;inset:0;background:
+  radial-gradient(3px 3px at 20% 30%, rgba(255,255,255,.16), transparent),
+  radial-gradient(2px 2px at 70% 18%, rgba(255,255,255,.12), transparent),
+  radial-gradient(2px 2px at 42% 62%, rgba(255,255,255,.1), transparent),
+  radial-gradient(3px 3px at 85% 70%, rgba(255,255,255,.08), transparent)}
+
+/* ---------- نوار وضعیت ---------- */
+#statusbar{position:absolute;left:0;right:0;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;height:44px;padding:0 20px}
+.sb-clock{display:flex;align-items:center;gap:6px;border-radius:999px;padding:2px 8px;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;transition:background .2s}
+.sb-clock:active{background:rgba(255,255,255,.1)}
+.sb-right{display:flex;align-items:center;gap:6px;color:rgba(232,236,240,.85)}
+.sb-batt{border-radius:999px;padding:2px;transition:background .2s}
+.sb-batt:active{background:rgba(255,255,255,.1)}
+
+/* ---------- صفحات ---------- */
+#pages{
+  position:absolute;left:0;right:0;top:44px;bottom:104px;
+  display:flex;overflow-x:auto;overflow-y:hidden;
+  scroll-snap-type:x mandatory;overscroll-behavior-x:contain;
+}
+.page{height:100%;width:100%;flex:0 0 100%;scroll-snap-align:center;overflow-y:auto;overscroll-behavior-y:contain}
+.page-inner{display:flex;flex-direction:column;gap:12px;min-height:100%;padding:12px 16px 16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-content:start}
+.page-note{text-align:center;font-size:9px;color:rgba(160,170,180,.6);margin:0}
+
+/* ---------- ویجت‌ها ---------- */
+.widget{
+  display:flex;flex-direction:column;gap:4px;border:1px solid var(--border);
+  background:rgba(28,35,43,.75);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  border-radius:16px;padding:12px;min-width:0;
+}
+.w-row{display:flex;align-items:center;justify-content:space-between;gap:4px;min-width:0}
+.w-title{font-size:10px;font-weight:700;color:var(--mutedfg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.w-big{font-size:18px;font-weight:800;line-height:24px;font-variant-numeric:tabular-nums}
+.w-sub{font-size:10px;color:rgba(160,170,180,.8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.w-chg{font-size:10px;font-weight:700;font-variant-numeric:tabular-nums}
+.w-head{display:flex;align-items:center;gap:6px;margin-bottom:2px}
+.w-head-t{font-size:10px;font-weight:800}
+.w-note{font-size:9px;color:rgba(160,170,180,.7);margin:0}
+.col2{grid-column:span 2}
+.chg-up{color:var(--emerald)} .chg-down{color:var(--rose)} .chg-flat{color:var(--zinc)} .chg-none{color:var(--mutedfg)}
+
+/* نشان روند کوچک */
+.tdot{display:inline-flex;align-items:center;gap:2px;border:1px solid;border-radius:4px;padding:1px 4px;font-size:9px;font-weight:700;white-space:nowrap}
+.tdot.bull{color:var(--emerald);border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.1)}
+.tdot.bear{color:var(--rose);border-color:rgba(244,63,94,.3);background:rgba(244,63,94,.1)}
+.tdot.neut{color:var(--zinc);border-color:rgba(161,161,170,.3);background:rgba(161,161,170,.1)}
+.tdot.na{color:var(--mutedfg);border-color:var(--border);background:rgba(39,47,57,.3)}
+
+/* جدول کوچک ویجت‌ها */
+.mini-tbl{width:100%;border-collapse:collapse;text-align:center;overflow:hidden;border-radius:8px;border:1px solid rgba(255,255,255,.06)}
+.mini-tbl th{background:rgba(39,47,57,.4);font-size:9px;color:var(--mutedfg);padding:4px 6px;font-weight:700}
+.mini-tbl th:first-child{text-align:right}
+.mini-tbl td{padding:4px 6px;border-top:1px solid rgba(255,255,255,.05)}
+.mini-tbl td:first-child{text-align:right;font-size:9px;font-weight:700;color:var(--mutedfg)}
+
+/* ---------- بنر تغییر جهت ---------- */
+.banner{border-radius:12px;border:1px solid rgba(245,158,11,.6);background:rgba(245,158,11,.05);padding:12px;display:flex;flex-direction:column;gap:10px;animation:fade-up .4s ease-out both}
+.banner.blink{animation:fade-up .4s ease-out both, alert-blink 1.2s ease-in-out infinite}
+.bnr-head{display:flex;align-items:center;gap:8px}
+.bnr-ic{display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex:none;border-radius:8px;border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.15);color:var(--amber)}
+.bnr-t1{font-size:13px;font-weight:800;line-height:20px;color:var(--amber-l);margin:0}
+.bnr-t2{font-size:10px;line-height:16px;color:var(--mutedfg);margin:0}
+.bnr-x{display:flex;align-items:center;justify-content:center;width:28px;height:28px;flex:none;border-radius:8px;border:1px solid var(--border);color:var(--mutedfg)}
+.bnr-rows{display:flex;flex-direction:column;gap:6px}
+.crow{display:flex;flex-wrap:wrap;align-items:center;column-gap:8px;row-gap:4px;border:1px solid rgba(255,255,255,.06);background:rgba(18,24,30,.5);border-radius:8px;padding:6px 10px}
+.crow-sym{font-size:11px;font-weight:800}
+.crow-tf{font-size:10px;color:var(--mutedfg)}
+.crow-time{margin-inline-start:auto;font-size:9px;color:rgba(160,170,180,.8);font-variant-numeric:tabular-nums}
+.crow-arrow{font-size:11px;font-weight:700;color:var(--mutedfg)}
+.bnr-extra{padding:0 4px;font-size:10px;font-weight:700;color:rgba(251,191,36,.9);margin:0}
+
+/* چیپ‌های عمومی */
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid;border-radius:6px;padding:2px 6px;font-size:10px;font-weight:700;white-space:nowrap}
+.chip.bull{color:var(--emerald);border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.12)}
+.chip.bear{color:var(--rose);border-color:rgba(244,63,94,.3);background:rgba(244,63,94,.12)}
+.chip.neut{color:var(--zinc);border-color:rgba(161,161,170,.3);background:rgba(161,161,170,.12)}
+.chip.na{color:var(--mutedfg);border-color:var(--border);background:rgba(39,47,57,.3)}
+.chip.impH{color:var(--red);border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.12)}
+.chip.impM{color:var(--amber);border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.12)}
+.chip.impL{color:var(--zinc);border-color:rgba(161,161,170,.3);background:rgba(161,161,170,.12)}
+.chip.impO{color:var(--teal);border-color:rgba(45,212,191,.3);background:rgba(45,212,191,.12)}
+.chip.st{color:var(--mutedfg);border-color:var(--border);background:rgba(39,47,57,.4)}
+.chip.sugB{color:var(--emerald);border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.15)}
+.chip.sugS{color:var(--rose);border-color:rgba(244,63,94,.4);background:rgba(244,63,94,.15)}
+.chip.sugW{color:var(--amber);border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.15)}
+
+/* ---------- گرید آیکون‌ها ---------- */
+.icongrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px}
+.icongrid.wiggling-grid{border:1px dashed rgba(255,255,255,.15);background:rgba(255,255,255,.05);border-radius:12px;padding:8px}
+.appbtn{display:flex;flex-direction:column;align-items:center;gap:6px;border-radius:12px;padding:4px;transition:opacity .2s}
+.appbtn.dragging{opacity:.25}
+.appbtn.wig-touch{touch-action:none}
+.icon-vis{display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:15px;box-shadow:0 10px 15px -3px rgba(0,0,0,.4)}
+.icon-vis.sm{width:46px;height:46px}
+.icon-vis.g-news{background:linear-gradient(135deg,#10b981,#0f766e)}
+.icon-vis.g-structure{background:linear-gradient(135deg,#0ea5e9,#4338ca)}
+.icon-vis.g-suggestion{background:linear-gradient(135deg,#8b5cf6,#a21caf)}
+.icon-vis.g-about{background:linear-gradient(135deg,#71717a,#3f3f46)}
+.icon-vis.g-nc{border:1px solid rgba(245,158,11,.3);background:rgba(245,158,11,.15);color:var(--amber-l)}
+.icon-vis.g-cc{border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.1);color:var(--fg)}
+.icon-label{font-size:10px;font-weight:700;line-height:12px;color:rgba(232,236,240,.9);text-shadow:0 1px 2px rgba(0,0,0,.6)}
+
+/* ---------- داک و ناوبری ---------- */
+#dock{position:absolute;left:12px;right:12px;bottom:36px;z-index:20}
+.dock-in{display:flex;align-items:center;justify-content:space-around;border-radius:28px;border:1px solid rgba(255,255,255,.1);padding:10px 8px;
+  backdrop-filter:blur(28px) saturate(1.5);-webkit-backdrop-filter:blur(28px) saturate(1.5);background:rgba(30,38,47,.72)}
+#dots{position:absolute;left:0;right:0;bottom:92px;z-index:20;display:flex;align-items:center;justify-content:center;gap:6px}
+.dot{height:6px;width:6px;border-radius:999px;background:rgba(255,255,255,.3);transition:all .3s}
+.dot.on{width:16px;background:rgba(255,255,255,.85)}
+#homebar{position:absolute;left:0;right:0;bottom:0;z-index:20;height:36px;display:flex;align-items:flex-start;justify-content:center;padding-top:8px;cursor:pointer}
+.homebar-pill{height:6px;width:112px;border-radius:999px;background:rgba(255,255,255,.45)}
+
+/* ---------- حالت لرزش ---------- */
+@keyframes wiggle{0%,100%{transform:rotate(-1.6deg) scale(1.04)}50%{transform:rotate(1.6deg) scale(1.04)}}
+.wiggling-icon{display:block;animation:wiggle .3s ease-in-out infinite}
+#wiggle-done{position:absolute;left:50%;top:52px;transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:4px;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.15);backdrop-filter:blur(12px);padding:6px 16px;font-size:12px;font-weight:800}
+#wiggle-done:active{background:rgba(255,255,255,.25)}
+#drag-ghost{position:fixed;z-index:90;display:flex;flex-direction:column;align-items:center;gap:6px;transform:translate(-50%,-50%) scale(1.18);pointer-events:none}
+.ghost-label{border-radius:6px;background:rgba(0,0,0,.6);padding:2px 6px;font-size:10px;font-weight:700}
+
+/* ---------- راهنمای اولیه ---------- */
+@keyframes hint-fade{0%,72%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
+#hint{position:absolute;left:24px;right:24px;bottom:104px;z-index:40;border-radius:16px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.55);backdrop-filter:blur(12px);padding:10px 12px;text-align:center;font-size:10px;line-height:20px;animation:hint-fade 9s ease forwards}
+
+/* ---------- مراکز اعلان/کنترل ---------- */
+.center-layer{position:absolute;inset:0;z-index:70;pointer-events:none}
+.center-back{position:absolute;inset:0;background:rgba(0,0,0,.45);opacity:0}
+.frost{backdrop-filter:blur(28px) saturate(1.5);-webkit-backdrop-filter:blur(28px) saturate(1.5);background:rgba(30,38,47,.72)}
+.spring{transition:transform .42s cubic-bezier(.32,.72,0,1),opacity .3s ease}
+.nc-sheet{position:absolute;left:0;right:0;top:0;max-height:85%;overflow-y:auto;border-radius:0 0 24px 24px;border-bottom:1px solid rgba(255,255,255,.1);padding:12px 16px 16px;transform:translateY(-100%)}
+.cc-sheet{position:absolute;left:0;right:0;bottom:0;border-radius:24px 24px 0 0;border-top:1px solid rgba(255,255,255,.1);padding:16px 16px 24px;transform:translateY(100%)}
+.grabber{width:40px;height:4px;border-radius:999px;background:rgba(255,255,255,.25);margin:0 auto 12px}
+.nc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:12px}
+.nc-clock{font-size:24px;font-weight:800;line-height:32px;margin:0;font-variant-numeric:tabular-nums}
+.nc-date{font-size:10px;color:var(--mutedfg);margin:0}
+.nc-close{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:999px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.1)}
+.nc-sec{border-radius:16px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);padding:12px;margin-bottom:12px}
+.nc-sec-h{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.nc-sec-t{font-size:11px;font-weight:800;margin:0}
+.nc-sec-p{font-size:11px;line-height:20px;color:var(--mutedfg);margin:0}
+.st-row{display:flex;align-items:center;gap:8px;font-size:11px;line-height:20px}
+.st-k{color:var(--mutedfg)}
+.st-v{margin-inline-start:auto;font-weight:700;text-align:left}
+.cc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cc-title{font-size:12px;font-weight:800;margin:0}
+.cc-grid{display:grid;grid-template-columns:1fr;gap:8px}
+@media (min-width:640px){.cc-grid{grid-template-columns:1fr 1fr}}
+.cc-tile{display:flex;align-items:center;gap:8px;border-radius:16px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.08);padding:12px;text-align:right;width:100%}
+.cc-tile:active{background:rgba(255,255,255,.14)}
+.cc-ic{display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex:none;border-radius:12px;border:1px solid}
+.cc-label{min-width:0;flex:1;font-size:10px;font-weight:700;line-height:16px;text-align:right}
+.sw{width:38px;height:22px;border-radius:999px;background:rgba(255,255,255,.2);position:relative;transition:background .2s;flex:none}
+.sw::after{content:'';position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s}
+.sw.on{background:var(--emerald-d)}
+.sw.on::after{transform:translateX(-16px)}
+.cc-note{text-align:center;font-size:9px;color:rgba(160,170,180,.7);margin:12px 0 0}
+.cc-src{font-size:9px;line-height:16px;color:var(--mutedfg);margin:4px 0 0}
+.stat-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px}
+.stat-chip{border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.06);padding:3px 10px;font-size:10px;font-weight:700}
+
+/* ---------- شیت اپ ---------- */
+#app-sheet{position:absolute;inset:0;z-index:60;overflow:hidden;background:var(--bg);transform-origin:top left}
+#app-scroll{position:absolute;inset:0;overflow-y:auto;padding:40px 0 32px}
+#app-homebar{position:absolute;left:0;right:0;bottom:0;height:32px;display:flex;align-items:flex-start;justify-content:center;padding-top:10px;cursor:pointer}
+.app-pad{padding:0 16px;display:flex;flex-direction:column;gap:16px;min-height:100%}
+
+/* ---------- کارت‌ها و اجزای اپ‌ها ---------- */
+.card{border:1px solid var(--border);background:rgba(28,35,43,.9);border-radius:12px}
+.card-p{padding:14px 16px}
+.tile{display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex:none;border-radius:8px;border:1px solid}
+.tile.p{border-color:rgba(52,211,153,.3);background:rgba(52,211,153,.12);color:var(--primary)}
+.tile.a{border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.12);color:var(--amber)}
+.tile.sk{border-color:rgba(56,189,248,.3);background:rgba(56,189,248,.12);color:var(--sky)}
+.tile.v{border-color:rgba(167,139,250,.3);background:rgba(167,139,250,.12);color:var(--violet)}
+.tile.g{border-color:rgba(52,211,153,.3);background:rgba(52,211,153,.12);color:var(--emerald)}
+.tile.n{border-color:var(--border);background:rgba(39,47,57,.5);color:var(--fg)}
+.stats{display:grid;grid-template-columns:1fr;gap:10px}
+@media (min-width:640px){.stats{grid-template-columns:repeat(3,1fr)}}
+.stat{display:flex;align-items:center;gap:10px;padding:12px}
+.stat-k{font-size:10px;color:var(--mutedfg);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stat-v{font-size:13px;font-weight:700;line-height:20px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stat-s{font-size:9px;color:rgba(160,170,180,.8);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.digest{border-color:rgba(52,211,153,.25);background:linear-gradient(225deg,rgba(52,211,153,.08),transparent)}
+.digest-t{font-size:13px;font-weight:700;color:var(--primary);margin:0}
+.digest-p{font-size:12px;line-height:24px;color:rgba(232,236,240,.9);margin:6px 0 0}
+
+.tabs-list{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:rgba(39,47,57,.4);border-radius:10px;padding:4px}
+.tab{height:30px;border-radius:8px;font-size:12px;color:var(--mutedfg);display:flex;align-items:center;justify-content:center}
+.tab.on{background:var(--card);color:var(--fg);font-weight:700}
+.fchips{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.fchip{display:inline-flex;align-items:center;height:32px;border-radius:999px;border:1px solid var(--border);padding:0 12px;font-size:11px;color:var(--mutedfg)}
+.fchip.on{border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.15);font-weight:700;color:var(--primary)}
+
+.pending-note{display:flex;align-items:center;gap:8px;border:1px solid var(--border);background:rgba(39,47,57,.3);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--mutedfg)}
+.day-h{display:flex;align-items:center;gap:10px;margin:2px 0}
+.day-h h2{font-size:12px;font-weight:700;color:rgba(232,236,240,.9);margin:0;white-space:nowrap}
+.day-line{height:1px;flex:1;background:var(--border)}
+.day-n{font-size:10px;color:var(--mutedfg);white-space:nowrap}
+.ev{display:flex;flex-direction:column;gap:12px;padding:14px 16px;border:1px solid rgba(255,255,255,.09);background:rgba(28,35,43,.9);border-radius:12px;animation:fade-up .4s ease-out both}
+.ev-top{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.ev-time{display:inline-flex;align-items:center;border-radius:6px;background:rgba(39,47,57,.6);padding:4px 10px;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.ev-title{font-size:16px;font-weight:700;line-height:26px;margin:0}
+.ev-en{direction:ltr;text-align:left;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;color:rgba(160,170,180,.8);margin:0}
+.ev-exp{border:1px solid var(--border);background:rgba(18,24,30,.5);border-radius:8px;padding:12px}
+.ev-exp p{font-size:13px;line-height:24px;margin:0;color:rgba(232,236,240,.9)}
+.vchips{display:flex;flex-wrap:wrap;gap:8px}
+.vchip{display:flex;flex-direction:column;align-items:center;border:1px solid var(--border);background:rgba(39,47,57,.4);border-radius:8px;padding:6px 12px;min-width:72px}
+.vchip.hi{border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.1)}
+.vchip-k{font-size:10px;color:var(--mutedfg)}
+.vchip-v{direction:ltr;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.vchip.hi .vchip-v{color:var(--emerald)}
+.aimp{border:1px solid var(--border);background:rgba(18,24,30,.4);border-radius:8px;overflow:hidden}
+.aimp-h{display:flex;align-items:center;gap:6px;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(39,47,57,.4);padding:6px 10px;font-size:11px;font-weight:700;color:rgba(232,236,240,.9)}
+.aimp-tbl{width:100%;border-collapse:collapse;text-align:center}
+.aimp-tbl th{font-size:9px;color:var(--mutedfg);padding:6px 4px;font-weight:500}
+.aimp-tbl th:first-child{text-align:right;padding-right:8px}
+.aimp-tbl td{border-top:1px solid rgba(255,255,255,.05);padding:8px 4px}
+.aimp-tbl td:first-child{text-align:right;padding-right:8px}
+.a-name{font-size:11px;font-weight:700}
+.a-mono{direction:ltr;text-align:left;font-family:ui-monospace,Menlo,monospace;font-size:9px;color:var(--mutedfg)}
+.aimp-prob{border-top:1px solid rgba(255,255,255,.05);background:rgba(39,47,57,.2);padding:8px 10px;display:flex;flex-direction:column;gap:4px}
+.prob-t{font-size:9px;font-weight:700;color:var(--mutedfg)}
+.prob-l{display:flex;flex-wrap:wrap;align-items:center;gap:4px;font-size:10px;line-height:16px}
+.prob-k{color:var(--mutedfg)}
+.prob-up{color:var(--emerald);font-weight:700}
+.prob-dn{color:var(--rose);font-weight:700}
+.prob-alt{color:rgba(160,170,180,.7)}
+.prob-note{font-size:9px;line-height:16px;color:rgba(160,170,180,.8)}
+.ev-warn{display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(251,191,36,.9)}
+
+/* ---------- اپ ساختار بازار ---------- */
+.ms-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.ms-head-t{font-size:14px;font-weight:800;line-height:20px;margin:0}
+.ms-head-s{font-size:10px;color:var(--mutedfg);margin:0}
+.badge{display:inline-flex;align-items:center;border-radius:999px;border:1px solid;padding:2px 8px;font-size:10px;font-weight:700}
+.badge.live{color:var(--emerald);border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.1)}
+.badge.snap{color:var(--amber);border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.1)}
+.iconbtn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;flex:none;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.04)}
+.iconbtn:active{background:rgba(255,255,255,.1)}
+.spin{animation:spin-rot 1s linear infinite}
+@keyframes spin-rot{to{transform:rotate(360deg)}}
+.sym-heads{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sym-head{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--border);background:rgba(39,47,57,.25);border-radius:8px;padding:8px 10px}
+.sym-n{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sym-mono{direction:ltr;text-align:left;font-family:ui-monospace,Menlo,monospace;font-size:9px;color:var(--mutedfg)}
+.sym-p{direction:ltr;text-align:left;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.sym-c{font-size:10px;font-weight:700;font-variant-numeric:tabular-nums}
+.ms-tbl{width:100%;border-collapse:collapse;text-align:center;overflow:hidden;border-radius:8px;border:1px solid var(--border)}
+.ms-tbl th{background:rgba(39,47,57,.4);font-size:10px;color:var(--mutedfg);padding:8px 6px;font-weight:700}
+.ms-tbl th:first-child{text-align:right;padding-right:8px}
+.ms-tbl td{border-top:1px solid rgba(255,255,255,.05);padding:10px 4px}
+.ms-tbl td.tf{text-align:right;padding-right:8px;font-size:11px;font-weight:700}
+.tf-cell{display:flex;flex-direction:column;align-items:center;gap:2px}
+.tf-pill{display:inline-flex;align-items:center;gap:4px;border:1px solid;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap}
+.tf-pill.bull{color:var(--emerald);border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.12)}
+.tf-pill.bear{color:var(--rose);border-color:rgba(244,63,94,.3);background:rgba(244,63,94,.12)}
+.tf-pill.neut{color:var(--zinc);border-color:rgba(161,161,170,.3);background:rgba(161,161,170,.12)}
+.tf-pill.na{color:var(--mutedfg);border-color:var(--border);background:rgba(39,47,57,.3)}
+.tf-str{font-size:9px;font-weight:700;color:var(--mutedfg)}
+.tf-desc{font-size:9px;line-height:12px;color:rgba(160,170,180,.7)}
+.sum-line{font-size:10px;line-height:16px;color:var(--mutedfg);margin:0}
+.sum-line b.b{color:var(--emerald)} .sum-line b.s{color:var(--rose)} .sum-line b.n{color:var(--zinc)}
+.ms-note{font-size:9px;line-height:16px;color:rgba(160,170,180,.7);margin:0}
+
+/* ---------- پیشنهاد معامله ---------- */
+.sug{display:flex;flex-direction:column;gap:10px;border:1px solid rgba(52,211,153,.25);background:rgba(52,211,153,.05);border-radius:8px;padding:12px}
+.sug-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.sug-t{font-size:12px;font-weight:800}
+.sug-s{font-size:9px;color:var(--mutedfg)}
+.sug-sels{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sel-k{font-size:9px;font-weight:700;color:var(--mutedfg)}
+.sel{width:100%;height:32px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--fg);font:inherit;font-size:12px;padding:0 8px;appearance:none;-webkit-appearance:none}
+.sug-logic{font-size:9px;line-height:16px;color:rgba(160,170,180,.8);margin:0}
+.sug-cards{display:grid;grid-template-columns:1fr;gap:8px}
+@media (min-width:640px){.sug-cards{grid-template-columns:1fr 1fr}}
+.sug-card{display:flex;flex-direction:column;gap:8px;border:1px solid var(--border);background:rgba(18,24,30,.4);border-radius:8px;padding:10px}
+.sug-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sug-chips{display:flex;flex-wrap:wrap;gap:6px}
+.sug-reason{font-size:9px;line-height:16px;color:var(--mutedfg);margin:0}
+
+/* ---------- اپ درباره ---------- */
+.about-sec{border:1px solid var(--border);background:rgba(28,35,43,.7);border-radius:16px;padding:14px}
+.about-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.about-t{font-size:13px;font-weight:800;margin:0}
+.about-p{font-size:11px;line-height:22px;color:var(--mutedfg);margin:0}
+.about-li{font-size:11px;line-height:20px;color:var(--mutedfg)}
+.about-foot{text-align:center;font-size:9px;line-height:16px;color:rgba(160,170,180,.7);padding:0 8px;margin:0}
+
+/* ---------- دکمه‌ها ---------- */
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:12px;font-weight:700;background:rgba(255,255,255,.04);transition:transform .1s}
+.btn:active{transform:scale(.97)}
+.btn[disabled]{opacity:.6;pointer-events:none}
+.empty{border:1px dashed var(--border);border-radius:12px;padding:32px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.empty p{font-size:12px;color:var(--mutedfg);margin:0}
+
+/* ---------- انیمیشن‌ها ---------- */
+@keyframes fade-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fade-up .4s ease-out both}
+@keyframes soft-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.soft-pulse{animation:soft-pulse 2s ease-in-out infinite}
+@keyframes alert-blink{
+  0%,100%{border-color:rgba(251,191,36,.85);box-shadow:0 0 0 1px rgba(251,191,36,.35),0 0 18px 2px rgba(251,191,36,.28);background-color:rgba(251,191,36,.1)}
+  50%{border-color:rgba(251,191,36,.25);box-shadow:0 0 0 1px rgba(251,191,36,.08),0 0 8px 0 rgba(251,191,36,.1);background-color:rgba(251,191,36,.04)}
+}
+@keyframes widget-pulse{0%{transform:scale(1);box-shadow:0 0 0 0 rgba(52,211,153,.4)}45%{transform:scale(1.035);box-shadow:0 0 0 8px rgba(52,211,153,0)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+.wpulse{animation:widget-pulse .7s ease-out}
+.no-anim *,.no-anim *::before,.no-anim *::after{animation:none!important;transition:none!important}
+@media (prefers-reduced-motion:reduce){
+  .wiggling-icon,.wpulse,.banner.blink{animation:none}
+  .banner.blink{border-color:rgba(251,191,36,.6);background:rgba(251,191,36,.08);box-shadow:none}
+}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="device" aria-label="رصدگر دلار — نسخه موبایل">
+
+    <!-- کاغذدیواری با پارالاکس -->
+    <div id="wall" aria-hidden="true">
+      <div class="wall-a"></div>
+      <div class="wall-b"></div>
+    </div>
+
+    <!-- نوار وضعیت -->
+    <div id="statusbar">
+      <button type="button" id="sb-clock" class="sb-clock" aria-label="باز کردن مرکز اعلان‌ها">--:--</button>
+      <div class="sb-right" id="sb-right"></div>
+    </div>
+
+    <!-- صفحات -->
+    <div id="pages" class="no-scrollbar">
+      <section class="page no-scrollbar" id="page1"><div class="page-inner" id="page1-inner"></div></section>
+      <section class="page no-scrollbar" id="page2"><div class="page-inner grid2" id="page2-inner"></div></section>
+    </div>
+
+    <!-- نقطه‌های صفحه -->
+    <div id="dots"></div>
+
+    <!-- داک -->
+    <div id="dock"><div class="dock-in" id="dock-in"></div></div>
+
+    <!-- نوار خانه -->
+    <div id="homebar" role="button" tabindex="0" aria-label="نوار خانه">
+      <div class="homebar-pill"></div>
+    </div>
+
+    <!-- دکمه پایان حالت لرزش -->
+    <button type="button" id="wiggle-done" hidden data-nogesture>
+      <svg class="ic" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+      پایان
+    </button>
+
+    <!-- راهنمای اولیه -->
+    <div id="hint" hidden>
+      از <b>بالای صفحه</b> بکشید: مرکز اعلان‌ها — از <b>پایین</b>: مرکز کنترل — نگه‌داشتن آیکون‌ها: مرتب‌سازی
+    </div>
+
+    <!-- مرکز اعلان‌ها -->
+    <div class="center-layer" id="nc-layer">
+      <div class="center-back" id="nc-back"></div>
+      <div class="nc-sheet frost spring no-scrollbar" id="nc-sheet"></div>
+    </div>
+
+    <!-- مرکز کنترل -->
+    <div class="center-layer" id="cc-layer">
+      <div class="center-back" id="cc-back"></div>
+      <div class="cc-sheet frost spring no-scrollbar" id="cc-sheet"></div>
+    </div>
+
+    <!-- شبح آیکون در حال جابه‌جایی -->
+    <div id="drag-ghost" hidden></div>
+
+    <!-- شیت اپ با انیمیشن بزرگ‌نمایی -->
+    <div id="app-sheet" hidden>
+      <div id="app-scroll" class="no-scrollbar"></div>
+      <div id="app-homebar" role="button" tabindex="0" aria-label="بستن اپ">
+        <div class="homebar-pill" style="background:rgba(255,255,255,.4)"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script type="application/json" id="sd-snapshot">{"generatedAt":"2026-10-18T08:50:13.815Z","news":{"feedStatus":"cached","lastFetchISO":"2026-10-18T08:31:27.508Z","digest":null,"translatedNow":0,"pendingTranslation":0,"events":[{"id":"2eccdbc0088c5e9c70c623c5bf35f7a4","title":"FOMC Member Waller Speaks","titleFa":"سخنرانی عضو کمیته فدرال رزرو، والر (FOMC Member Waller Speaks)","dateISO":"2026-10-13T07:45:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":null,"actual":null,"direction":"mixed","explanationFa":"سخنرانی اعضای فدرال رزرو می‌تواند به سیاست‌های پولی آینده اشاره کند که بر دلار تأثیر می‌گذارد. اگر سخنرانی به سیاست‌های سخت‌گیرانه‌تر اشاره کند دلار تقویت می‌شود و اگر به سیاست‌های نرم‌گیرانه‌تر اشاره کند دلار تضعیف می‌شود.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"f7905b1dcf0cf04e645c481c30d831cd","title":"NFIB Small Business Index","titleFa":"شاخص اعتماد کسب‌وکارهای کوچک (NFIB)","dateISO":"2026-10-13T10:00:00.000Z","allDay":false,"impact":"Low","forecast":"98.1","previous":"98.7","actual":null,"direction":"bullish","explanationFa":"این شاخص میزان اطمینان کسب‌وکارهای کوچک را نشان می‌دهد که یک نشانه از سلامت اقتصادی است. اگر این عدد بالاتر از پیش‌بینی ۹۸.۱ باشد، دلار افزایش می‌یابد و اگر پایین‌تر باشد، دلار کاهش می‌یابد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.4,"xauUp":0.6,"djiUp":0.4,"cmp":"below"}},{"id":"c34b69534cde89c7a584446891abbe95","title":"ADP Weekly Employment Change","titleFa":"تغییرات اشتغال هفتگی آی‌دی‌پی (ADP)","dateISO":"2026-10-13T12:15:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":"23.8K","actual":null,"direction":"bullish","explanationFa":"این گزارش تعداد شغل‌های ایجاد شده در بخش خصوصی را نشان می‌دهد که یک شاخص کلیدی برای سلامت بازار کار و اقتصاد است. اگر این عدد بالاتر از پیش‌بینی ۲۳.۸ هزار باشد، دلار افزایش می‌یابد و اگر پایین‌تر باشد، دلار کاهش می‌یابد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":null},{"id":"8ef4707bb1d95a3f1c9ebc5c0d66f1de","title":"Existing Home Sales","titleFa":"فروش خانه‌های موجود (Existing Home Sales)","dateISO":"2026-10-13T14:00:00.000Z","allDay":false,"impact":"Low","forecast":"3.95M","previous":"3.98M","actual":null,"direction":"bullish","explanationFa":"این شاخص تعداد خانه‌های فروخته شده را اندازه می‌گیرد و به سلامت بخش مسکن اشاره دارد. اگر عدد واقعی بالاتر از پیش‌بینی ۳.۹۵ میلیون باشد، دلار افزایش می‌یابد و اگر پایین‌تر باشد، دلار کاهش می‌یابد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.4,"xauUp":0.6,"djiUp":0.4,"cmp":"below"}},{"id":"0ecf1dc1ba5e887988707e45a4774ddb","title":"FOMC Member Barkin Speaks","titleFa":"سخنرانی عضو کمیته فدرال رزرو، بارکین (FOMC Member Barkin Speaks)","dateISO":"2026-10-13T17:00:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":null,"actual":null,"direction":"mixed","explanationFa":"سخنرانی اعضای فدرال رزرو می‌تواند به سیاست‌های پولی آینده اشاره کند که بر دلار تأثیر می‌گذارد. اگر سخنرانی به سیاست‌های سخت‌گیرانه‌تر اشاره کند دلار تقویت می‌شود و اگر به سیاست‌های نرم‌گیرانه‌تر اشاره کند دلار تضعیف می‌شود.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"7130bde565e4f23402e1562974534883","title":"FOMC Member Collins Speaks","titleFa":"سخنرانی عضو کمیته فدرال رزرو، کالینز (FOMC Member Collins Speaks)","dateISO":"2026-10-13T20:00:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":null,"actual":null,"direction":"mixed","explanationFa":"سخنرانی اعضای فدرال رزرو می‌تواند به سیاست‌های پولی آینده اشاره کند که بر دلار تأثیر می‌گذارد. اگر سخنرانی به سیاست‌های سخت‌گیرانه‌تر اشاره کند دلار تقویت می‌شود و اگر به سیاست‌های نرم‌گیرانه‌تر اشاره کند دلار تضعیف می‌شود.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"45d756cba89772f83a27ee123a182656","title":"FOMC Member Bowman Speaks","titleFa":"سخنرانی عضو کمیته فدرال رزرو، بوئمان (FOMC Member Bowman Speaks)","dateISO":"2026-10-14T09:40:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":null,"actual":null,"direction":"mixed","explanationFa":"سخنرانی اعضای فدرال رزرو می‌تواند به سیاست‌های پولی آینده اشاره کند که بر دلار تأثیر می‌گذارد. اگر سخنرانی به سیاست‌های سخت‌گیرانه‌تر اشاره کند دلار تقویت می‌شود و اگر به سیاست‌های نرم‌گیرانه‌تر اشاره کند دلار تضعیف می‌شود.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"5eaf9c9e86b8cbcdad0f764e47693fa6","title":"Core CPI m/m","titleFa":"شاخص قیمت مصرف‌کننده بدون کالاهای غذایی و انرژی ماهانه (Core CPI)","dateISO":"2026-10-14T12:30:00.000Z","allDay":false,"impact":"High","forecast":"0.2%","previous":"0.3%","actual":null,"direction":"bullish","explanationFa":"این شاخص تورم را بدون در نظر گرفتن قیمت‌های نوسان‌پذیر انرژی و مواد غذایی اندازه می‌گیرد و برای سیاست‌گذاری بانک مرکزی بسیار مهم است. اگر این عدد بالاتر از پیش‌بینی ۰.۲٪ منتشر شود، دلار تقویت می‌شود و اگر پایین‌تر باشد، دلار تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.25,"xauUp":0.75,"djiUp":0.75,"cmp":"below"}},{"id":"042a1d11cb36722e052bdf0009c87434","title":"Core CPI y/y","titleFa":"شاخص قیمت مصرف‌کننده بدون کالاهای غذایی و انرژی سالانه (Core CPI)","dateISO":"2026-10-14T12:30:00.000Z","allDay":false,"impact":"High","forecast":"2.5%","previous":"2.4%","actual":null,"direction":"bullish","explanationFa":"این شاخص نرخ تورم سالانه را بدون در نظر گرفتن قیمت‌های نوسان‌پذیر انرژی و مواد غذایی اندازه می‌گیرد. اگر این عدد بالاتر از پیش‌بینی ۲.۵٪ منتشر شود، دلار تقویت می‌شود و اگر پایین‌تر باشد، دلار تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.65,"xauUp":0.35,"djiUp":0.35,"cmp":"above"}},{"id":"0b0634c1315c921cf3b6e2982acb1845","title":"CPI m/m","titleFa":"شاخص قیمت مصرف‌کننده ماهانه (CPI)","dateISO":"2026-10-14T12:30:00.000Z","allDay":false,"impact":"High","forecast":"0.6%","previous":"0.4%","actual":null,"direction":"bullish","explanationFa":"این شاخص اصلی‌ترین معیار برای اندازه‌گیری تورم در سطح مصرف‌کنندگان است و سیاست‌گذاران پولی را به شدت تحت تأثیر قرار می‌دهد. اگر این عدد بالاتر از پیش‌بینی ۰.۶٪ منتشر شود، دلار تقویت می‌شود و اگر پایین‌تر باشد، دلار تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.75,"xauUp":0.25,"djiUp":0.25,"cmp":"above"}},{"id":"49f394de696e108fe8ac5b3a12dda3fb","title":"CPI y/y","titleFa":"شاخص قیمت مصرف‌کننده سالانه (CPI)","dateISO":"2026-10-14T12:30:00.000Z","allDay":false,"impact":"High","forecast":"3.6%","previous":"3.4%","actual":null,"direction":"bullish","explanationFa":"این شاخص نرخ تورم سالانه را در سطح مصرف‌کنندگان اندازه می‌گیرد و مهم‌ترین شاخص برای سنجش تورم در اقتصاد است. اگر این عدد بالاتر از پیش‌بینی ۳.۶٪ منتشر شود، دلار تقویت می‌شود و اگر پایین‌تر باشد، دلار تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.7,"xauUp":0.3,"djiUp":0.3,"cmp":"above"}},{"id":"b96ed0f001b098d3428262744d081404","title":"FOMC Member Barkin Speaks","titleFa":"سخنرانی عضو کمیته فدرال رزرو، بarkin","dateISO":"2026-10-14T17:30:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":null,"actual":null,"direction":"neutral","explanationFa":"این رویداد تأثیر مستقیم و مشخصی بر ارزش دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"4db3444033fd3069f9817d21a26b4069","title":"Beige Book","titleFa":"کتاب بژ (Beige Book)","dateISO":"2026-10-14T18:00:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":null,"actual":null,"direction":"neutral","explanationFa":"این رویداد تأثیر مستقیم و مشخصی بر ارزش دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"086ae509bd525be77b6dcca6c0b51538","title":"FOMC Member Goolsbee Speaks","titleFa":"سخنرانی عضو کمیته فدرال رزرو، گولسبی","dateISO":"2026-10-14T19:00:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":null,"actual":null,"direction":"neutral","explanationFa":"این رویداد تأثیر مستقیم و مشخصی بر ارزش دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"62de1d5e7270dfc24825ff8c17595fe4","title":"API Weekly Statistical Bulletin","titleFa":"بولتن آمار هفتگی API","dateISO":"2026-10-14T20:30:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":null,"actual":null,"direction":"neutral","explanationFa":"این رویداد تأثیر مستقیم و مشخصی بر ارزش دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"9d480f27060fbd593a7bb73f977b61cd","title":"FOMC Member Bowman Speaks","titleFa":"سخنرانی عضو کمیته فدرال رزرو، باومن","dateISO":"2026-10-15T02:55:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":null,"actual":null,"direction":"neutral","explanationFa":"این رویداد تأثیر مستقیم و مشخصی بر ارزش دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"a4e07a1603b9a6b651200616cdc7a5e0","title":"Core PPI m/m","titleFa":"شاخص قیمت تولیدکننده بدون کالاهای غذایی و انرژی ماهانه (Core PPI)","dateISO":"2026-10-15T12:30:00.000Z","allDay":false,"impact":"High","forecast":"0.3%","previous":"0.2%","actual":null,"direction":"bullish","explanationFa":"این شاخص تورم در سطح تولیدکنندگان را بدون در نظر گرفتن قیمت‌های نوسان‌پذیر انرژی و مواد غذایی اندازه می‌گیرد و یک پیش‌بین برای تورم مصرف‌کننده است. اگر این عدد بالاتر از پیش‌بینی ۰.۳٪ منتشر شود، دلار تقویت می‌شود و اگر پایین‌تر باشد، دلار تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.75,"xauUp":0.25,"djiUp":0.25,"cmp":"above"}},{"id":"6f189d6951b192b5366ead50a5eee0bd","title":"Core Retail Sales m/m","titleFa":"فروش‌های خرده‌فروشی بدون خودرو ماهانه (Core Retail Sales)","dateISO":"2026-10-15T12:30:00.000Z","allDay":false,"impact":"High","forecast":"0.6%","previous":"1.4%","actual":null,"direction":"bullish","explanationFa":"این شاخص حجم فروش خرده‌فروشی را بدون در نظر گرفتن بخش خودرو اندازه می‌گیرد و یک معیار کلیدی از قدرت مصرف خانوارها است. اگر این عدد بالاتر از پیش‌بینی ۰.۶٪ منتشر شود، دلار تقویت می‌شود و اگر پایین‌تر باشد، دلار تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.25,"xauUp":0.75,"djiUp":0.25,"cmp":"below"}},{"id":"a5f755b4971ab2807eb39e6df93c5bef","title":"PPI m/m","titleFa":"شاخص قیمت تولیدکننده ماهانه (PPI)","dateISO":"2026-10-15T12:30:00.000Z","allDay":false,"impact":"High","forecast":"0.6%","previous":"0.4%","actual":null,"direction":"bullish","explanationFa":"این شاخص تورم در سطح تولیدکنندگان را اندازه می‌گیرد و به عنوان یک پیش‌بین برای تورم مصرف‌کننده در آینده عمل می‌کند. اگر این عدد بالاتر از پیش‌بینی ۰.۶٪ منتشر شود، دلار تقویت می‌شود و اگر پایین‌تر باشد، دلار تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.75,"xauUp":0.25,"djiUp":0.25,"cmp":"above"}},{"id":"53e0766068f219c7ab95774c9f651d88","title":"Retail Sales m/m","titleFa":"فروش‌های خرده‌فروشی ماهانه (Retail Sales)","dateISO":"2026-10-15T12:30:00.000Z","allDay":false,"impact":"High","forecast":"0.3%","previous":"1.2%","actual":null,"direction":"bullish","explanationFa":"این شاخص حجم کل فروش‌های خرده‌فروشی را اندازه می‌گیرد و مهم‌ترین معیار برای سنجش قدرت مصرف خانوارها است. اگر این عدد بالاتر از پیش‌بینی ۰.۳٪ منتشر شود، دلار تقویت می‌شود و اگر پایین‌تر باشد، دلار تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.25,"xauUp":0.75,"djiUp":0.25,"cmp":"below"}},{"id":"d48091544086b6c0f6afaf570842e4db","title":"Philly Fed Manufacturing Index","titleFa":"شاخص تولید فیلادلفیا (Philly Fed)","dateISO":"2026-10-15T12:30:00.000Z","allDay":false,"impact":"Medium","forecast":"28.2","previous":"37.8","actual":null,"direction":"bullish","explanationFa":"این شاخص سلامت بخش تولید منطقه فیلادلفیا را اندازه می‌گیرد و افزایش آن نشان‌دهنده رشد اقتصادی است. اگر این عدد بالاتر از پیش‌بینی ۲۸.۲ باشد، نرخ دلار افزایش می‌یابد و اگر پایین‌تر باشد، کاهش می‌یابد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.25,"xauUp":0.75,"djiUp":0.25,"cmp":"below"}},{"id":"a92451c7b9e53f04e390f5d3503b02b0","title":"Unemployment Claims","titleFa":"تعداد درخواست‌های دریافت بیمه بیکاری","dateISO":"2026-10-15T12:30:00.000Z","allDay":false,"impact":"Medium","forecast":"199K","previous":"197K","actual":null,"direction":"bearish","explanationFa":"این شاخص تعداد افراد بیکار که برای دریافت مزایا ثبت‌نام کرده‌اند را نشان می‌دهد. افزایش این عدد نشان‌دهنده ضعف بازار کار است. اگر این عدد بالاتر از پیش‌بینی ۱۹۹ هزار باشد، نرخ دلار کاهش می‌یابد و اگر پایین‌تر باشد، افزایش می‌یابد.","xauAbove":"bullish","xauBelow":"bearish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.6,"xauUp":0.6,"djiUp":0.4,"cmp":"above"}},{"id":"440f3f7d9c1b32df844ead69fdd5169b","title":"Empire State Manufacturing Index","titleFa":"شاخص تولید صنعتی ایالت نیویورک","dateISO":"2026-10-15T12:30:00.000Z","allDay":false,"impact":"Low","forecast":"12.1","previous":"7.6","actual":null,"direction":"bullish","explanationFa":"این شاخص وضعیت صنعت را در ایالت نیویورک اندازه می‌گیرد و به عنوان یک شاخص پیشرو برای کل اقتصاد آمریکا مهم است. اگر این عدد بالاتر از پیش‌بینی ۱۲.۱ باشد، دلار افزایش می‌یابد و اگر پایین‌تر باشد، دلار کاهش می‌یابد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.75,"xauUp":0.25,"djiUp":0.75,"cmp":"above"}},{"id":"c3f883efd2e308df76b4636488cce48b","title":"Business Inventories m/m","titleFa":"موجودی انبارهای تجاری ماهانه","dateISO":"2026-10-15T14:00:00.000Z","allDay":false,"impact":"Low","forecast":"0.4%","previous":"0.8%","actual":null,"direction":"bullish","explanationFa":"این شاخص حجم کالاهای موجود در انبارهای شرکت‌ها را اندازه می‌گیرد و رشد آن نشان‌دهنده تقویت تقاضا در اقتصاد است. اگر این عدد بالاتر از پیش‌بینی ۰.۴٪ باشد، دلار افزایش می‌یابد و اگر پایین‌تر باشد، دلار کاهش می‌یابد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.25,"xauUp":0.75,"djiUp":0.25,"cmp":"below"}},{"id":"20d061ad8be9cbb8c3de53b4a98a24a2","title":"Natural Gas Storage","titleFa":"ذخایر گاز طبیعی","dateISO":"2026-10-15T14:30:00.000Z","allDay":false,"impact":"Low","forecast":"76B","previous":"85B","actual":null,"direction":"neutral","explanationFa":"این رویداد تأثیر مستقیم و مشخصی بر ارزش دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.25,"xauUp":0.5,"djiUp":0.5,"cmp":"below"}},{"id":"d0bc6b4c11d8701182be4630d0bbad73","title":"Crude Oil Inventories","titleFa":"ذخایر نفت خام","dateISO":"2026-10-15T16:00:00.000Z","allDay":false,"impact":"Low","forecast":"0.2M","previous":"-3.2M","actual":null,"direction":"neutral","explanationFa":"این شاخص حجم نفت انبار شده را نشان می‌دهد که بر قیمت نفت و در نتیجه بر ارزش دلار تأثیر می‌گذارد. اگر این عدد بالاتر از پیش‌بینی باشد یعنی عرضه بیشتر است و قیمت نفت کاهش می‌یابد که می‌تواند دلار را تضعیف کند. اگر پایین‌تر باشد یعنی تقاضا بیشتر است و دلار تقویت می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.75,"xauUp":0.25,"djiUp":0.75,"cmp":"above"}},{"id":"7ee46e71890e77818cb8b7f069eab99e","title":"FOMC Member Hammack Speaks","titleFa":"سخنرانی عضو کمیته فدرال رزرو (FOMC) هَمَک","dateISO":"2026-10-15T20:30:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":null,"actual":null,"direction":"neutral","explanationFa":"سخنرانی‌های اعضای فدرال رزرو ممکن است سیاست‌های پولی آینده را شفاف‌سازی کند، اما تأثیر آن بر دلار معمولاً کوتاه‌مدت و متغیر است.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"b98928b1cb115a0f29ce6cb7d3f1d25a","title":"Fed Chairman Warsh Speaks","titleFa":"سخنرانی کیث وارش، رئیس فدرال رزرو","dateISO":"2026-10-16T03:30:00.000Z","allDay":false,"impact":"High","forecast":null,"previous":null,"actual":null,"direction":"mixed","explanationFa":"سخنرانی‌های مقامات فدرال رزرو می‌تواند بر سیاست‌های پولی و در نتیجه بر ارزش دلار تأثیر بگذارد. واکنش دلار به محتوای سخنان بستگی دارد و پیش‌بینی آن دشوار است.","xauAbove":"mixed","xauBelow":"mixed","djiAbove":"mixed","djiBelow":"mixed","outlook":null},{"id":"6dd9ae19530c27ec1c41e8cdbcbc4e9d","title":"Import Prices m/m","titleFa":"قیمت واردات ماهانه (Import Prices)","dateISO":"2026-10-16T12:30:00.000Z","allDay":false,"impact":"Low","forecast":"0.9%","previous":"0.7%","actual":null,"direction":"neutral","explanationFa":"افزایش قیمت واردات نشانه‌ای از تورم وارداتی است که می‌تواند بر ارزش دلار تأثیر بگذارد، اما این شاخص به‌تنهایی تأثیر مستقیم و قوی بر دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.75,"xauUp":0.5,"djiUp":0.5,"cmp":"above"}},{"id":"eb275a4ea6bae1ea3f996395789122c4","title":"Capacity Utilization Rate","titleFa":"نرخ ظرفیت استفاده","dateISO":"2026-10-16T13:15:00.000Z","allDay":false,"impact":"Low","forecast":"76.5%","previous":"76.3%","actual":null,"direction":"neutral","explanationFa":"این شاخص میزان استفاده از ظرفیت تولیدی کارخانه‌ها را نشان می‌دهد که یک شاخص پیشرو برای فعالیت اقتصادی است، اما تأثیر مستقیمی بر دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.6,"xauUp":0.5,"djiUp":0.5,"cmp":"above"}},{"id":"476bffce95949151e19208b82b9db3e8","title":"Industrial Production m/m","titleFa":"تولید صنعتی ماهانه","dateISO":"2026-10-16T13:15:00.000Z","allDay":false,"impact":"Low","forecast":"0.4%","previous":"0.0%","actual":null,"direction":"neutral","explanationFa":"این شاخص فعالیت بخش تولید را اندازه می‌گیرد که سلامت اقتصاد را نشان می‌دهد، اما تأثیر مستقیم و مشخصی بر ارزش دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.75,"xauUp":0.5,"djiUp":0.5,"cmp":"above"}},{"id":"e049fac060f4c6898afc430d463ff2e1","title":"Federal Budget Balance","titleFa":"تراز بودجه فدرال","dateISO":"2026-10-16T18:05:00.000Z","allDay":false,"impact":"Low","forecast":"-34.7B","previous":"-166.8B","actual":null,"direction":"neutral","explanationFa":"این شاخص کسری یا مازاد بودجه دولت را نشان می‌دهد که بر اقتصاد کلان تأثیر دارد، اما تأثیر مستقیمی بر ارزش دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.75,"xauUp":0.5,"djiUp":0.5,"cmp":"above"}},{"id":"b6a4f5aa92c4b3dfcb89717433b2b02e","title":"TIC Long-Term Purchases","titleFa":"خریدهای بلندمدت سرمایه‌گذاران خارجی (TIC)","dateISO":"2026-10-16T20:00:00.000Z","allDay":false,"impact":"Low","forecast":"75.2B","previous":"-27.9B","actual":null,"direction":"neutral","explanationFa":"این شاخص نشان می‌دهد که سرمایه‌گذاران خارجی چقدر در اوراق قرضه آمریکا سرمایه‌گذاری می‌کنند که بر تقاضای دلار تأثیر دارد، اما تأثیر مستقیمی بر دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.75,"xauUp":0.5,"djiUp":0.5,"cmp":"above"}},{"id":"27b50af31c045dbef79627a53c4a050c","title":"NAHB Housing Market Index","titleFa":"شاخص بازار مسکن انجمن ملی سازندگان خانه (NAHB)","dateISO":"2026-10-19T14:00:00.000Z","allDay":false,"impact":"Low","forecast":"31","previous":"32","actual":null,"direction":"neutral","explanationFa":"این شاخص سطح اطمینان سازندگان مسکن را نشان می‌دهد که بخش مهمی از اقتصاد است، اما تأثیر مستقیمی بر ارزش دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.35,"xauUp":0.5,"djiUp":0.5,"cmp":"below"}},{"id":"f53e60bae4affe8b395e0f89c584de3d","title":"ADP Weekly Employment Change","titleFa":"تغییرات اشتغال هفتگی ADP","dateISO":"2026-10-20T12:15:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":"24.8K","actual":null,"direction":"mixed","explanationFa":"این گزارش تغییرات اشتغال بخش خصوصی را اندازه می‌گیرد و می‌تواند پیش‌بینی‌های شاخص اشتغال غیرکشاورزی (NFP) را هدایت کند. اگر این عدد بالاتر از پیش‌بینی باشد، دلار تقویت می‌شود و اگر پایین‌تر باشد، دلار تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":null},{"id":"abd33da87d5253c7f623b8dd8873d29d","title":"Building Permits","titleFa":"مجوزهای ساخت‌وساز","dateISO":"2026-10-20T12:30:00.000Z","allDay":false,"impact":"Low","forecast":"1.39M","previous":"1.39M","actual":null,"direction":"mixed","explanationFa":"این شاخص تعداد مجوزهای ساخت‌وساز جدید را اندازه می‌گیرد که یک پیش‌بیننده برای فعالیت در بخش مسکن است. اگر این عدد بالاتر از پیش‌بینی باشد، دلار تقویت می‌شود و اگر پایین‌تر باشد، دلار تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.5,"xauUp":0.5,"djiUp":0.5,"cmp":"equal"}},{"id":"e6f1987facd645a0d58cedbd7abedd2b","title":"Housing Starts","titleFa":"شروع ساخت‌وساز مسکن","dateISO":"2026-10-20T12:30:00.000Z","allDay":false,"impact":"Low","forecast":"1.30M","previous":"1.28M","actual":null,"direction":"mixed","explanationFa":"این شاخص تعداد واحدهای مسکونی جدیدی را که ساخت‌وساز آن‌ها آغاز شده است را اندازه می‌گیرد و سلامت بخش مسکن را نشان می‌دهد. اگر این عدد بالاتر از پیش‌بینی باشد، دلار تقویت می‌شود و اگر پایین‌تر باشد، دلار تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.6,"xauUp":0.4,"djiUp":0.6,"cmp":"above"}},{"id":"d264cbd1fbd3acd0ab24ec5a4a930c19","title":"Pending Home Sales m/m","titleFa":"فروش‌های مسکن معوق ماهانه","dateISO":"2026-10-20T14:00:00.000Z","allDay":false,"impact":"Low","forecast":"-0.4%","previous":"0.3%","actual":null,"direction":"bullish","explanationFa":"این شاخص حجم فروش‌های مسکن معوق را اندازه می‌گیرد که یک شاخص پیشرو برای بازار مسکن است. اگر این عدد بالاتر از پیش‌بینی باشد، دلار تقویت می‌شود و اگر پایین‌تر باشد، دلار تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.25,"xauUp":0.75,"djiUp":0.25,"cmp":"below"}},{"id":"e493fc0378a829784e1e8ba78b6e7984","title":"API Weekly Statistical Bulletin","titleFa":"بولتن آماری هفتگی API","dateISO":"2026-10-20T20:30:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":null,"actual":null,"direction":"neutral","explanationFa":"این گزارش آماری هفتگی برای صنعت نفت منتشر می‌شود و تأثیر مستقیمی بر دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"c302cd4bd85fb9a0adaed66886a96e0a","title":"Crude Oil Inventories","titleFa":"انبارهای نفت خام","dateISO":"2026-10-21T14:30:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":"-8.6M","actual":null,"direction":"mixed","explanationFa":"این گزارش تغییرات انبارهای نفت خام را در ایالات متحده نشان می‌دهد. کاهش انبارها (عدد منفی بزرگتر) معمولاً نشان‌دهنده تقویت اقتصاد است و دلار را تقویت می‌کند.","xauAbove":"bullish","xauBelow":"bearish","djiAbove":"bullish","djiBelow":"bearish","outlook":null},{"id":"228c11804005350814520e97836683d2","title":"Unemployment Claims","titleFa":"تعداد درخواست‌های دریافت بیمه بیکاری","dateISO":"2026-10-22T12:30:00.000Z","allDay":false,"impact":"Medium","forecast":"200K","previous":"199K","actual":null,"direction":"bearish","explanationFa":"این شاخص تعداد افراد بیکار که برای دریافت مزایا ثبت‌نام کرده‌اند را نشان می‌دهد. افزایش این عدد نشان‌دهنده ضعف بازار کار است. اگر این عدد بالاتر از پیش‌بینی ۲۰۰ هزار باشد، نرخ دلار کاهش می‌یابد و اگر پایین‌تر باشد، افزایش می‌یابد.","xauAbove":"bullish","xauBelow":"bearish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.6,"xauUp":0.6,"djiUp":0.4,"cmp":"above"}},{"id":"cd0de7fceafa1ca4a0d0db7bbf770c13","title":"CB Leading Index m/m","titleFa":"شاخص پیشرو کنفدراسیون تجارت (CB) ماهانه","dateISO":"2026-10-22T14:00:00.000Z","allDay":false,"impact":"Low","forecast":"-0.2%","previous":"-0.1%","actual":null,"direction":"bullish","explanationFa":"این شاخص وضعیت اقتصادی آینده را پیش‌بینی می‌کند. اگر این عدد بالاتر از پیش‌بینی باشد، دلار تقویت می‌شود و اگر پایین‌تر باشد، دلار تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.25,"xauUp":0.75,"djiUp":0.25,"cmp":"below"}},{"id":"fc42d4fbb3bf1f3fac0f93248cf614a8","title":"Natural Gas Storage","titleFa":"ذخایر گاز طبیعی","dateISO":"2026-10-22T14:30:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":"67B","actual":null,"direction":"neutral","explanationFa":"این گزارش تغییرات ذخایر گاز طبیعی را در ایالات متحده نشان می‌دهد و تأثیر مستقیمی بر دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"73e014aed2585ef8d8da205ca3f67ccc","title":"Flash Manufacturing PMI","titleFa":"شاخص مدیران خرید بخش تولیدی (PMI) سریع","dateISO":"2026-10-23T13:45:00.000Z","allDay":false,"impact":"Medium","forecast":"55.5","previous":"57.0","actual":null,"direction":"bullish","explanationFa":"این شاخص فعالیت بخش تولید را اندازه می‌گیرد و عدد بالاتر از ۵۰ نشان‌دهنده رشد است. اگر این عدد بالاتر از پیش‌بینی ۵۵.۵ باشد، نرخ دلار افزایش می‌یابد و اگر پایین‌تر باشد، کاهش می‌یابد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.35,"xauUp":0.65,"djiUp":0.35,"cmp":"below"}},{"id":"ed9c086026080c57e41b19c482d18ea6","title":"Flash Services PMI","titleFa":"شاخص مدیران خرید بخش خدمات (PMI) سریع","dateISO":"2026-10-23T13:45:00.000Z","allDay":false,"impact":"Medium","forecast":"58.0","previous":"58.7","actual":null,"direction":"bullish","explanationFa":"این شاخص فعالیت بخش خدمات را اندازه می‌گیرد و عدد بالاتر از ۵۰ نشان‌دهنده رشد است. اگر این عدد بالاتر از پیش‌بینی ۵۸.۰ باشد، نرخ دلار افزایش می‌یابد و اگر پایین‌تر باشد، کاهش می‌یابد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.4,"xauUp":0.6,"djiUp":0.4,"cmp":"below"}},{"id":"7f07df6bc1ffc6db54646c811e4670e9","title":"Revised UoM Consumer Sentiment","titleFa":"شاخص اعتماد مصرف‌کننده دانشگاه میشیگان (اصلاح‌شده)","dateISO":"2026-10-23T14:00:00.000Z","allDay":false,"impact":"Medium","forecast":"46.3","previous":"46.3","actual":null,"direction":"bullish","explanationFa":"این شاخص سطح اطمینان مصرف‌کنندگان به اقتصاد را نشان می‌دهد. افزایش آن معمولاً نشانه‌ای از رشد اقتصادی است. اگر این عدد بالاتر از پیش‌بینی ۴۶.۳ باشد، نرخ دلار افزایش می‌یابد و اگر پایین‌تر باشد، کاهش می‌یابد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.5,"xauUp":0.5,"djiUp":0.5,"cmp":"equal"}},{"id":"a1aa5e015e62996cf2f4140baa2edeaf","title":"Revised UoM Inflation Expectations","titleFa":"توقعات تورم مصرف‌کنندگان دانشگاه میشیگان (اصلاح‌شده)","dateISO":"2026-10-23T14:00:00.000Z","allDay":false,"impact":"Medium","forecast":null,"previous":"4.7%","actual":null,"direction":"bullish","explanationFa":"این شاخص انتظارات آینده مصرف‌کنندگان از سطح تورم را اندازه می‌گیرد. افزایش توقعات تورم معمولاً منجر به انتظار افزایش نرخ بهره می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":null}]},"market":{"status":"cached","updatedAtISO":"2026-10-18T08:42:17.537Z","xau":{"key":"xau","price":4181.1,"prevClose":4170.10009765625,"changePct":0.26378029510449197,"rows":[{"tf":"5m","trend":"neutral","strength":0,"ma":"bearish","swing":"bullish","bars":1032},{"tf":"15m","trend":"bearish","strength":50,"ma":"bearish","swing":"neutral","bars":346},{"tf":"1h","trend":"bullish","strength":50,"ma":"neutral","swing":"bullish","bars":1472},{"tf":"4h","trend":"neutral","strength":0,"ma":"bearish","swing":"bullish","bars":395},{"tf":"1d","trend":"bearish","strength":100,"ma":"bearish","swing":"bearish","bars":250},{"tf":"1wk","trend":"bearish","strength":50,"ma":"neutral","swing":"bearish","bars":262},{"tf":"1mo","trend":"bullish","strength":100,"ma":"bullish","swing":"bullish","bars":104}],"okCount":7},"dji":{"key":"dji","price":52002.41,"prevClose":52177.69140625,"changePct":-0.33593170093570063,"rows":[{"tf":"5m","trend":"bearish","strength":50,"ma":"neutral","swing":"bearish","bars":391},{"tf":"15m","trend":"bearish","strength":100,"ma":"bearish","swing":"bearish","bars":131},{"tf":"1h","trend":"bullish","strength":100,"ma":"bullish","swing":"bullish","bars":456},{"tf":"4h","trend":"neutral","strength":0,"ma":"neutral","swing":"neutral","bars":131},{"tf":"1d","trend":"bearish","strength":100,"ma":"bearish","swing":"bearish","bars":251},{"tf":"1wk","trend":"bullish","strength":100,"ma":"bullish","swing":"bullish","bars":262},{"tf":"1mo","trend":"bullish","strength":100,"ma":"bullish","swing":"bullish","bars":121}],"okCount":7},"changes":[]},"source":"live"}</script>
+<script>(function(){
+'use strict';
+/* ================= رصدگر دلار — نسخه فایل مستقل =================
+ * تک‌فایل آفلاین‌پسند: داده‌ها از اسنپ‌شات داخل فایل + تلاش اختیاری
+ * بروزرسانی زنده قیمت‌ها از طریق پروکسی‌های عمومی CORS.
+ * ================================================================ */
+
+/* ---------- داده اسنپ‌شات ---------- */
+var SNAP_EL = document.getElementById('sd-snapshot');
+var SNAP_RAW = SNAP_EL.textContent;
+var SNAP = JSON.parse(SNAP_RAW);
+var GEN_ISO = SNAP.generatedAt;
+var news = SNAP.news;
+var ms = SNAP.market;
+
+/* ---------- ذخیره‌سازی محلی ---------- */
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+var SETTINGS_KEY = 'sd_settings_v1';
+var settings = { highOnly: false, autoPrice: false, anim: true };
+try {
+  var _s = JSON.parse(lsGet(SETTINGS_KEY) || 'null');
+  if (_s && typeof _s === 'object') {
+    if (typeof _s.highOnly === 'boolean') settings.highOnly = _s.highOnly;
+    if (typeof _s.autoPrice === 'boolean') settings.autoPrice = _s.autoPrice;
+    if (typeof _s.anim === 'boolean') settings.anim = _s.anim;
+  }
+} catch (e) {}
+function saveSettings() { lsSet(SETTINGS_KEY, JSON.stringify(settings)); }
+
+var GRID_KEY = 'sd_grid_order_v1';
+var HINT_KEY = 'sd_hint_v1';
+var DISMISS_KEY = 'sd_banner_dismiss_v1';
+var DEFAULT_ORDER = ['news', 'structure', 'suggestion', 'about'];
+
+/* ---------- توابع تاریخ تهران ---------- */
+var TEHRAN = 'Asia/Tehran';
+var _keyFmt = new Intl.DateTimeFormat('en-CA', { timeZone: TEHRAN, year: 'numeric', month: '2-digit', day: '2-digit' });
+function dateKeyInTehran(d) { return _keyFmt.format(d); }
+function todayKeyInTehran() { return dateKeyInTehran(new Date()); }
+function addDaysToKey(key, days) {
+  var p = key.split('-');
+  return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2] + days)).toISOString().slice(0, 10);
+}
+function faTime(d) {
+  return new Intl.DateTimeFormat('fa-IR', { timeZone: TEHRAN, hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+}
+function faDateLong(d) {
+  return new Intl.DateTimeFormat('fa-IR', { timeZone: TEHRAN, weekday: 'long', day: 'numeric', month: 'long' }).format(d);
+}
+var _FA = '۰۱۲۳۴۵۶۷۸۹';
+function faDigits(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  return String(v)
+    .replace(/(\d)\.(\d)/g, '$1٫$2')
+    .replace(/[0-9]/g, function (c) { return _FA[+c]; })
+    .replace(/%/g, '٪');
+}
+function faNum(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return faDigits(n.toLocaleString('en-US', { maximumFractionDigits: 2 })).replace(/,/g, '٬');
+}
+
+/* ---------- آیکون‌ها (SVG) ---------- */
+var IC = {
+  newspaper: '<path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/>',
+  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  crosshair: '<circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  sliders: '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
+  flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+  trendUp: '<path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/>',
+  trendDown: '<path d="M22 17 13.5 8.5 8.5 13.5 2 7"/><path d="M16 17h6v-6"/>',
+  moveH: '<polyline points="18 8 22 12 18 16"/><polyline points="6 8 2 12 6 16"/><line x1="2" y1="12" x2="22" y2="12"/>',
+  minus: '<line x1="5" y1="12" x2="19" y2="12"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  checkCircle: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  calDays: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  sparkles: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  wifi: '<path d="M5 13a10 10 0 0 1 14 0"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 20 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>',
+  battery: '<rect width="16" height="10" x="2" y="7" rx="2" ry="2"/><line x1="22" y1="11" x2="22" y2="13"/><rect width="10" height="6" x="5" y="9" rx="1" fill="currentColor" stroke="none"/>',
+  signal: '<path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/>',
+  alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  langs: '<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>',
+  radio: '<circle cx="12" cy="12" r="2"/><path d="M4.93 19.07a10 10 0 0 1 0-14.14"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M7.76 16.24a6 6 0 0 1 0-8.48"/><path d="M16.24 7.76a6 6 0 0 1 0 8.48"/>',
+  db: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>',
+  table: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/><path d="M3 9h18"/><path d="M3 15h18"/>',
+  hourglass: '<path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>',
+  dollar: '<line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  hand: '<path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="m7 15-1.76-1.76a2 2 0 0 0-2.83 2.82l3.6 3.6C7.5 21.14 9.2 22 12 22h2a8 8 0 0 0 8-8V7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v4"/>',
+  layers: '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+  sigM: '<path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16" opacity=".35"/>',
+  sigL: '<path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8" opacity=".35"/><path d="M17 20V8" opacity=".35"/><path d="M22 4v16" opacity=".35"/>',
+  calOff: '<path d="M4.2 4.2A2 2 0 0 0 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 1.8-1.2"/><path d="M21 15V6a2 2 0 0 0-2-2H9"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h7"/><path d="M21 10h-5"/><path d="m2 2 20 20"/>',
+  ext: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>'
+};
+function icon(n, sz, cls) {
+  return '<svg class="ic ' + (cls || '') + '" style="width:' + (sz || 16) + 'px;height:' + (sz || 16) + 'px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + IC[n] + '</svg>';
+}
+function buzz() { try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {} }
+
+/* ---------- وضعیت پوسته ---------- */
+var S = {
+  gridOrder: (function () {
+    try {
+      var raw = lsGet(GRID_KEY);
+      if (raw) {
+        var arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length === 4 && arr.every(function (a) { return DEFAULT_ORDER.indexOf(a) >= 0; })) return arr;
+      }
+    } catch (e) {}
+    return DEFAULT_ORDER.slice();
+  })(),
+  wiggle: false,
+  drag: null,
+  app: null,          // { id, rect }
+  appPhase: 'closed', // closed | opening | open | closing
+  ncOpen: false, ncProgress: 0,
+  ccOpen: false, ccProgress: 0,
+  page: 0,
+  gesture: null,
+  press: null
+};
+
+/* ---------- برچسب‌ها ---------- */
+var APPS = {
+  news: { label: 'اخبار دلار', cls: 'g-news', ic: 'newspaper' },
+  structure: { label: 'ساختار بازار', cls: 'g-structure', ic: 'activity' },
+  suggestion: { label: 'پیشنهاد معامله', cls: 'g-suggestion', ic: 'crosshair' },
+  about: { label: 'درباره', cls: 'g-about', ic: 'info' }
+};
+var TF_LONG = { '5m': '۵ دقیقه', '15m': '۱۵ دقیقه', '1h': '۱ ساعته', '4h': '۴ ساعته', '1d': 'روزانه', '1wk': 'هفتگی', '1mo': 'ماهانه' };
+var TF_SHORT = { '5m': '۵د', '15m': '۱۵د', '1h': '۱س', '4h': '۴س', '1d': 'روز', '1wk': 'هفته', '1mo': 'ماه' };
+var TF_ORDER = ['15m', '1h', '4h', '1d', '1wk', '1mo'];
+var TF_MINUTES = { '5m': 5, '15m': 15, '1h': 60, '4h': 240, '1d': 1440, '1wk': 10080, '1mo': 43200 };
+var SYMBOL_LABEL = { xau: 'طلا', dji: 'داوجونز' };
+function trendText(t) { return t === 'bullish' ? 'صعودی' : t === 'bearish' ? 'نزولی' : 'خنثی'; }
+function trendChipCls(t) { return t === 'bullish' ? 'bull' : t === 'bearish' ? 'bear' : 'neut'; }
+function trendIcon(t) { return t === 'bullish' ? 'trendUp' : t === 'bearish' ? 'trendDown' : 'moveH'; }
+
+/* ---------- ارجاع‌های DOM ---------- */
+function $(s) { return document.querySelector(s); }
+var device = $('#device'), wall = $('#wall'), pages = $('#pages');
+var page1 = $('#page1-inner'), page2 = $('#page2-inner');
+var dotsEl = $('#dots'), dockIn = $('#dock-in');
+var ncLayer = $('#nc-layer'), ncBack = $('#nc-back'), ncSheet = $('#nc-sheet');
+var ccLayer = $('#cc-layer'), ccBack = $('#cc-back'), ccSheet = $('#cc-sheet');
+var sheet = $('#app-sheet'), appScroll = $('#app-scroll');
+var ghost = $('#drag-ghost'), sbClock = $('#sb-clock');
+
+/* ---------- صفحات، پارالاکس، نقطه‌ها ---------- */
+function onPageScroll() {
+  var maxAbs = pages.scrollWidth - pages.clientWidth;
+  var p = maxAbs > 0 ? Math.min(1, Math.abs(pages.scrollLeft) / maxAbs) : 0;
+  wall.style.transform = 'translateX(' + ((0.5 - p) * 44).toFixed(1) + 'px) scale(1.08)';
+  var np = Math.round(p * 1);
+  if (np !== S.page) { S.page = np; renderDots(); }
+}
+function renderDots() {
+  var h = '';
+  for (var i = 0; i < 2; i++) h += '<button type="button" class="dot' + (S.page === i ? ' on' : '') + '" data-page="' + i + '" aria-label="صفحه ' + faDigits(i + 1) + '"></button>';
+  dotsEl.innerHTML = h;
+}
+dotsEl.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-page]');
+  if (!b) return;
+  var maxAbs = pages.scrollWidth - pages.clientWidth;
+  pages.scrollTo({ left: +b.dataset.page === 0 ? 0 : -maxAbs, behavior: 'smooth' });
+});
+pages.addEventListener('scroll', onPageScroll, { passive: true });
+
+/* ---------- نوار وضعیت ---------- */
+function renderStatusRight() {
+  $('#sb-right').innerHTML =
+    icon('signal', 14) + icon('wifi', 14) +
+    '<button type="button" class="sb-batt" id="sb-batt" aria-label="باز کردن مرکز کنترل">' + icon('battery', 20) + '</button>';
+  $('#sb-batt').addEventListener('click', function (e) { e.stopPropagation(); openCC(); });
+}
+function tickClock() { sbClock.textContent = faTime(new Date()); }
+sbClock.addEventListener('click', function (e) { e.stopPropagation(); openNC(); });
+
+/* ---------- مرکز اعلان‌ها / کنترل ---------- */
+function setNC(v) { S.ncProgress = Math.max(0, Math.min(1, v)); applyCenter(ncLayer, ncBack, ncSheet, S.ncProgress, true); }
+function setCC(v) { S.ccProgress = Math.max(0, Math.min(1, v)); applyCenter(ccLayer, ccBack, ccSheet, S.ccProgress, false); }
+function applyCenter(layer, back, panel, progress, fromTop) {
+  layer.style.pointerEvents = progress > 0 ? 'auto' : 'none';
+  back.style.opacity = progress;
+  panel.style.transform = fromTop
+    ? 'translateY(' + ((progress - 1) * 100).toFixed(2) + '%)'
+    : 'translateY(' + ((1 - progress) * 100).toFixed(2) + '%)';
+  if (progress === 0 || progress === 1) panel.classList.add('spring');
+  else panel.classList.remove('spring');
+}
+function openNC() { if (S.ncOpen) return; renderNC(); S.ncOpen = true; setNC(1); }
+function closeNC() { S.ncOpen = false; setNC(0); }
+function openCC() { if (S.ccOpen) return; renderCC(); S.ccOpen = true; setCC(1); }
+function closeCC() { S.ccOpen = false; setCC(0); }
+ncBack.addEventListener('click', closeNC);
+ccBack.addEventListener('click', closeCC);
+
+/* حرکات کشیدن از بالا/پایین روی سطح قاب */
+device.addEventListener('pointerdown', function (e) {
+  if (S.wiggle || S.drag || S.gesture || S.ncOpen || S.ccOpen) return;
+  if (e.target.closest('[data-nogesture]')) return;
+  var rect = device.getBoundingClientRect();
+  var y = e.clientY - rect.top;
+  var inApp = !!S.app && S.appPhase !== 'closing';
+  if (y < 46) {
+    S.gesture = { type: 'nc', startY: e.clientY, id: e.pointerId };
+    try { device.setPointerCapture(e.pointerId); } catch (err) {}
+  } else if (y > rect.height - 44) {
+    S.gesture = { type: inApp ? 'close-app' : 'cc', startY: e.clientY, id: e.pointerId };
+    try { device.setPointerCapture(e.pointerId); } catch (err) {}
+  }
+});
+device.addEventListener('pointermove', function (e) {
+  var g = S.gesture;
+  if (!g || e.pointerId !== g.id) return;
+  var dy = e.clientY - g.startY;
+  if (g.type === 'nc') setNC(dy / 150);
+  else if (g.type === 'cc') setCC(-dy / 170);
+});
+device.addEventListener('pointerup', function (e) {
+  var g = S.gesture;
+  S.gesture = null;
+  if (!g || e.pointerId !== g.id) return;
+  if (g.type === 'nc') { if (S.ncProgress > 0.4) { renderNC(); S.ncOpen = true; setNC(1); } else { S.ncOpen = false; setNC(0); } }
+  else if (g.type === 'cc') { if (S.ccProgress > 0.4) { renderCC(); S.ccOpen = true; setCC(1); } else { S.ccOpen = false; setCC(0); } }
+  else if (g.type === 'close-app') { if (e.clientY - g.startY < -36 && S.app && S.appPhase !== 'closing') closeApp(); }
+});
+device.addEventListener('pointercancel', function () {
+  S.gesture = null;
+  setNC(S.ncOpen ? 1 : 0);
+  setCC(S.ccOpen ? 1 : 0);
+});
+
+/* ---------- اجرای اپ با انیمیشن بزرگ‌نمایی (FLIP) ---------- */
+function applySheetGeom(animate) {
+  var spring = 'transform .42s cubic-bezier(.32,.72,0,1), border-radius .42s cubic-bezier(.32,.72,0,1)';
+  if (S.app && S.appPhase !== 'open') {
+    var r = S.app.rect;
+    sheet.style.transition = animate ? spring : 'none';
+    sheet.style.transform = 'translate(' + r.x + 'px,' + r.y + 'px) scale(' + (r.w / r.dw).toFixed(4) + ',' + (r.h / r.dh).toFixed(4) + ')';
+    sheet.style.borderRadius = '22px';
+  } else {
+    sheet.style.transition = spring;
+    sheet.style.transform = 'none';
+    sheet.style.borderRadius = '0px';
+  }
+}
+function openApp(id, srcEl) {
+  if (!srcEl) { srcEl = dockIn.querySelector('[data-app="' + id + '"]'); }
+  var d = device.getBoundingClientRect();
+  var r = srcEl ? srcEl.getBoundingClientRect() : d;
+  buzz();
+  S.app = {
+    id: id,
+    rect: { x: r.left - d.left, y: r.top - d.top, w: r.width, h: r.height, dw: d.width, dh: d.height }
+  };
+  S.appPhase = 'opening';
+  renderApp(id);
+  sheet.hidden = false;
+  applySheetGeom(false);
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () { S.appPhase = 'open'; applySheetGeom(true); });
+  });
+}
+function closeApp() {
+  if (!S.app || S.appPhase === 'closing') return;
+  S.appPhase = 'closing';
+  applySheetGeom(true);
+  setTimeout(function () { sheet.hidden = true; S.app = null; S.appPhase = 'closed'; }, 430);
+}
+$('#homebar').addEventListener('click', function () { if (S.app) closeApp(); else if (S.ccOpen) closeCC(); else openCC(); });
+$('#app-homebar').addEventListener('click', closeApp);
+$('#app-homebar').addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+window.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (S.ncOpen) closeNC(); else if (S.ccOpen) closeCC(); else if (S.app) closeApp(); } });
+
+/* ---------- حالت لرزش و جابه‌جایی آیکون‌ها ---------- */
+var LONG_PRESS_MS = 450;
+function cancelLongPress() { if (S.press && S.press.timer) clearTimeout(S.press.timer); }
+function iconGridEl() { return page1.querySelector('.icongrid'); }
+function renderIconGhost(id, x, y) {
+  ghost.hidden = false;
+  ghost.style.left = x + 'px';
+  ghost.style.top = y + 'px';
+  ghost.innerHTML = iconVisHTML(id, 52) + '<span class="ghost-label">' + APPS[id].label + '</span>';
+}
+function page1IconPointerDown(id, e) {
+  e.stopPropagation();
+  if (S.wiggle) {
+    S.drag = { id: id, x: e.clientX, y: e.clientY };
+    renderIconGhost(id, e.clientX, e.clientY);
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+  } else {
+    var self = e.currentTarget;
+    S.press = {
+      id: id, startX: e.clientX, startY: e.clientY, longFired: false,
+      timer: setTimeout(function () {
+        S.wiggle = true;
+        if (S.press) S.press.longFired = true;
+        buzz();
+        refreshWiggleUI();
+      }, LONG_PRESS_MS)
+    };
+    try { self.setPointerCapture(e.pointerId); } catch (err) {}
+  }
+}
+function page1IconPointerMove(id, e) {
+  if (S.wiggle) {
+    if (!S.drag || S.drag.id !== id) return;
+    S.drag.x = e.clientX; S.drag.y = e.clientY;
+    renderIconGhost(id, e.clientX, e.clientY);
+    var order = S.gridOrder;
+    var target = -1;
+    for (var i = 0; i < order.length; i++) {
+      var el = iconGridEl().querySelector('[data-icon="' + order[i] + '"] .icon-vis');
+      if (!el) continue;
+      var r = el.getBoundingClientRect();
+      if (e.clientX >= r.left && e.clientX <= r.right) { target = i; break; }
+    }
+    var cur = order.indexOf(id);
+    if (target >= 0 && target !== cur) {
+      var next = order.slice();
+      next.splice(cur, 1);
+      next.splice(target, 0, id);
+      S.gridOrder = next;
+      renderIconsGrid();
+    }
+    return;
+  }
+  var p = S.press;
+  if (p && p.id === id) {
+    if (Math.hypot(e.clientX - p.startX, e.clientY - p.startY) > 10) cancelLongPress();
+  }
+}
+function page1IconPointerUp(id) {
+  cancelLongPress();
+  if (S.drag) {
+    lsSet(GRID_KEY, JSON.stringify(S.gridOrder));
+    S.drag = null;
+    ghost.hidden = true;
+    buzz();
+  }
+}
+function page1IconClick(id) {
+  if (S.press && S.press.longFired) { S.press.longFired = false; return; }
+  if (S.wiggle) return;
+  var el = iconGridEl().querySelector('[data-icon="' + id + '"]');
+  openApp(id, el);
+}
+$('#wiggle-done').addEventListener('click', function () {
+  S.wiggle = false;
+  lsSet(GRID_KEY, JSON.stringify(S.gridOrder));
+  refreshWiggleUI();
+});
+function refreshWiggleUI() {
+  $('#wiggle-done').hidden = !S.wiggle;
+  renderIconsGrid();
+}
+
+/* ---------- بروزرسانی زنده قیمت‌ها (پروکسی عمومی — تلاش نهاایی) ---------- */
+var priceState = { mode: 'snapshot', lastTry: null, trying: false, okAt: null };
+var PROXIES = [
+  function (u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+  function (u) { return 'https://corsproxy.io/?url=' + encodeURIComponent(u); },
+  function (u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }
+];
+function fetchJSON(url, timeoutMs) {
+  return new Promise(function (resolve, reject) {
+    var ctrl = new AbortController();
+    var t = setTimeout(function () { ctrl.abort(); reject(new Error('timeout')); }, timeoutMs || 9000);
+    fetch(url, { signal: ctrl.signal })
+      .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+      .then(function (j) { clearTimeout(t); resolve(j); })
+      .catch(function (err) { clearTimeout(t); reject(err); });
+  });
+}
+function fetchYahooPrice(sym) {
+  var u = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(sym) + '?range=1d&interval=1m';
+  var i = 0;
+  function attempt() {
+    if (i >= PROXIES.length) return Promise.resolve(null);
+    var p = PROXIES[i++];
+    return fetchJSON(p(u), 9000).then(function (j) {
+      var r = j && j.chart && j.chart.result && j.chart.result[0];
+      if (!r || !r.meta || typeof r.meta.regularMarketPrice !== 'number') throw new Error('bad payload');
+      var meta = r.meta;
+      return { price: meta.regularMarketPrice, prev: (meta.chartPreviousClose != null ? meta.chartPreviousClose : meta.previousClose) || null };
+    }).catch(function () { return attempt(); });
+  }
+  return attempt();
+}
+function refreshPrices() {
+  if (priceState.trying) return Promise.resolve(false);
+  priceState.trying = true;
+  setPriceBusy(true);
+  return Promise.all([fetchYahooPrice('GC=F'), fetchYahooPrice('^DJI')])
+    .then(function (rs) {
+      var ax = rs[0], ad = rs[1], ok = false;
+      if (ax && ms.xau) {
+        ms.xau.price = ax.price;
+        if (ax.prev) { ms.xau.prevClose = ax.prev; ms.xau.changePct = (ax.price - ax.prev) / ax.prev * 100; }
+        ok = true;
+      }
+      if (ad && ms.dji) {
+        ms.dji.price = ad.price;
+        if (ad.prev) { ms.dji.prevClose = ad.prev; ms.dji.changePct = (ad.price - ad.prev) / ad.prev * 100; }
+        ok = true;
+      }
+      priceState.lastTry = new Date();
+      priceState.trying = false;
+      setPriceBusy(false);
+      if (ok) {
+        priceState.mode = 'live';
+        priceState.okAt = new Date();
+        updatePriceWidgets(true);
+        updateStatusUI();
+        if (S.app && S.app.id === 'structure' && S.appPhase === 'open') renderApp('structure', true);
+      } else {
+        priceState.mode = 'offline';
+        updateStatusUI();
+      }
+      return ok;
+    })
+    .catch(function () { priceState.trying = false; setPriceBusy(false); priceState.mode = 'offline'; updateStatusUI(); return false; });
+}
+function restoreSnapshot() {
+  try {
+    var snap = JSON.parse(SNAP_RAW);
+    news = snap.news; ms = snap.market;
+    priceState.mode = 'snapshot';
+    updatePriceWidgets(true);
+    updateStatusUI();
+    if (S.app && S.appPhase === 'open') renderApp(S.app.id, true);
+  } catch (e) {}
+}
+var _autoPriceTimer = null;
+function applyAutoPrice() {
+  if (_autoPriceTimer) { clearInterval(_autoPriceTimer); _autoPriceTimer = null; }
+  if (settings.autoPrice) {
+    _autoPriceTimer = setInterval(function () {
+      if (document.visibilityState === 'visible') refreshPrices();
+    }, 15 * 60 * 1000);
+  }
+}
+function setPriceBusy(busy) {
+  var b1 = document.getElementById('cc-refresh-prices');
+  if (b1) b1.disabled = busy;
+  var spins = document.querySelectorAll('[data-price-spin]');
+  for (var i = 0; i < spins.length; i++) spins[i].classList.toggle('spin', busy);
+  updateStatusUI();
+}
+function priceModeLabel() {
+  if (priceState.mode === 'live') return 'قیمت زنده';
+  if (priceState.mode === 'offline') return 'بروزرسانی ناموفق';
+  return 'اسنپ‌شات فایل';
+}
+
+/* ================= رندر رابط کاربری ================= */
+
+/* خواندن ردیف یک تایم‌فریم از داده ساختار */
+function row(symKey, tf) {
+  var sym = ms[symKey];
+  if (!sym || !sym.rows) return null;
+  for (var i = 0; i < sym.rows.length; i++) if (sym.rows[i].tf === tf) return sym.rows[i];
+  return null;
+}
+
+/* ---------- اجزای پایه ---------- */
+function iconVisHTML(id, size) {
+  var a = APPS[id];
+  var px = size || 52;
+  var isz = px >= 50 ? 24 : 20;
+  return '<span class="icon-vis ' + a.cls + (px < 50 ? ' sm' : '') + '" style="width:' + px + 'px;height:' + px + 'px;border-radius:' + Math.round(px * 0.29) + 'px">' + icon(a.ic, isz) + '</span>';
+}
+function trendDotHTML(row) {
+  var t = row && row.trend ? row.trend : null;
+  var cls = t ? trendChipCls(t) : 'na';
+  var ic = t ? trendIcon(t) : 'minus';
+  return '<span class="tdot ' + cls + '">' + icon(ic, 10) + (t ? trendText(t) : '—') + '</span>';
+}
+function chgCls(ch) { return ch == null ? 'chg-none' : ch > 0 ? 'chg-up' : ch < 0 ? 'chg-down' : 'chg-flat'; }
+function chgText(sym) {
+  var ch = sym && sym.changePct;
+  if (ch == null) return 'در انتظار داده';
+  return (ch > 0 ? '+' : '') + faDigits(ch.toFixed(2)) + '٪ امروز';
+}
+
+/* ---------- بنر تغییر جهت ---------- */
+function changesSignature(changes) {
+  return (changes || []).map(function (c) { return c.symbol + ':' + c.tf + ':' + c.from + '>' + c.to + ':' + c.atISO; }).join('|');
+}
+function changeRowHTML(c) {
+  return '<div class="crow">' +
+    '<span class="crow-sym">' + SYMBOL_LABEL[c.symbol] + '</span>' +
+    '<span class="crow-tf">' + TF_LONG[c.tf] + '</span>' +
+    '<span class="chip ' + trendChipCls(c.from) + '">' + trendText(c.from) + '</span>' +
+    '<span class="crow-arrow" aria-hidden="true">←</span>' +
+    '<span class="chip ' + trendChipCls(c.to) + '">' + trendText(c.to) + '</span>' +
+    '<span class="crow-time">ساعت ' + faTime(new Date(c.atISO)) + '</span>' +
+    '</div>';
+}
+function bannerHTML() {
+  var changes = ms && ms.changes ? ms.changes : [];
+  if (!changes.length) return '';
+  var sig = changesSignature(changes);
+  if (lsGet(DISMISS_KEY) === sig) return '';
+  var shown = changes.slice(0, 3);
+  var extra = changes.length - shown.length;
+  return '<div class="banner blink" role="alert" data-banner>' +
+    '<div class="bnr-head">' +
+    '<span class="bnr-ic soft-pulse">' + icon('bell', 16) + '</span>' +
+    '<div style="min-width:0;flex:1">' +
+    '<p class="bnr-t1">تغییر جهت بازار!</p>' +
+    '<p class="bnr-t2">جهت روند ساختار در ' + faDigits(changes.length) + ' مورد تغییر کرد — ' + (changes.length > 1 ? 'موارد زیر جدیدترین‌اند' : 'جزئیات زیر') + '.</p>' +
+    '</div>' +
+    '<button type="button" class="bnr-x" data-banner-close aria-label="بستن اعلان تغییر جهت">' + icon('x', 14) + '</button>' +
+    '</div>' +
+    '<div class="bnr-rows">' + shown.map(changeRowHTML).join('') +
+    (extra > 0 ? '<p class="bnr-extra">+ ' + faDigits(extra) + ' تغییر دیگر در ۶ ساعت گذشته</p>' : '') +
+    '</div></div>';
+}
+
+/* ---------- ویجت‌های صفحه ۱ ---------- */
+function priceWidgetHTML(key, title) {
+  var sym = ms[key];
+  var row1h = null, i;
+  if (sym) for (i = 0; i < sym.rows.length; i++) if (sym.rows[i].tf === '1h') row1h = sym.rows[i];
+  return '<div class="widget price-w" data-pw="' + key + '" style="min-height:86px;justify-content:space-between">' +
+    '<div class="w-row"><span class="w-title">' + title + '</span>' + trendDotHTML(row1h) + '</div>' +
+    '<span class="w-big" dir="ltr" style="text-align:start" data-pw-price>' + (sym && sym.price != null ? faNum(sym.price) : '—') + '</span>' +
+    '<span class="w-chg ' + chgCls(sym && sym.changePct) + '" data-pw-chg>' + chgText(sym) + '</span>' +
+    '</div>';
+}
+function cdFormat(msLeft) {
+  var totalMin = Math.max(0, Math.floor(msLeft / 60000));
+  var h = Math.floor(totalMin / 60), m = totalMin % 60;
+  if (h === 0) return faDigits(m) + ' دقیقه';
+  if (m === 0) return faDigits(h) + ' ساعت';
+  return faDigits(h) + ':' + faDigits(String(m).padStart(2, '0'));
+}
+function nextHighEvent() {
+  var now = Date.now(), best = null;
+  var evs = news.events || [];
+  for (var i = 0; i < evs.length; i++) {
+    var e = evs[i];
+    if (!e.dateISO) continue;
+    var t = new Date(e.dateISO).getTime();
+    if (t <= now) continue;
+    if (e.impact !== 'High') continue;
+    if (!best || t < new Date(best.dateISO).getTime()) best = e;
+  }
+  return best;
+}
+function countdownWidgetHTML() {
+  var nx = nextHighEvent();
+  var left = nx ? new Date(nx.dateISO).getTime() - Date.now() : null;
+  return '<div class="widget" style="min-height:86px;justify-content:space-between">' +
+    '<div class="w-row"><span class="w-title">تا خبر مهم</span>' + icon('flame', 14) + '</div>' +
+    '<span class="w-big" data-cd-val>' + (left != null ? cdFormat(left) : '—') + '</span>' +
+    '<span class="w-sub" data-cd-sub title="' + (nx ? (nx.titleFa || nx.title) : '') + '">' + (nx ? (nx.titleFa || nx.title) : 'خبر مهمی در صف نیست') + '</span>' +
+    '</div>';
+}
+function todayCountWidgetHTML() {
+  var c = todayCounts();
+  return '<div class="widget" style="min-height:86px;justify-content:space-between">' +
+    '<div class="w-row"><span class="w-title">اخبار امروز</span>' + icon('newspaper', 14) + '</div>' +
+    '<span class="w-big" data-tc-count>' + faDigits(c.count) + ' <span style="font-size:12px;font-weight:700;color:var(--mutedfg)">خبر</span></span>' +
+    '<span class="w-chg" style="color:rgba(251,191,36,.9)" data-tc-high>' + faDigits(c.high) + ' خبر با اهمیت بالا</span>' +
+    '</div>';
+}
+function todayCounts() {
+  var tKey = todayKeyInTehran();
+  var count = 0, high = 0, evs = news.events || [];
+  for (var i = 0; i < evs.length; i++) {
+    var e = evs[i];
+    if (e.dateISO && e.dateISO.slice(0, 10) !== tKey) continue;
+    count++;
+    if (e.impact === 'High') high++;
+  }
+  return { count: count, high: high };
+}
+function digestWidgetHTML() {
+  return '<div class="widget col2">' +
+    '<div class="w-head">' + icon('sparkles', 14) + '<span class="w-head-t" style="color:var(--primary)">خلاصه روزانه هوشمند</span></div>' +
+    '<p class="clamp3" style="font-size:11px;line-height:20px;color:rgba(232,236,240,.85);margin:0">' +
+    (news.digest || 'برای این روز خلاصه هوشمندی تولید نشده است.') + '</p>' +
+    '</div>';
+}
+function widgetPulse(el) {
+  if (!el || !settings.anim) return;
+  el.classList.remove('wpulse');
+  void el.offsetWidth;
+  el.classList.add('wpulse');
+}
+
+/* ---------- صفحه ۱ ---------- */
+var _lastCdId = null, _lastTcKey = '';
+function renderPage1() {
+  page1.innerHTML =
+    bannerHTML() +
+    '<div class="grid2">' +
+    priceWidgetHTML('xau', 'طلا — XAUUSD') +
+    priceWidgetHTML('dji', 'داوجونز — DJI') +
+    countdownWidgetHTML() +
+    todayCountWidgetHTML() +
+    digestWidgetHTML() +
+    '</div>' +
+    '<div class="icongrid"></div>' +
+    '<p class="page-note">صفحه ۱ از ۲ — برای صفحه بعد به چپ بکشید</p>';
+  renderIconsGrid();
+}
+function renderIconsGrid() {
+  var grid = page1.querySelector('.icongrid');
+  if (!grid) return;
+  grid.className = 'icongrid' + (S.wiggle ? ' wiggling-grid' : '');
+  var h = '';
+  for (var i = 0; i < S.gridOrder.length; i++) {
+    var id = S.gridOrder[i];
+    var dragging = S.drag && S.drag.id === id;
+    h += '<button type="button" class="appbtn' + (S.wiggle ? ' wig-touch' : '') + (dragging ? ' dragging' : '') + '" data-icon="' + id + '" aria-label="' + APPS[id].label + '">' +
+      '<span class="' + (S.wiggle && !dragging ? 'wiggling-icon' : '') + '">' + iconVisHTML(id, 52) + '</span>' +
+      '<span class="icon-label">' + APPS[id].label + '</span>' +
+      '</button>';
+  }
+  grid.innerHTML = h;
+}
+
+/* ---------- صفحه ۲ ---------- */
+function glanceWidgetHTML() {
+  var tfs = ['15m', '1h', '4h', '1d'], rows = '';
+  for (var i = 0; i < tfs.length; i++) {
+    var tf = tfs[i];
+    rows += '<tr><td>' + TF_SHORT[tf] + '</td>' +
+      '<td>' + trendDotHTML(row('xau', tf)) + '</td>' +
+      '<td>' + trendDotHTML(row('dji', tf)) + '</td></tr>';
+  }
+  return '<div class="widget col2">' +
+    '<div class="w-head">' + icon('activity', 14) + '<span class="w-head-t">نگاه اجمالی — ساختار بازار</span></div>' +
+    '<table class="mini-tbl"><thead><tr><th>تایم‌فریم</th><th>طلا</th><th>داو</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+    '<p class="w-note">جزئیات کامل در اپ «ساختار بازار» — داده فایل تا لحظه تولید</p>' +
+    '</div>';
+}
+function topNewsWidgetHTML() {
+  var now = Date.now();
+  var up = (news.events || []).filter(function (e) { return e.dateISO && new Date(e.dateISO).getTime() > now; })
+    .sort(function (a, b) { return new Date(a.dateISO).getTime() - new Date(b.dateISO).getTime(); })
+    .slice(0, 3);
+  var rows = '';
+  if (!up.length) rows = '<p style="font-size:11px;color:var(--mutedfg);margin:0">خبر آینده‌ای در فید نیست.</p>';
+  else {
+    rows = '<div style="display:flex;flex-direction:column;gap:6px">' + up.map(function (e) {
+      return '<div style="display:flex;align-items:center;gap:8px">' +
+        icon('clock', 12) +
+        '<span dir="ltr" style="flex:none;font-size:10px;font-weight:700;color:var(--mutedfg);font-variant-numeric:tabular-nums">' +
+        faTime(new Date(e.dateISO)) + '</span>' +
+        '<span class="truncate" style="font-size:11px">' + (e.titleFa || e.title) + '</span>' +
+        (e.impact === 'High' ? '<span style="flex:none;color:var(--amber)">' + icon('flame', 12) + '</span>' : '') +
+        '</div>';
+    }).join('') + '</div>';
+  }
+  return '<div class="widget col2">' +
+    '<div class="w-head">' + icon('calDays', 14) + '<span class="w-head-t">خبرهای پیش‌رو</span></div>' + rows +
+    '</div>';
+}
+function hintsWidgetHTML() {
+  return '<div class="widget col2" style="gap:6px">' +
+    '<div class="w-head">' + icon('dollar', 14) + '<span class="w-head-t">راهنمای حرکات و وضعیت</span></div>' +
+    '<ul style="display:flex;flex-direction:column;gap:4px;font-size:10px;line-height:16px;color:var(--mutedfg);margin:0;padding:0;list-style:none">' +
+    '<li>• نگه‌داشتن آیکون‌ها → حالت لرزش برای جابه‌جایی</li>' +
+    '<li>• کشیدن انگشت به چپ/راست → جابه‌جایی صفحات (کاغذدیواری پارالاکس)</li>' +
+    '<li>• کشیدن از بالا → مرکز اعلان‌ها | از پایین → مرکز کنترل</li>' +
+    '<li>• لمس آیکون اپ → باز شدن با انیمیشن بزرگ‌نمایی</li>' +
+    '<li>• بروزرسانی زنده قیمت‌ها: مرکز کنترل (نیازمند اینترنت)</li>' +
+    '</ul></div>';
+}
+function renderPage2() {
+  page2.innerHTML = glanceWidgetHTML() + topNewsWidgetHTML() + hintsWidgetHTML();
+}
+
+/* ---------- داک ---------- */
+function renderDock() {
+  dockIn.innerHTML =
+    '<button type="button" data-app="news" aria-label="اخبار دلار">' + iconVisHTML('news', 46) + '</button>' +
+    '<button type="button" data-app="structure" aria-label="ساختار بازار">' + iconVisHTML('structure', 46) + '</button>' +
+    '<button type="button" data-act="nc" aria-label="مرکز اعلان‌ها"><span class="icon-vis g-nc sm" style="width:46px;height:46px;border-radius:15px">' + icon('bell', 20) + '</span></button>' +
+    '<button type="button" data-act="cc" aria-label="مرکز کنترل"><span class="icon-vis g-cc sm" style="width:46px;height:46px;border-radius:15px">' + icon('sliders', 20) + '</span></button>';
+}
+
+/* ---------- بروزرسانی‌های هدفمند ---------- */
+function updatePriceWidgets(pulse) {
+  var keys = ['xau', 'dji'];
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i], w = page1.querySelector('[data-pw="' + k + '"]');
+    if (!w) continue;
+    var sym = ms[k];
+    var pe = w.querySelector('[data-pw-price]'), ce = w.querySelector('[data-pw-chg]');
+    if (pe) pe.textContent = sym && sym.price != null ? faNum(sym.price) : '—';
+    if (ce) { ce.textContent = chgText(sym); ce.className = 'w-chg ' + chgCls(sym && sym.changePct); }
+    if (pulse) widgetPulse(w);
+  }
+}
+function updateCountdown() {
+  var nx = nextHighEvent();
+  var left = nx ? new Date(nx.dateISO).getTime() - Date.now() : null;
+  var ve = page1.querySelector('[data-cd-val]'), se = page1.querySelector('[data-cd-sub]');
+  if (ve) ve.textContent = left != null ? cdFormat(left) : '—';
+  if (se) { se.textContent = nx ? (nx.titleFa || nx.title) : 'خبر مهمی در صف نیست'; se.title = se.textContent; }
+  var id = nx ? nx.id : 'none';
+  if (id !== _lastCdId) { _lastCdId = id; widgetPulse(ve && ve.closest('.widget')); }
+}
+function updateTodayCount() {
+  var c = todayCounts();
+  var key = c.count + ':' + c.high;
+  var ce = page1.querySelector('[data-tc-count]'), he = page1.querySelector('[data-tc-high]');
+  if (ce) ce.innerHTML = faDigits(c.count) + ' <span style="font-size:12px;font-weight:700;color:var(--mutedfg)">خبر</span>';
+  if (he) he.textContent = faDigits(c.high) + ' خبر با اهمیت بالا';
+  if (key !== _lastTcKey) { _lastTcKey = key; widgetPulse(ce && ce.closest('.widget')); }
+}
+function updateMsBadge() {
+  var b = appScroll.querySelector('[data-ms-badge]');
+  if (!b) return;
+  if (priceState.mode === 'live') { b.className = 'badge live'; b.textContent = 'قیمت زنده — ' + faTime(priceState.okAt || new Date()); }
+  else if (priceState.mode === 'offline') { b.className = 'badge snap'; b.textContent = 'بروزرسانی ناموفق — اسنپ‌شات'; }
+  else { b.className = 'badge snap'; b.textContent = 'اسنپ‌شات فایل'; }
+}
+function updateStatusUI() {
+  if (S.ncOpen) renderNC();
+  if (S.ccOpen) renderCC();
+  if (S.app && S.app.id === 'structure' && S.appPhase === 'open') updateMsBadge();
+}
+
+/* ---------- مرکز اعلان‌ها ---------- */
+function feedLabel() {
+  if (news.feedStatus === 'live') return 'بروزرسانی زنده در لحظه تولید فایل';
+  if (news.feedStatus === 'cached') return 'داده کش‌شده در لحظه تولید فایل';
+  if (news.feedStatus === 'error') return 'خطای فید در لحظه تولید فایل';
+  return 'در انتظار داده';
+}
+function renderNC() {
+  var changes = ms && ms.changes ? ms.changes : [];
+  var changesHTML = changes.length
+    ? '<div class="bnr-rows">' + changes.slice(0, 6).map(changeRowHTML).join('') + '</div>'
+    : '<p class="nc-sec-p">تغییر جهت جدیدی تا لحظه تولید فایل ثبت نشده است. این فایل داده‌های لحظه تولید را نمایش می‌دهد.</p>';
+  var gen = GEN_ISO ? new Date(GEN_ISO) : new Date();
+  ncSheet.innerHTML =
+    '<div class="grabber"></div>' +
+    '<div class="nc-head">' +
+    '<div><p class="nc-clock" data-nc-clock>' + faTime(new Date()) + '</p><p class="nc-date">' + faDateLong(new Date()) + '</p></div>' +
+    '<button type="button" class="nc-close" data-nc-close aria-label="بستن مرکز اعلان‌ها">' + icon('x', 16) + '</button>' +
+    '</div>' +
+    '<section class="nc-sec">' +
+    '<div class="nc-sec-h"><span style="color:var(--amber)">' + icon('moveH', 14) + '</span><h3 class="nc-sec-t">تغییر جهت بازار</h3><span class="ms-auto" style="color:var(--mutedfg)">' + icon('bell', 12) + '</span></div>' +
+    changesHTML +
+    '</section>' +
+    '<section class="nc-sec">' +
+    '<div class="nc-sec-h"><span style="color:var(--primary)">' + icon('radio', 14) + '</span><h3 class="nc-sec-t">وضعیت سامانه</h3></div>' +
+    '<div style="display:flex;flex-direction:column;gap:8px;font-size:11px;line-height:20px">' +
+    '<div class="st-row"><span style="color:var(--mutedfg)">' + icon('radio', 12) + '</span><span class="st-k">فید اخبار:</span><span class="st-v">' + feedLabel() + '</span></div>' +
+    ((news.pendingTranslation || 0) > 0
+      ? '<div class="st-row"><span style="color:var(--amber)">' + icon('langs', 12) + '</span><span class="st-k">در نوبت ترجمه:</span><span class="st-v" style="color:var(--amber)">' + faDigits(news.pendingTranslation) + ' خبر</span></div>'
+      : '') +
+    '<div class="st-row"><span style="color:var(--mutedfg)">' + icon('activity', 12) + '</span><span class="st-k">قیمت‌ها:</span><span class="st-v">' + priceModeLabel() + (priceState.lastTry ? ' — آخرین تلاش ' + faTime(priceState.lastTry) : '') + '</span></div>' +
+    '<div class="st-row"><span style="color:var(--mutedfg)">' + icon('calDays', 12) + '</span><span class="st-k">تولید فایل:</span><span class="st-v">' + faDateLong(gen) + ' — ' + faTime(gen) + '</span></div>' +
+    '</div></section>' +
+    '<p class="cc-note">برای بستن، به بالا بکشید یا پس‌زمینه را لمس کنید</p>';
+  var c = ncSheet.querySelector('[data-nc-close]');
+  if (c) c.addEventListener('click', closeNC);
+}
+
+/* ---------- مرکز کنترل ---------- */
+function swHTML(key, icname, accent, label) {
+  return '<button type="button" class="cc-tile" data-toggle="' + key + '" role="switch" aria-checked="' + !!settings[key] + '" aria-label="' + label + '">' +
+    '<span class="cc-ic ' + accent + '">' + icon(icname, 16) + '</span>' +
+    '<span class="cc-label">' + label + '</span>' +
+    '<span class="sw' + (settings[key] ? ' on' : '') + '" data-sw></span>' +
+    '</button>';
+}
+function actionHTML(id, icname, accent, label, busyAttr) {
+  return '<button type="button" class="cc-tile" data-action="' + id + '"' + (busyAttr ? ' id="' + busyAttr + '"' : '') + '>' +
+    '<span class="cc-ic ' + accent + '"><span data-price-spin' + (id === 'refresh-prices' ? '' : ' style="display:contents"') + '>' + icon(icname, 16) + '</span></span>' +
+    '<span class="cc-label">' + label + '</span>' +
+    '</button>';
+}
+function renderCC() {
+  var pm = priceState.mode;
+  var chips =
+    '<span class="stat-chip">قیمت‌ها: ' + priceModeLabel() + '</span>' +
+    '<span class="stat-chip">' + (priceState.lastTry ? 'آخرین تلاش: ' + faTime(priceState.lastTry) : 'بدون تلاش اخیر') + '</span>' +
+    '<span class="stat-chip">اخبار: اسنپ‌شات فایل</span>';
+  ccSheet.innerHTML =
+    '<div class="grabber"></div>' +
+    '<div class="cc-head"><h3 class="cc-title">مرکز کنترل</h3><div style="display:flex;align-items:center;gap:8px;color:var(--mutedfg)">' + icon('signal', 14) + icon('wifi', 14) + icon('battery', 18) + '</div></div>' +
+    '<div class="stat-chips">' + chips + '</div>' +
+    '<div class="cc-grid">' +
+    swHTML('highOnly', 'flame', 'cc-a-amber', 'تمرکز روی اخبار خیلی مهم') +
+    swHTML('autoPrice', 'refresh', 'cc-a-sky', 'تلاش خودکار قیمت‌ها (هر ۱۵ دقیقه)') +
+    swHTML('anim', 'sparkles', 'cc-a-violet', 'انیمیشن‌ها و پالس ویجت‌ها') +
+    actionHTML('refresh-prices', 'refresh', 'cc-a-emerald', 'بروزرسانی زنده قیمت‌ها (نیازمند اینترنت)', 'cc-refresh-prices') +
+    actionHTML('restore', 'db', 'cc-a-rose', 'بازنشانی به داده داخل فایل', '') +
+    '<div class="cc-tile" style="cursor:default">' +
+    '<span class="cc-ic cc-a-muted">' + icon('db', 16) + '</span>' +
+    '<span style="min-width:0;flex:1"><span style="display:flex;align-items:center;gap:8px;font-size:10px;font-weight:700">منابع داده</span>' +
+    '<span class="cc-src">اخبار: ForexFactory — قیمت: Yahoo Finance — ترجمه و تحلیل: هوش مصنوعی (در لحظه تولید فایل)</span></span>' +
+    '</div>' +
+    '</div>' +
+    '<p class="cc-note">برای بستن، به پایین بکشید یا پس‌زمینه را لمس کنید</p>';
+  var tiles = ccSheet.querySelectorAll('[data-toggle]');
+  for (var i = 0; i < tiles.length; i++) {
+    (function (t) {
+      t.addEventListener('click', function () {
+        var k = t.dataset.toggle;
+        settings[k] = !settings[k];
+        saveSettings();
+        t.setAttribute('aria-checked', !!settings[k]);
+        var sw = t.querySelector('[data-sw]');
+        if (sw) sw.classList.toggle('on', settings[k]);
+        if (k === 'autoPrice') applyAutoPrice();
+        if (k === 'anim') applyAnim();
+        if (k === 'highOnly' && S.app && S.app.id === 'news' && S.appPhase === 'open') renderApp('news', true);
+        buzz();
+      });
+    })(tiles[i]);
+  }
+  var acts = ccSheet.querySelectorAll('[data-action]');
+  for (var j = 0; j < acts.length; j++) {
+    (function (b) {
+      b.addEventListener('click', function () {
+        if (b.dataset.action === 'refresh-prices') refreshPrices();
+        else if (b.dataset.action === 'restore') { restoreSnapshot(); renderCC(); }
+      });
+    })(acts[j]);
+  }
+}
+
+/* رنگ آیکون‌های مرکز کنترل (تزریق یک‌باره) */
+(function () {
+  var st = document.createElement('style');
+  st.textContent =
+    '.cc-a-amber{border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.15);color:var(--amber)}' +
+    '.cc-a-sky{border-color:rgba(56,189,248,.3);background:rgba(56,189,248,.15);color:var(--sky)}' +
+    '.cc-a-violet{border-color:rgba(167,139,250,.3);background:rgba(167,139,250,.15);color:var(--violet)}' +
+    '.cc-a-emerald{border-color:rgba(52,211,153,.3);background:rgba(52,211,153,.15);color:var(--emerald)}' +
+    '.cc-a-rose{border-color:rgba(251,113,133,.3);background:rgba(251,113,133,.15);color:var(--rose)}' +
+    '.cc-a-muted{border-color:var(--border);background:rgba(255,255,255,.06);color:var(--mutedfg)}';
+  document.head.appendChild(st);
+})();
+
+/* ================= اپ‌های تمام‌صفحه ================= */
+
+/* ---------- وضعیت اپ اخبار ---------- */
+var NEWS_TAB_KEY = 'sd_news_tab_v1';
+var S_NEWS = { tab: 'today', filter: 'all' };
+try {
+  var _t = lsGet(NEWS_TAB_KEY);
+  if (_t && ['today', 'tomorrow', 'week', 'all'].indexOf(_t) >= 0) S_NEWS.tab = _t;
+} catch (e) {}
+
+var IMPACT_META = {
+  High: { label: 'اهمیت بالا', cls: 'impH', ic: 'flame' },
+  Medium: { label: 'اهمیت متوسط', cls: 'impM', ic: 'sigM' },
+  Low: { label: 'اهمیت کم', cls: 'impL', ic: 'sigL' },
+  Holiday: { label: 'تعطیلات', cls: 'impO', ic: 'calOff' }
+};
+var DIR_META = {
+  bullish: { label: 'افزایشی — تقویت دلار', cls: 'bull', ic: 'trendUp' },
+  bearish: { label: 'کاهشی — تضعیف دلار', cls: 'bear', ic: 'trendDown' },
+  mixed: { label: 'تأثیر دووجهی', cls: 'neut', ic: 'moveH' },
+  neutral: { label: 'بدون تأثیر مستقیم', cls: 'na', ic: 'minus' }
+};
+var CMP_TEXT = {
+  above: 'پیش‌بینی بالاتر از مقدار قبلی است → سناریوی «داده قوی‌تر» محتمل‌تر',
+  below: 'پیش‌بینی پایین‌تر از مقدار قبلی است → سناریوی «داده ضعیف‌تر» محتمل‌تر',
+  equal: 'پیش‌بینی برابر مقدار قبلی است → دو سناریو هم‌وزن'
+};
+function dirChipHTML(v) {
+  if (v === 'bullish') return '<span class="chip bull">' + icon('trendUp', 12) + 'افزایش</span>';
+  if (v === 'bearish') return '<span class="chip bear">' + icon('trendDown', 12) + 'کاهش</span>';
+  if (v === 'mixed') return '<span class="chip neut">' + icon('moveH', 12) + 'دووجهی</span>';
+  return '<span class="chip na">' + icon('minus', 12) + 'خنثی</span>';
+}
+function probLineHTML(label, up) {
+  if (up == null) return '';
+  var upPct = Math.round(up * 100), dn = 100 - upPct;
+  if (upPct >= dn) {
+    return '<p class="prob-l"><span class="prob-k">' + label + ':</span><b class="prob-up">افزایش ' + faDigits(upPct) + '٪</b><span class="prob-alt">/ کاهش ' + faDigits(dn) + '٪</span></p>';
+  }
+  return '<p class="prob-l"><span class="prob-k">' + label + ':</span><b class="prob-dn">کاهش ' + faDigits(dn) + '٪</b><span class="prob-alt">/ افزایش ' + faDigits(upPct) + '٪</span></p>';
+}
+function vchipHTML(label, value, hi) {
+  return '<div class="vchip' + (hi ? ' hi' : '') + '"><span class="vchip-k">' + label + '</span><span class="vchip-v">' + faDigits(value) + '</span></div>';
+}
+function impactTableHTML(e) {
+  var out = e.outlook;
+  var prob = '';
+  if (out && out.xauUp != null && out.djiUp != null) {
+    prob = '<div class="aimp-prob">' +
+      '<span class="prob-t">احتمال برآوردی (بر اساس پیش‌بینی)</span>' +
+      probLineHTML('طلا', out.xauUp) +
+      probLineHTML('داوجونز', out.djiUp) +
+      (out.cmp ? '<span class="prob-note">' + CMP_TEXT[out.cmp] + ' — برآورد تقریبی، نه سیگنال معاملاتی.</span>' : '') +
+      '</div>';
+  } else {
+    prob = '<div class="aimp-prob"><span class="prob-note">برای این خبر پیش‌بینی عددی ثبت نشده؛ احتمال‌دهی مقدور نیست.</span></div>';
+  }
+  return '<div class="aimp">' +
+    '<div class="aimp-h">' + icon('table', 14) + '<span>تأثیر بر نمادها</span></div>' +
+    '<table class="aimp-tbl"><thead><tr>' +
+    '<th>نماد</th><th>خبر بالاتر از انتظار</th><th>خبر پایین‌تر از انتظار</th>' +
+    '</tr></thead><tbody>' +
+    '<tr><td><div class="a-name">طلا</div><div class="a-mono">XAUUSD</div></td><td>' + dirChipHTML(e.xauAbove) + '</td><td>' + dirChipHTML(e.xauBelow) + '</td></tr>' +
+    '<tr><td><div class="a-name">داوجونز</div><div class="a-mono">DJ30</div></td><td>' + dirChipHTML(e.djiAbove) + '</td><td>' + dirChipHTML(e.djiBelow) + '</td></tr>' +
+    '</tbody></table>' + prob + '</div>';
+}
+function eventCardHTML(e) {
+  var impact = IMPACT_META[e.impact] || IMPACT_META.Low;
+  var dir = e.direction ? DIR_META[e.direction] : null;
+  var t = e.dateISO ? new Date(e.dateISO).getTime() : null;
+  var isReleased = t != null && t <= Date.now();
+  var warn = (!isReleased && t != null && (e.impact === 'High' || e.impact === 'Medium') && t - Date.now() < 3600000)
+    ? '<p class="ev-warn">' + icon('alert', 14) + 'این خبر مهم کمتر از یک ساعت دیگر منتشر می‌شود؛ احتمال نوسان شدید در دلار، طلا و داو وجود دارد.</p>'
+    : '';
+  var vals = (e.previous || e.forecast || e.actual)
+    ? '<div class="vchips">' + vchipHTML('قبلی', e.previous, false) + vchipHTML('پیش‌بینی', e.forecast, false) + vchipHTML('واقعی', e.actual, !!e.actual) + '</div>'
+    : '';
+  return '<article class="ev">' +
+    '<div class="ev-top">' +
+    '<span dir="ltr" class="ev-time">' + (e.dateISO ? faTime(new Date(e.dateISO)) : 'هم‌روز') + '</span>' +
+    '<span class="chip ' + impact.cls + '">' + icon(impact.ic, 12) + impact.label + '</span>' +
+    (isReleased
+      ? '<span class="chip st">' + icon('checkCircle', 12) + 'منتشر شد</span>'
+      : (t != null ? '<span class="chip st">' + icon('hourglass', 12) + 'در انتظار انتشار</span>' : '')) +
+    (dir ? '<span class="chip ' + dir.cls + ' ms-auto">' + icon(dir.ic, 14) + dir.label + '</span>' : '') +
+    '</div>' +
+    '<div style="display:flex;flex-direction:column;gap:8px;min-width:0">' +
+    (e.titleFa
+      ? '<h3 class="ev-title">' + e.titleFa + '</h3>'
+      : '<h3 class="ev-title" style="color:var(--mutedfg)">' + icon('langs', 16) + ' در نوبت ترجمه هوشمند...</h3>') +
+    '<p dir="ltr" class="ev-en">' + e.title + '</p>' +
+    (e.explanationFa ? '<div class="ev-exp"><p>' + e.explanationFa + '</p></div>' : '') +
+    vals +
+    '</div>' +
+    impactTableHTML(e) +
+    warn +
+    '</article>';
+}
+function statCardHTML(icname, accent, k, v, s) {
+  return '<div class="card stat">' +
+    '<span class="tile ' + accent + '">' + icon(icname, 16) + '</span>' +
+    '<div style="min-width:0;flex:1"><p class="stat-k">' + k + '</p><p class="stat-v">' + v + '</p>' + (s ? '<p class="stat-s">' + s + '</p>' : '') + '</div>' +
+    '</div>';
+}
+function cdLong(msLeft) {
+  var totalMin = Math.max(0, Math.floor(msLeft / 60000));
+  var h = Math.floor(totalMin / 60), m = totalMin % 60;
+  if (h === 0) return faDigits(m) + ' دقیقه دیگر';
+  if (m === 0) return faDigits(h) + ' ساعت دیگر';
+  return faDigits(h) + ' ساعت و ' + faDigits(m) + ' دقیقه دیگر';
+}
+function dayLabel(key) {
+  var tKey = todayKeyInTehran();
+  var p = key.split('-');
+  var d = new Date(+p[0], +p[1] - 1, +p[2], 12);
+  if (key === tKey) return 'امروز — ' + faDateLong(d);
+  if (key === addDaysToKey(tKey, 1)) return 'فردا — ' + faDateLong(d);
+  return faDateLong(d);
+}
+function newsGroups() {
+  var tKey = todayKeyInTehran();
+  var map = {}, order = [];
+  var evs = news.events || [];
+  for (var i = 0; i < evs.length; i++) {
+    var e = evs[i];
+    var f = S_NEWS.filter;
+    var ok = f === 'all' || (f === 'High' ? e.impact === 'High' : f === 'Medium' ? e.impact === 'Medium' : (e.impact === 'Low' || e.impact === 'Holiday'));
+    if (!ok) continue;
+    var k = e.dateISO ? dateKeyInTehran(new Date(e.dateISO)) : tKey;
+    if (!map[k]) { map[k] = []; order.push(k); }
+    map[k].push(e);
+  }
+  order.sort();
+  if (S_NEWS.tab === 'today') order = order.filter(function (k) { return k === tKey; });
+  else if (S_NEWS.tab === 'tomorrow') order = order.filter(function (k) { return k === addDaysToKey(tKey, 1); });
+  else if (S_NEWS.tab === 'week') {
+    var a = addDaysToKey(tKey, -6), b = addDaysToKey(tKey, 6);
+    order = order.filter(function (k) { return k >= a && k <= b; });
+  }
+  order.forEach(function (k) {
+    map[k].sort(function (x, y) {
+      return (x.dateISO ? new Date(x.dateISO).getTime() : -1) - (y.dateISO ? new Date(y.dateISO).getTime() : -1);
+    });
+  });
+  return order.map(function (k) { return [k, map[k]]; });
+}
+function renderNewsApp() {
+  var groups = newsGroups();
+  var c = todayCounts();
+  var nx = nextHighEvent();
+  var gen = GEN_ISO ? new Date(GEN_ISO) : new Date();
+  var tabs = [['today', 'امروز'], ['tomorrow', 'فردا'], ['week', 'این هفته'], ['all', 'همه']];
+  var chips = [['all', 'همه'], ['High', 'خیلی مهم'], ['Medium', 'متوسط'], ['low', 'کم‌اهمیت']];
+  var html = '<div class="app-pad">';
+
+  if (news.digest) {
+    html += '<div class="card card-p digest">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' + icon('sparkles', 16) + '<h2 class="digest-t">خلاصه روزانه هوشمند</h2></div>' +
+      '<p class="digest-p">' + news.digest + '</p></div>';
+  }
+
+  html += '<div class="stats">' +
+    statCardHTML('calDays', 'p', 'اخبار امروز (USD)', faDigits(c.count) + ' خبر', faDigits(c.high) + ' خبر با اهمیت بالا') +
+    statCardHTML('flame', 'a', 'تا خبر مهم بعدی', nx ? cdLong(new Date(nx.dateISO).getTime() - Date.now()) : 'خبر مهمی نیست', nx ? (nx.titleFa || nx.title) : '') +
+    statCardHTML('radio', 'n', 'وضعیت داده', 'اسنپ‌شات داخل فایل', 'تولید فایل: ' + faDateLong(gen) + ' — ' + faTime(gen)) +
+    '</div>';
+
+  html += '<div style="display:flex;flex-direction:column;gap:10px">' +
+    '<div class="tabs-list">' + tabs.map(function (t) {
+      return '<button type="button" class="tab' + (S_NEWS.tab === t[0] ? ' on' : '') + '" data-tab="' + t[0] + '">' + t[1] + '</button>';
+    }).join('') + '</div>' +
+    '<div class="fchips">' + chips.map(function (f) {
+      var on = (settings.highOnly ? 'High' : S_NEWS.filter) === f[0];
+      return '<button type="button" class="fchip' + (on ? ' on' : '') + '" data-filter="' + f[0] + '" aria-pressed="' + on + '">' + f[1] + '</button>';
+    }).join('') + '</div></div>';
+
+  if ((news.pendingTranslation || 0) > 0) {
+    html += '<div class="pending-note">' + icon('langs', 16) + '<span>' + faDigits(news.pendingTranslation) + ' خبر در نوبت ترجمه هوشمند بود در لحظه تولید فایل.</span></div>';
+  }
+
+  if (!groups.length) {
+    html += '<div class="empty">' + icon('inbox', 28) +
+      '<p>' + (S_NEWS.tab === 'today' ? 'برای امروز خبر USD ثبت نشده است (مثلاً روزهای تعطیلی بازار).' : 'در این بازه خبری برای نمایش نیست. بازه یا فیلتر را تغییر دهید.') + '</p>' +
+      (S_NEWS.tab === 'today' ? '<button type="button" class="btn" data-goweek>' + icon('calDays', 14) + 'مشاهده این هفته</button>' : '') +
+      '</div>';
+  } else {
+    groups.forEach(function (g) {
+      html += '<section style="display:flex;flex-direction:column;gap:10px">' +
+        '<div class="day-h"><h2>' + dayLabel(g[0]) + '</h2><span class="day-line"></span><span class="day-n">' + faDigits(g[1].length) + ' خبر</span></div>' +
+        g[1].map(eventCardHTML).join('') +
+        '</section>';
+    });
+  }
+
+  html += '<p style="text-align:center;font-size:9px;color:rgba(160,170,180,.7);margin:0">داده‌های خبری ثابت‌اند (اسنپ‌شات ' + faDateLong(gen) + ') — قیمت‌ها از مرکز کنترل قابل بروزرسانی زنده‌اند.</p>';
+  html += '</div>';
+  appScroll.innerHTML = html;
+
+  var tabsEls = appScroll.querySelectorAll('[data-tab]');
+  for (var i = 0; i < tabsEls.length; i++) {
+    (function (b) {
+      b.addEventListener('click', function () {
+        S_NEWS.tab = b.dataset.tab;
+        lsSet(NEWS_TAB_KEY, S_NEWS.tab);
+        renderNewsApp();
+        appScroll.scrollTop = 0;
+      });
+    })(tabsEls[i]);
+  }
+  var chipEls = appScroll.querySelectorAll('[data-filter]');
+  for (var j = 0; j < chipEls.length; j++) {
+    (function (b) {
+      b.addEventListener('click', function () {
+        if (settings.highOnly) { settings.highOnly = false; saveSettings(); }
+        S_NEWS.filter = b.dataset.filter;
+        renderNewsApp();
+      });
+    })(chipEls[j]);
+  }
+  var gw = appScroll.querySelector('[data-goweek]');
+  if (gw) gw.addEventListener('click', function () { S_NEWS.tab = 'week'; lsSet(NEWS_TAB_KEY, 'week'); renderNewsApp(); });
+}
+
+/* ---------- پیشنهاد معامله ---------- */
+var SUG = { st: '1h', en: '5m' };
+function validEntries(st) {
+  return ['5m', '15m', '1h', '4h'].filter(function (tf) { return TF_MINUTES[tf] <= TF_MINUTES[st]; });
+}
+function effectiveEntry() {
+  var v = validEntries(SUG.st);
+  return v.indexOf(SUG.en) >= 0 ? SUG.en : v[v.length - 1];
+}
+function msRow(symKey, tf) { return row(symKey, tf); }
+function getVerdict(stT, enT) {
+  if (!stT || !enT) return { key: 'wait', reason: 'داده یکی از دو تایم‌فریم ناکافی است' };
+  if (stT === 'bullish' && enT === 'bullish') return { key: 'buy', reason: 'ساختار و ورود هر دو صعودی‌اند' };
+  if (stT === 'bearish' && enT === 'bearish') return { key: 'sell', reason: 'ساختار و ورود هر دو نزولی‌اند' };
+  if (stT === 'neutral' || enT === 'neutral') return { key: 'wait', reason: 'یکی از دو تایم‌فریم خنثی است' };
+  return { key: 'wait', reason: 'جهت ساختار و ورود مخالف هم است' };
+}
+function sugChipHTML(label, t) {
+  var cls = t ? trendChipCls(t) : 'na';
+  var ic = t ? trendIcon(t) : 'minus';
+  var txt = t ? trendText(t) : 'ناکافی';
+  return '<span class="chip ' + cls + '">' + icon(ic, 12) + label + ': ' + txt + '</span>';
+}
+function sugCardHTML(name, mono, symKey) {
+  var enTf = effectiveEntry();
+  var stRow = row(symKey, SUG.st), enRow = row(symKey, enTf);
+  var v = getVerdict(stRow ? stRow.trend : null, enRow ? enRow.trend : null);
+  var meta = v.key === 'buy'
+    ? { label: 'پیشنهاد خرید', cls: 'sugB', ic: 'trendUp' }
+    : v.key === 'sell'
+      ? { label: 'پیشنهاد فروش', cls: 'sugS', ic: 'trendDown' }
+      : { label: 'صبر کنید', cls: 'sugW', ic: 'hourglass' };
+  return '<div class="sug-card">' +
+    '<div class="sug-card-top"><div style="min-width:0"><div style="font-size:12px;font-weight:700">' + name + '</div><div class="sym-mono">' + mono + '</div></div>' +
+    '<span class="chip ' + meta.cls + '">' + icon(meta.ic, 14) + meta.label + '</span></div>' +
+    '<div class="sug-chips">' +
+    sugChipHTML('ساختار ' + TF_LONG[SUG.st], stRow ? stRow.trend : null) +
+    sugChipHTML('ورود ' + TF_LONG[enTf], enRow ? enRow.trend : null) +
+    '</div>' +
+    '<p class="sug-reason">' + v.reason + '</p>' +
+    '</div>';
+}
+function sugBoxHTML() {
+  var enTf = effectiveEntry();
+  var stOpts = TF_ORDER.map(function (tf) { return '<option value="' + tf + '"' + (SUG.st === tf ? ' selected' : '') + '>' + TF_LONG[tf] + '</option>'; }).join('');
+  var enOpts = validEntries(SUG.st).map(function (tf) { return '<option value="' + tf + '"' + (enTf === tf ? ' selected' : '') + '>' + TF_LONG[tf] + '</option>'; }).join('');
+  return '<div class="sug">' +
+    '<div class="sug-head">' + icon('crosshair', 16) + '<span class="sug-t">پیشنهاد معامله</span><span class="sug-s">ترکیب تایم‌فریم ساختار و تایم‌فریم ورود</span></div>' +
+    '<div class="sug-sels">' +
+    '<div><span class="sel-k">تایم‌فریم ساختار</span><select class="sel" data-sug-st aria-label="تایم‌فریم ساختار">' + stOpts + '</select></div>' +
+    '<div><span class="sel-k">تایم‌فریم ورود</span><select class="sel" data-sug-en aria-label="تایم‌فریم ورود">' + enOpts + '</select></div>' +
+    '</div>' +
+    '<p class="sug-logic">هر دو هم‌جهت صعودی ← خرید | هر دو هم‌جهت نزولی ← فروش | مخالف یا خنثی ← صبر کنید</p>' +
+    '<div class="sug-cards">' + sugCardHTML('طلا', 'XAUUSD', 'xau') + sugCardHTML('داوجونز', 'DJI', 'dji') + '</div>' +
+    '</div>';
+}
+function bindSug() {
+  var st = appScroll.querySelector('[data-sug-st]'), en = appScroll.querySelector('[data-sug-en]');
+  if (st) st.addEventListener('change', function () {
+    SUG.st = st.value;
+    if (validEntries(SUG.st).indexOf(SUG.en) < 0) {
+      var ok = validEntries(SUG.st);
+      SUG.en = ok[ok.length - 1];
+    }
+    var slot = appScroll.querySelector('.sug-slot');
+    if (slot) { slot.innerHTML = sugBoxHTML(); bindSug(); }
+  });
+  if (en) en.addEventListener('change', function () { SUG.en = en.value; var slot = appScroll.querySelector('.sug-slot'); if (slot) { slot.innerHTML = sugBoxHTML(); bindSug(); } });
+}
+
+/* ---------- اپ ساختار بازار ---------- */
+function symHeadHTML(key, title, mono) {
+  var sym = ms[key];
+  var ch = sym ? sym.changePct : null;
+  return '<div class="sym-head"><div style="min-width:0"><div class="sym-n">' + title + '</div><div class="sym-mono">' + mono + '</div></div>' +
+    '<div style="display:flex;flex-direction:column;align-items:flex-end">' +
+    (sym && sym.price != null ? '<span class="sym-p">' + faNum(sym.price) + '</span>' : '<span style="font-size:10px;color:var(--mutedfg)">—</span>') +
+    (ch != null && sym && sym.price != null ? '<span class="sym-c ' + chgCls(ch) + '">' + faDigits((ch > 0 ? '+' : '') + ch.toFixed(2) + '%') + '</span>' : '') +
+    '</div></div>';
+}
+function tfPillHTML(t) {
+  if (!t) return '<span class="tf-pill na">' + icon('minus', 14) + 'ناکافی</span>';
+  return '<span class="tf-pill ' + trendChipCls(t) + '">' + icon(trendIcon(t), 14) + trendText(t) + '</span>';
+}
+function tfCellHTML(r) {
+  var strength = r && r.trend && r.trend !== 'neutral' && r.strength > 0
+    ? '<span class="tf-str">قدرت ' + faDigits(r.strength) + '٪</span>' : '';
+  var desc = r && r.trend != null
+    ? '<span class="tf-desc">' + (r.ma === 'bullish' ? 'EMA صعودی' : r.ma === 'bearish' ? 'EMA نزولی' : r.ma === 'neutral' ? 'EMA خنثی' : '—') + ' · ' +
+      (r.swing === 'bullish' ? 'سقف/کف بالاتر' : r.swing === 'bearish' ? 'سقف/کف پایین‌تر' : r.swing === 'neutral' ? 'ساختار مخلوط' : '—') + '</span>'
+    : '';
+  return '<td><div class="tf-cell">' + tfPillHTML(r ? r.trend : null) + strength + desc + '</div></td>';
+}
+function summaryHTML(symKey) {
+  var sym = ms[symKey];
+  if (!sym) return '';
+  var b = 0, s = 0, n = 0;
+  sym.rows.forEach(function (r) {
+    if (r.trend === 'bullish') b++; else if (r.trend === 'bearish') s++; else if (r.trend === 'neutral') n++;
+  });
+  if (b + s + n === 0) return '';
+  var dominant = b + s === 0 ? 'بدون روند غالب' : b === s ? 'روند مخلوط' : b > s ? 'غالب: صعودی' : 'غالب: نزولی';
+  return '<p class="sum-line">جمع‌بندی: <b class="b">' + faDigits(b) + ' صعودی</b> · <b class="s">' + faDigits(s) + ' نزولی</b> · <b class="n">' + faDigits(n) + ' خنثی</b> — ' + dominant + '</p>';
+}
+function renderStructureApp() {
+  var rows = '';
+  for (var i = 0; i < TF_ORDER.length; i++) {
+    var tf = TF_ORDER[i];
+    rows += '<tr><td class="tf">' + TF_LONG[tf] + '</td>' + tfCellHTML(row('xau', tf)) + tfCellHTML(row('dji', tf)) + '</tr>';
+  }
+  var gen = GEN_ISO ? new Date(GEN_ISO) : new Date();
+  appScroll.innerHTML = '<div class="app-pad">' +
+    '<div class="card card-p" style="padding:12px 14px"><div class="ms-head">' +
+    '<span class="tile p">' + icon('activity', 18) + '</span>' +
+    '<div style="min-width:0;flex:1"><h2 class="ms-head-t">ساختار بازار (چند تایم‌فریمی)</h2><p class="ms-head-s">ترکیب میانگین متحرک EMA۲۰/۵۰ و سقف/کف‌های سوئینگ — ۶ تایم‌فریم</p></div>' +
+    '<span class="badge snap" data-ms-badge>' + (priceState.mode === 'live' ? 'قیمت زنده' : 'اسنپ‌شات فایل') + '</span>' +
+    '<button type="button" class="iconbtn" data-act="refresh-prices" aria-label="بروزرسانی قیمت‌ها"><span data-price-spin style="display:inline-flex">' + icon('refresh', 16) + '</span></button>' +
+    '</div></div>' +
+    '<div class="sym-heads">' + symHeadHTML('xau', 'طلا', 'XAUUSD · GC=F') + symHeadHTML('dji', 'داوجونز', 'DJI · ^DJI') + '</div>' +
+    '<table class="ms-tbl"><thead><tr><th>تایم‌فریم</th><th>طلا — XAUUSD</th><th>داوجونز — DJI</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+    '<div style="display:flex;flex-direction:column;gap:4px">' + summaryHTML('xau') + summaryHTML('dji') + '</div>' +
+    '<div class="sug-slot">' + sugBoxHTML() + '</div>' +
+    '<p class="ms-note">روش تحلیل: رابطه EMA۲۰ و EMA۵۰ + موقعیت قیمت (امتیاز میانگین متحرک) به‌همراه مقایسه آخرین سقف‌ها و کف‌های سوئینگ HH/HL در برابر LH/LL (امتیاز ساختار) — مجموع ≥۲ صعودی، ≤−۲ نزولی، بین این دو خنثی. داده ساختار تا لحظه تولید فایل (' + faDateLong(gen) + ' — ' + faTime(gen) + ') است؛ دکمه بروزرسانی فقط قیمت‌های لحظه‌ای را تازه می‌کند. پیشنهاد معامله صرفاً ترکیب ساده جهت دو تایم‌فریم است و به هیچ عنوان سیگنال معاملاتی یا توصیه سرمایه‌گذاری نیست.</p>' +
+    '</div>';
+  bindSug();
+  var rb = appScroll.querySelector('[data-act="refresh-prices"]');
+  if (rb) rb.addEventListener('click', function () { refreshPrices(); });
+}
+
+/* ---------- اپ پیشنهاد معامله (مستقل) ---------- */
+function renderSuggestionApp() {
+  appScroll.innerHTML = '<div class="app-pad">' +
+    '<div class="sug-slot">' + sugBoxHTML() + '</div>' +
+    '<p class="ms-note">این اپ همان منطق پیشنهاد معامله داخل اپ «ساختار بازار» است — ترکیب جهت تایم‌فریم ساختار و تایم‌فریم ورود. داده‌ها اسنپ‌شات لحظه تولید فایل‌اند؛ پیشنهاد معامله سیگنال معاملاتی نیست.</p>' +
+    '</div>';
+  bindSug();
+}
+
+/* ---------- اپ درباره ---------- */
+function renderAboutApp() {
+  var gen = GEN_ISO ? new Date(GEN_ISO) : new Date();
+  appScroll.innerHTML = '<div class="app-pad">' +
+    '<section class="about-sec"><div class="about-h"><span style="color:var(--primary)">' + icon('info', 16) + '</span><h2 class="about-t">رصدگر دلار — نسخه فایل مستقل</h2></div>' +
+    '<p class="about-p">این فایل، خروجی تک‌فایلیِ ابزار پایش اخبار اقتصادی USD و ساختار بازار طلا و داو جونز است؛ بدون نیاز به نصب یا سرور. داده‌های اخبار، ترجمه‌ها، تحلیل تأثیر و ساختار بازار تا لحظه تولید فایل داخل آن ذخیره شده و قیمت‌ها (در صورت اتصال اینترنت) از طریق مراکز کنترل قابل بروزرسانی زنده‌اند.</p></section>' +
+    '<section class="about-sec"><div class="about-h"><span style="color:var(--amber)">' + icon('hand', 16) + '</span><h2 class="about-t">حرکات لمسی</h2></div>' +
+    '<ul style="display:flex;flex-direction:column;gap:6px;font-size:11px;line-height:20px;color:var(--mutedfg);margin:0;padding:0;list-style:none">' +
+    '<li>• نگه‌داشتن هر آیکون (حدود نیم ثانیه) → حالت لرزش؛ سپس آیکون‌ها را بکشید تا جابه‌جا شوند و «پایان» را بزنید.</li>' +
+    '<li>• کشیدن به چپ/راست → جابه‌جایی بین صفحات با پارالاکس کاغذدیواری.</li>' +
+    '<li>• کشیدن از بالای صفحه → مرکز اعلان‌ها (تغییر جهت بازار و وضعیت سامانه).</li>' +
+    '<li>• کشیدن از پایین صفحه → مرکز کنترل (کلیدها و بروزرسانی قیمت‌ها).</li>' +
+    '<li>• لمس آیکون اپ → باز شدن با انیمیشن بزرگ‌نمایی از همان آیکون؛ نوار پایین → بازگشت.</li>' +
+    '</ul></section>' +
+    '<section class="about-sec"><div class="about-h"><span style="color:var(--sky)">' + icon('layers', 16) + '</span><h2 class="about-t">منابع داده و روش تحلیل</h2></div>' +
+    '<ul style="display:flex;flex-direction:column;gap:6px;font-size:11px;line-height:20px;color:var(--mutedfg);margin:0;padding:0;list-style:none">' +
+    '<li>• اخبار اقتصادی USD: ForexFactory با ترجمه و تحلیل تأثیر هوش مصنوعی (در لحظه تولید فایل).</li>' +
+    '<li>• قیمت طلا (فیوچرز COMEX — همبستگی نزدیک به XAUUSD) و داو جونز: Yahoo Finance — بروزرسانی زنده اختیاری.</li>' +
+    '<li>• ساختار بازار: ترکیب EMA۲۰/۵۰ و سقف/کف‌های سوئینگ در ۶ تایم‌فریم + تایم‌فریم ورود ۵ دقیقه.</li>' +
+    '</ul></section>' +
+    '<section class="about-sec"><div class="about-h"><span style="color:var(--violet)">' + icon('sliders', 16) + '</span><h2 class="about-t">این فایل</h2></div>' +
+    '<p class="about-p">تولید: ' + faDateLong(gen) + ' — ' + faTime(gen) + ' تهران. این فایل را می‌توانید با ایمیل یا پیام‌رسان برای خودتان یا دیگران بفرستید و روی هر گوشی با مرورگر باز کنید. انتخاب‌ها (ترتیب آیکون‌ها، فیلترها) در همان دستگاه ذخیره می‌شود.</p></section>' +
+    '<p class="about-foot">این ابزار صرفاً اطلاع‌رسانی است و توصیه سرمایه‌گذاری محسوب نمی‌شود.</p>' +
+    '</div>';
+}
+
+/* ---------- مسیریاب اپ‌ها ---------- */
+function renderApp(id, keep) {
+  if (id === 'news') renderNewsApp();
+  else if (id === 'structure') renderStructureApp();
+  else if (id === 'suggestion') renderSuggestionApp();
+  else renderAboutApp();
+  appScroll.scrollTop = 0;
+}
+
+/* ---------- رویدادهای مشترک ---------- */
+page1.addEventListener('pointerdown', function (e) {
+  var btn = e.target.closest('[data-icon]');
+  if (!btn) return;
+  page1IconPointerDown(btn.dataset.icon, e);
+});
+page1.addEventListener('pointermove', function (e) {
+  if (!S.wiggle && !S.press) return;
+  var id = S.drag ? S.drag.id : (S.press ? S.press.id : null);
+  if (!id) return;
+  page1IconPointerMove(id, e);
+});
+page1.addEventListener('pointerup', function (e) {
+  if (S.drag) page1IconPointerUp(S.drag.id);
+  else if (S.press) page1IconPointerUp(S.press.id);
+});
+page1.addEventListener('pointercancel', function () {
+  if (S.drag) page1IconPointerUp(S.drag.id);
+  cancelLongPress();
+});
+page1.addEventListener('click', function (e) {
+  var btn = e.target.closest('[data-icon]');
+  if (btn) { page1IconClick(btn.dataset.icon); return; }
+  var bc = e.target.closest('[data-banner-close]');
+  if (bc) {
+    var changes = ms && ms.changes ? ms.changes : [];
+    lsSet(DISMISS_KEY, changesSignature(changes));
+    var b = page1.querySelector('[data-banner]');
+    if (b) b.remove();
+  }
+});
+dockIn.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-app]');
+  if (b) { openApp(b.dataset.app, b); return; }
+  var a = e.target.closest('[data-act]');
+  if (a) { if (a.dataset.act === 'nc') openNC(); else if (a.dataset.act === 'cc') openCC(); }
+});
+
+/* ---------- تنظیم انیمیشن‌ها ---------- */
+function applyAnim() { device.classList.toggle('no-anim', !settings.anim); }
+
+/* ---------- راه‌اندازی ---------- */
+function homeTick() {
+  updateCountdown();
+  updateTodayCount();
+}
+function boot() {
+  renderStatusRight();
+  tickClock();
+  setInterval(tickClock, 1000);
+  renderPage1();
+  renderPage2();
+  renderDock();
+  renderDots();
+  onPageScroll();
+  applyAnim();
+  _lastCdId = (nextHighEvent() || {}).id || 'none';
+  _lastTcKey = (function () { var c = todayCounts(); return c.count + ':' + c.high; })();
+  setInterval(homeTick, 30000);
+  applyAutoPrice();
+  if (!lsGet(HINT_KEY)) {
+    var hint = $('#hint');
+    hint.hidden = false;
+    lsSet(HINT_KEY, '1');
+    setTimeout(function () { hint.hidden = true; }, 9200);
+  }
+  window.addEventListener('resize', onPageScroll);
+}
+boot();
+
+})();</script>
+</body>
+</html>

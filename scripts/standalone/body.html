@@ -1,0 +1,74 @@
+<body>
+<div id="stage">
+  <div id="device" aria-label="رصدگر دلار — نسخه موبایل">
+
+    <!-- کاغذدیواری با پارالاکس -->
+    <div id="wall" aria-hidden="true">
+      <div class="wall-a"></div>
+      <div class="wall-b"></div>
+    </div>
+
+    <!-- نوار وضعیت -->
+    <div id="statusbar">
+      <button type="button" id="sb-clock" class="sb-clock" aria-label="باز کردن مرکز اعلان‌ها">--:--</button>
+      <div class="sb-right" id="sb-right"></div>
+    </div>
+
+    <!-- صفحات -->
+    <div id="pages" class="no-scrollbar">
+      <section class="page no-scrollbar" id="page1"><div class="page-inner" id="page1-inner"></div></section>
+      <section class="page no-scrollbar" id="page2"><div class="page-inner grid2" id="page2-inner"></div></section>
+    </div>
+
+    <!-- نقطه‌های صفحه -->
+    <div id="dots"></div>
+
+    <!-- داک -->
+    <div id="dock"><div class="dock-in" id="dock-in"></div></div>
+
+    <!-- نوار خانه -->
+    <div id="homebar" role="button" tabindex="0" aria-label="نوار خانه">
+      <div class="homebar-pill"></div>
+    </div>
+
+    <!-- دکمه پایان حالت لرزش -->
+    <button type="button" id="wiggle-done" hidden data-nogesture>
+      <svg class="ic" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+      پایان
+    </button>
+
+    <!-- راهنمای اولیه -->
+    <div id="hint" hidden>
+      از <b>بالای صفحه</b> بکشید: مرکز اعلان‌ها — از <b>پایین</b>: مرکز کنترل — نگه‌داشتن آیکون‌ها: مرتب‌سازی
+    </div>
+
+    <!-- مرکز اعلان‌ها -->
+    <div class="center-layer" id="nc-layer">
+      <div class="center-back" id="nc-back"></div>
+      <div class="nc-sheet frost spring no-scrollbar" id="nc-sheet"></div>
+    </div>
+
+    <!-- مرکز کنترل -->
+    <div class="center-layer" id="cc-layer">
+      <div class="center-back" id="cc-back"></div>
+      <div class="cc-sheet frost spring no-scrollbar" id="cc-sheet"></div>
+    </div>
+
+    <!-- شبح آیکون در حال جابه‌جایی -->
+    <div id="drag-ghost" hidden></div>
+
+    <!-- شیت اپ با انیمیشن بزرگ‌نمایی -->
+    <div id="app-sheet" hidden>
+      <div id="app-scroll" class="no-scrollbar"></div>
+      <div id="app-homebar" role="button" tabindex="0" aria-label="بستن اپ">
+        <div class="homebar-pill" style="background:rgba(255,255,255,.4)"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script type="application/json" id="sd-snapshot">__SNAPSHOT__</script>
+<script>__APP_JS__</script>
+</body>
+</html>
