@@ -70,9 +70,23 @@ export interface MSSymbol {
   okCount: number;
 }
 
+/** یک رویداد تغییر جهت روند (مقایسه دو محاسبه متوالی سرور) */
+export interface MSTrendChange {
+  symbol: "xau" | "dji";
+  tf: MSTimeframe;
+  /** جهت قبلی — همیشه غیرتهی (از null به جهت، «تغییر جهت» محسوب نمی‌شود) */
+  from: MSTrend;
+  /** جهت جدید */
+  to: MSTrend;
+  /** زمان تشخیص تغییر (ISO) */
+  atISO: string;
+}
+
 export interface MarketStructureResponse {
   status: "live" | "cached" | "stale" | "error";
   updatedAtISO: string | null;
   xau: MSSymbol | null;
   dji: MSSymbol | null;
+  /** تغییرات جهت روند اخیر (پنجره ۶ ساعته) — برای اعلان چشمک‌زن بالای صفحه */
+  changes?: MSTrendChange[];
 }

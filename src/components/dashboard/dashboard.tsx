@@ -31,6 +31,7 @@ import {
 } from "@/lib/tehran";
 import { EventCard } from "./event-card";
 import { MarketStructurePanel } from "./market-structure-panel";
+import { TrendChangeBanner } from "./trend-change-banner";
 
 type TabKey = "today" | "tomorrow" | "week" | "all";
 type ImpactFilter = "all" | "High" | "Medium" | "low";
@@ -266,6 +267,9 @@ export function Dashboard() {
       </header>
 
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-5 flex flex-col gap-5">
+        {/* اعلان چشمک‌زن تغییر جهت بازار */}
+        <TrendChangeBanner />
+
         {error && (
           <Card className="border-rose-500/40 bg-rose-500/10">
             <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4">

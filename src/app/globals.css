@@ -172,3 +172,34 @@
 .animate-soft-pulse {
   animation: soft-pulse 2s ease-in-out infinite;
 }
+
+/* چشمک اعلان «تغییر جهت بازار» — درخشش مرزی کهربایی */
+@keyframes alert-blink {
+  0%,
+  100% {
+    border-color: rgb(251 191 36 / 0.85);
+    box-shadow:
+      0 0 0 1px rgb(251 191 36 / 0.35),
+      0 0 18px 2px rgb(251 191 36 / 0.28);
+    background-color: rgb(251 191 36 / 0.1);
+  }
+  50% {
+    border-color: rgb(251 191 36 / 0.25);
+    box-shadow:
+      0 0 0 1px rgb(251 191 36 / 0.08),
+      0 0 8px 0 rgb(251 191 36 / 0.1);
+    background-color: rgb(251 191 36 / 0.04);
+  }
+}
+.animate-alert-blink {
+  animation: alert-blink 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-alert-blink {
+    animation: none;
+    border-color: rgb(251 191 36 / 0.6);
+    background-color: rgb(251 191 36 / 0.08);
+    box-shadow: none;
+  }
+}

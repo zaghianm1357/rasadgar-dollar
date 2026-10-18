@@ -1,5 +1,12 @@
 import { getMeta, setMeta } from "@/lib/ff";
-import type { MarketStructureResponse, MSRow, MSSymbol, MSTimeframe, MSTrend } from "@/lib/types";
+import type {
+  MarketStructureResponse,
+  MSTrendChange,
+  MSRow,
+  MSSymbol,
+  MSTimeframe,
+  MSTrend,
+} from "@/lib/types";
 
 /**
  * موتور تحلیل ساختار بازار چند تایم‌فریمی
@@ -319,6 +326,112 @@ function safeParseCache(raw: string | null): MarketStructureResponse | null {
   }
 }
 
+/* ---------- تشخیص تغییر جهت روند (اعلان چشمک‌زن بالای صفحه) ---------- */
+
+const SNAPSHOT_KEY = "ms_trend_snapshot_v1"; // جهت روند هر تایم‌فریم در آخرین محاسبه موفق
+const CHANGES_KEY = "ms_trend_changes_v1"; // فهرست تغییرات اخیر
+const CHANGE_WINDOW_MS = 6 * 60 * 60 * 1000; // تغییرات ۶ ساعت نگه داشته می‌شوند
+const CHANGES_CAP = 30; // سقف تعداد رکوردها
+/** فقط تایم‌فریم‌های ساختار — ۵ دقیقه مخصوص ورود است و نوسانش اعلان تولید می‌کرد */
+const CHANGE_TFS: MSTimeframe[] = ["15m", "1h", "4h", "1d", "1wk", "1mo"];
+
+interface TrendSnapshot {
+  atISO: string;
+  xau: Partial<Record<MSTimeframe, MSTrend>>;
+  dji: Partial<Record<MSTimeframe, MSTrend>>;
+}
+
+function extractTrends(resp: MarketStructureResponse): TrendSnapshot {
+  const pick = (sym: MSSymbol | null): Partial<Record<MSTimeframe, MSTrend>> => {
+    const out: Partial<Record<MSTimeframe, MSTrend>> = {};
+    for (const row of sym?.rows ?? []) {
+      if (row.trend) out[row.tf] = row.trend;
+    }
+    return out;
+  };
+  return { atISO: resp.updatedAtISO ?? new Date().toISOString(), xau: pick(resp.xau), dji: pick(resp.dji) };
+}
+
+function diffTrends(prev: TrendSnapshot, next: TrendSnapshot): MSTrendChange[] {
+  const changes: MSTrendChange[] = [];
+  for (const sym of ["xau", "dji"] as const) {
+    for (const tf of CHANGE_TFS) {
+      const from = prev[sym][tf];
+      const to = next[sym][tf];
+      // فقط تغییر واقعی جهت (هر دو طرف موجود و متفاوت) — ظاهر شدن از «ناکافی» تغییر جهت نیست
+      if (from && to && from !== to) {
+        changes.push({ symbol: sym, tf, from, to, atISO: next.atISO });
+      }
+    }
+  }
+  return changes;
+}
+
+function isTrendChangeArray(v: unknown): v is MSTrendChange[] {
+  return (
+    Array.isArray(v) &&
+    v.every(
+      (c) =>
+        c &&
+        typeof c === "object" &&
+        ((c as MSTrendChange).symbol === "xau" || (c as MSTrendChange).symbol === "dji") &&
+        typeof (c as MSTrendChange).tf === "string" &&
+        typeof (c as MSTrendChange).from === "string" &&
+        typeof (c as MSTrendChange).to === "string" &&
+        typeof (c as MSTrendChange).atISO === "string"
+    )
+  );
+}
+
+/** خواندن تغییرات اخیر + حذف موارد خارج از پنجره ۶ ساعته + مرتب‌سازی نزولی زمان */
+async function readChanges(): Promise<MSTrendChange[]> {
+  try {
+    const raw = await getMeta(CHANGES_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!isTrendChangeArray(parsed)) return [];
+    const now = Date.now();
+    return parsed
+      .filter((c) => now - new Date(c.atISO).getTime() < CHANGE_WINDOW_MS)
+      .sort((a, b) => new Date(b.atISO).getTime() - new Date(a.atISO).getTime())
+      .slice(0, CHANGES_CAP);
+  } catch {
+    return [];
+  }
+}
+
+async function safeParseSnapshot(raw: string | null): Promise<TrendSnapshot | null> {
+  if (!raw) return null;
+  try {
+    const obj = JSON.parse(raw) as TrendSnapshot;
+    if (!obj || typeof obj !== "object" || !("xau" in obj) || !("dji" in obj)) return null;
+    return obj;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * مقایسه نتیجه تازه با اسنپ‌شات قبلی؛ تغییرهای جهت واقعی را ثبت و فهرست به‌روزشده را برمی‌گرداند.
+ * در اولین اجرا (بدون اسنپ‌شات) فقط مبنا ذخیره می‌شود و تغییری اعلام نمی‌شود.
+ */
+async function recordTrendChanges(fresh: MarketStructureResponse): Promise<MSTrendChange[]> {
+  const next = extractTrends(fresh);
+  const prev = await safeParseSnapshot(await getMeta(SNAPSHOT_KEY));
+  let changes = await readChanges();
+  if (prev) {
+    const freshChanges = diffTrends(prev, next);
+    if (freshChanges.length > 0) changes = [...freshChanges, ...changes];
+  }
+  changes = changes
+    .filter((c) => Date.now() - new Date(c.atISO).getTime() < CHANGE_WINDOW_MS)
+    .sort((a, b) => new Date(b.atISO).getTime() - new Date(a.atISO).getTime())
+    .slice(0, CHANGES_CAP);
+  await setMeta(SNAPSHOT_KEY, JSON.stringify(next));
+  await setMeta(CHANGES_KEY, JSON.stringify(changes));
+  return changes;
+}
+
 async function computeAll(): Promise<MarketStructureResponse> {
   const [xau, dji] = await Promise.all([analyzeSymbol(SYMBOLS[0]), analyzeSymbol(SYMBOLS[1])]);
   if (!xau && !dji) throw new Error("both symbols unavailable");
@@ -332,6 +445,7 @@ async function computeAll(): Promise<MarketStructureResponse> {
 
 /**
  * نقطه ورود اصلی — با کش ۱۵ دقیقه‌ای در دیتابیس، backoff خطا و fallback به داده قدیمی‌تر.
+ * در همه مسیرها فهرست «تغییرات اخیر جهت روند» نیز ضمیمه می‌شود (برای اعلان چشمک‌زن).
  */
 export async function getMarketStructure(force = false): Promise<MarketStructureResponse> {
   return runExclusive(msLock, async () => {
@@ -340,23 +454,33 @@ export async function getMarketStructure(force = false): Promise<MarketStructure
 
     if (!force && cached?.updatedAtISO) {
       const age = now - new Date(cached.updatedAtISO).getTime();
-      if (age < TTL_MS) return { ...cached, status: "cached" };
+      if (age < TTL_MS) {
+        return { ...cached, status: "cached", changes: await readChanges() };
+      }
     }
 
     const lastFail = Number((await getMeta(FAIL_KEY)) || 0);
     if (!force && cached && now - lastFail < FAIL_BACKOFF_MS) {
-      return { ...cached, status: "stale" };
+      return { ...cached, status: "stale", changes: await readChanges() };
     }
 
     try {
       const fresh = await computeAll();
-      await setMeta(CACHE_KEY, JSON.stringify(fresh));
-      return fresh;
+      const changes = await recordTrendChanges(fresh);
+      const withChanges = { ...fresh, changes };
+      await setMeta(CACHE_KEY, JSON.stringify(withChanges));
+      return withChanges;
     } catch (err) {
       console.error("[ms] compute failed:", (err as Error).message);
       await setMeta(FAIL_KEY, String(now));
-      if (cached) return { ...cached, status: "stale" };
-      return { status: "error", updatedAtISO: null, xau: null, dji: null };
+      if (cached) return { ...cached, status: "stale", changes: await readChanges() };
+      return {
+        status: "error",
+        updatedAtISO: null,
+        xau: null,
+        dji: null,
+        changes: await readChanges(),
+      };
     }
   });
 }
