@@ -210,6 +210,7 @@ function hintsWidgetHTML() {
     '<div class="w-head">' + icon('dollar', 14) + '<span class="w-head-t">راهنمای حرکات و وضعیت</span></div>' +
     '<ul style="display:flex;flex-direction:column;gap:4px;font-size:10px;line-height:16px;color:var(--mutedfg);margin:0;padding:0;list-style:none">' +
     '<li>• نگه‌داشتن آیکون‌ها → حالت لرزش برای جابه‌جایی</li>' +
+    '<li>• دکمه ☰ بالا-چپ → منوی جانبی | دکمه → در اپ‌ها → بازگشت</li>' +
     '<li>• کشیدن انگشت به چپ/راست → جابه‌جایی صفحات (کاغذدیواری پارالاکس)</li>' +
     '<li>• کشیدن از بالا → مرکز اعلان‌ها | از پایین → مرکز کنترل</li>' +
     '<li>• لمس آیکون اپ → باز شدن با انیمیشن بزرگ‌نمایی</li>' +
@@ -267,6 +268,7 @@ function updateMsBadge() {
   else { b.className = 'badge snap'; b.textContent = 'اسنپ‌شات فایل'; }
 }
 function updateStatusUI() {
+  if (S.drawerOpen) renderDrawer();
   if (S.ncOpen) renderNC();
   if (S.ccOpen) renderCC();
   if (S.app && S.app.id === 'structure' && S.appPhase === 'open') updateMsBadge();
@@ -373,6 +375,38 @@ function renderCC() {
       });
     })(acts[j]);
   }
+}
+
+/* ---------- منوی جانبی ---------- */
+function drawerItemHTML(iconCls, icname, label, attrs) {
+  return '<button type="button" class="drawer-item" ' + attrs + '>' +
+    '<span class="icon-vis ' + iconCls + '" style="width:38px;height:38px;border-radius:12px">' + icon(icname, 18) + '</span>' +
+    '<span class="drawer-item-t">' + label + '</span>' +
+    icon('chevL', 15) + '</button>';
+}
+function renderDrawer() {
+  var gen = GEN_ISO ? new Date(GEN_ISO) : new Date();
+  var apps = S.gridOrder.map(function (id) {
+    return drawerItemHTML(APPS[id].cls, APPS[id].ic, APPS[id].label, 'data-dnav="app" data-id="' + id + '"');
+  }).join('');
+  drawerPanel.innerHTML =
+    '<div class="grabber"></div>' +
+    '<div class="drawer-head">' +
+    '<span class="drawer-logo">' + icon('dollar', 22) + '</span>' +
+    '<div style="min-width:0;flex:1"><p class="drawer-t">رصدگر دلار</p><p class="drawer-s">منوی دسترسی سریع — نسخه فایل مستقل</p></div>' +
+    '<button type="button" class="nc-close" data-drawer-close aria-label="بستن منو">' + icon('x', 16) + '</button>' +
+    '</div>' +
+    '<div class="drawer-sec-t">اپ‌ها</div>' + apps +
+    '<div class="drawer-sec-t">مراکز</div>' +
+    drawerItemHTML('g-nc', 'bell', 'مرکز اعلان‌ها', 'data-dnav="nc"') +
+    drawerItemHTML('g-cc', 'sliders', 'مرکز کنترل', 'data-dnav="cc"') +
+    '<div class="drawer-sec-t">دسترسی سریع</div>' +
+    '<button type="button" class="drawer-item" data-dact="refresh-prices">' +
+    '<span class="cc-ic cc-a-emerald"><span data-price-spin style="display:inline-flex">' + icon('refresh', 16) + '</span></span>' +
+    '<span class="drawer-item-t">بروزرسانی زنده قیمت‌ها</span>' + icon('chevL', 15) + '</button>' +
+    '<p class="drawer-status">' + icon('activity', 12) + '<span>قیمت‌ها: <b>' + priceModeLabel() + '</b></span></p>' +
+    '<p class="drawer-status">' + icon('calDays', 12) + '<span>تولید فایل: <b>' + faDateLong(gen) + ' — ' + faTime(gen) + '</b></span></p>' +
+    '<p class="drawer-foot">این ابزار صرفاً اطلاع‌رسانی است و توصیه سرمایه‌گذاری محسوب نمی‌شود.</p>';
 }
 
 /* رنگ آیکون‌های مرکز کنترل (تزریق یک‌باره) */

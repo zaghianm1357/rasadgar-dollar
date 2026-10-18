@@ -39,7 +39,13 @@
 
     <!-- راهنمای اولیه -->
     <div id="hint" hidden>
-      از <b>بالای صفحه</b> بکشید: مرکز اعلان‌ها — از <b>پایین</b>: مرکز کنترل — نگه‌داشتن آیکون‌ها: مرتب‌سازی
+      دکمه <b>☰</b> (بالا-چپ) منوی جانبی — دکمه <b>→</b> در هر اپ: بازگشت — دکمه برگشت خود گوشی هم کار می‌کند
+    </div>
+
+    <!-- منوی جانبی -->
+    <div id="drawer-layer">
+      <div id="drawer-back"></div>
+      <div id="drawer-panel" class="frost no-scrollbar"></div>
     </div>
 
     <!-- مرکز اعلان‌ها -->
@@ -59,6 +65,15 @@
 
     <!-- شیت اپ با انیمیشن بزرگ‌نمایی -->
     <div id="app-sheet" hidden>
+      <div id="app-topbar" data-nogesture>
+        <button type="button" id="app-back" aria-label="بازگشت به صفحه قبل">
+          <svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+        <span id="app-title"></span>
+        <button type="button" id="app-menu" aria-label="باز کردن منوی جانبی">
+          <svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+        </button>
+      </div>
       <div id="app-scroll" class="no-scrollbar"></div>
       <div id="app-homebar" role="button" tabindex="0" aria-label="بستن اپ">
         <div class="homebar-pill" style="background:rgba(255,255,255,.4)"></div>

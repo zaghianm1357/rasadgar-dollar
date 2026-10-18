@@ -17,6 +17,12 @@ import {
   Wifi,
   BatteryFull,
   Check,
+  Menu,
+  ArrowRight,
+  X,
+  ChevronLeft,
+  RefreshCw,
+  DollarSign,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { faTime } from "@/lib/tehran";
@@ -106,6 +112,9 @@ function Shell() {
   const ncProgRef = useRef(0);
   const ccProgRef = useRef(0);
 
+  /* منوی جانبی */
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   const setNc = useCallback((v: number) => {
     ncProgRef.current = v;
     setNcProgress(v);
@@ -114,6 +123,83 @@ function Shell() {
     ccProgRef.current = v;
     setCcProgress(v);
   }, []);
+
+  /* اجرای اپ با انیمیشن بزرگ‌نمایی از موقعیت آیکون (FLIP) */
+  const [app, setApp] = useState<{ id: AppId; rect: AppRect } | null>(null);
+  const [appPhase, setAppPhase] = useState<"opening" | "open" | "closing">("open");
+
+  /* ---------- لایه‌های تاریخچه — دکمه برگشت خود گوشی ---------- */
+  const lastPushedRef = useRef<string | null>(null);
+  const pushLayer = useCallback((name: string) => {
+    lastPushedRef.current = name;
+    try {
+      history.pushState({ sd: name }, "");
+    } catch {
+      lastPushedRef.current = null;
+    }
+  }, []);
+
+  const closeApp = useCallback(() => {
+    setAppPhase("closing");
+    setTimeout(() => setApp(null), 420);
+  }, []);
+
+  const closeLayerUI = useCallback(
+    (name: "app" | "nc" | "cc" | "drawer") => {
+      if (lastPushedRef.current === name) {
+        lastPushedRef.current = null;
+        try {
+          history.back();
+          return;
+        } catch {
+          /* fallback زیر */
+        }
+      }
+      if (name === "drawer") setDrawerOpen(false);
+      else if (name === "nc") {
+        setNcOpen(false);
+        setNc(0);
+      } else if (name === "cc") {
+        setCcOpen(false);
+        setCc(0);
+      } else closeApp();
+    },
+    [closeApp, setNc, setCc],
+  );
+
+  /* وضعیت جاری برای هندلر popstate (بدون stale closure) */
+  const stateRef = useRef({
+    drawerOpen: false,
+    ncOpen: false,
+    ccOpen: false,
+    app: null as null | { id: AppId; rect: AppRect },
+    appPhase: "open" as "opening" | "open" | "closing",
+  });
+  useEffect(() => {
+    stateRef.current = { drawerOpen, ncOpen, ccOpen, app, appPhase };
+  }, [drawerOpen, ncOpen, ccOpen, app, appPhase]);
+
+  useEffect(() => {
+    try {
+      if (history.state && (history.state as { sd?: string }).sd) history.replaceState(null, "");
+    } catch {
+      /* بی‌اهمیت */
+    }
+    const onPop = () => {
+      lastPushedRef.current = null;
+      const s = stateRef.current;
+      if (s.drawerOpen) setDrawerOpen(false);
+      else if (s.ncOpen) {
+        setNcOpen(false);
+        setNc(0);
+      } else if (s.ccOpen) {
+        setCcOpen(false);
+        setCc(0);
+      } else if (s.app && s.appPhase !== "closing") closeApp();
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [closeApp, setNc, setCc]);
 
   /* صفحات و پارالاکس */
   const pagesRef = useRef<HTMLDivElement | null>(null);
@@ -139,15 +225,6 @@ function Shell() {
     el.scrollTo({ left: i === 0 ? 0 : -maxAbs, behavior: "smooth" });
   };
 
-  /* اجرای اپ با انیمیشن بزرگ‌نمایی از موقعیت آیکون (FLIP) */
-  const [app, setApp] = useState<{ id: AppId; rect: AppRect } | null>(null);
-  const [appPhase, setAppPhase] = useState<"opening" | "open" | "closing">("open");
-
-  const closeApp = useCallback(() => {
-    setAppPhase("closing");
-    setTimeout(() => setApp(null), 420);
-  }, []);
-
   /* حرکات کشیدن از بالا/پایین */
   const gesture = useRef<{
     type: "nc" | "cc" | "close-app";
@@ -156,11 +233,16 @@ function Shell() {
   } | null>(null);
 
   const onRootPointerDown = (e: React.PointerEvent) => {
-    if (wiggle || drag || gesture.current || ncOpen || ccOpen) return;
+    if (wiggle || drag || gesture.current || drawerOpen || ncOpen || ccOpen) return;
     const rect = deviceRef.current?.getBoundingClientRect();
     if (!rect) return;
     const y = e.clientY - rect.top;
     const inApp = !!app && appPhase !== "closing";
+    if (y < 46 || y > rect.height - 44) {
+      /* لمس دکمه‌ها در نوار وضعیت/نوار خانه → کلیک مستقیم، نه حرکت */
+      const t = e.target as HTMLElement | null;
+      if (t?.closest?.("button,[role=button],a,select,input,textarea")) return;
+    }
     if (y < 46) {
       gesture.current = { type: "nc", startY: e.clientY, id: e.pointerId };
       try {
@@ -192,33 +274,58 @@ function Shell() {
     if (!g || e.pointerId !== g.id) return;
     if (g.type === "nc") {
       const open = ncProgRef.current > 0.4;
-      setNcOpen(open);
-      setNc(open ? 1 : 0);
+      if (open) {
+        setNcOpen(true);
+        setNc(1);
+        pushLayer("nc");
+      } else setNc(0);
     } else if (g.type === "cc") {
       const open = ccProgRef.current > 0.4;
-      setCcOpen(open);
-      setCc(open ? 1 : 0);
+      if (open) {
+        setCcOpen(true);
+        setCc(1);
+        pushLayer("cc");
+      } else setCc(0);
     } else {
       // کشیدن به بالا روی نوار خانه هنگام باز بودن اپ → بستن اپ
-      if (e.clientY - g.startY < -36 && app && appPhase !== "closing") closeApp();
+      if (e.clientY - g.startY < -36 && app && appPhase !== "closing") closeLayerUI("app");
     }
   };
 
   const openNC = () => {
     setNcOpen(true);
     setNc(1);
+    pushLayer("nc");
   };
   const openCC = () => {
     setCcOpen(true);
     setCc(1);
+    pushLayer("cc");
   };
-  const closeNC = () => {
-    setNcOpen(false);
-    setNc(0);
+  const openDrawer = () => {
+    if (drawerOpen) return;
+    if (ncOpen) closeLayerUI("nc");
+    if (ccOpen) closeLayerUI("cc");
+    setDrawerOpen(true);
+    pushLayer("drawer");
   };
-  const closeCC = () => {
-    setCcOpen(false);
-    setCc(0);
+  const navFromDrawer = (kind: "app" | "nc" | "cc", id?: AppId) => {
+    setDrawerOpen(false);
+    try {
+      history.replaceState({ sd: kind }, "");
+      lastPushedRef.current = kind;
+    } catch {
+      /* بی‌اهمیت */
+    }
+    buzz();
+    if (kind === "app" && id) launchApp(id, true);
+    else if (kind === "nc") {
+      setNcOpen(true);
+      setNc(1);
+    } else {
+      setCcOpen(true);
+      setCc(1);
+    }
   };
 
   /* ترتیب ذخیره‌شده آیکون‌ها */
@@ -331,11 +438,11 @@ function Shell() {
     }
   };
 
-  const launchApp = (id: AppId) => {
+  const launchApp = (id: AppId, noPush = false) => {
     const el = iconRefs.current[id];
     const dRect = deviceRef.current?.getBoundingClientRect();
-    if (!el || !dRect) return;
-    const r = el.getBoundingClientRect();
+    if (!dRect) return;
+    const r = el?.getBoundingClientRect() ?? dRect;
     buzz();
     setApp({
       id,
@@ -350,6 +457,7 @@ function Shell() {
     });
     setAppPhase("opening");
     requestAnimationFrame(() => requestAnimationFrame(() => setAppPhase("open")));
+    if (!noPush) pushLayer("app");
   };
 
   const onIconClick = (id: AppId) => {
@@ -361,15 +469,18 @@ function Shell() {
     launchApp(id);
   };
 
-  /* بستن اپ با Esc */
+  /* بستن لایه بالایی با Esc */
   useEffect(() => {
-    if (!app) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeApp();
+      if (e.key !== "Escape") return;
+      if (drawerOpen) closeLayerUI("drawer");
+      else if (ncOpen) closeLayerUI("nc");
+      else if (ccOpen) closeLayerUI("cc");
+      else if (app) closeLayerUI("app");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [app, closeApp]);
+  }, [drawerOpen, ncOpen, ccOpen, app, closeLayerUI]);
 
   /* راهنمای اولیه */
   const [hint, setHint] = useState(false);
@@ -468,6 +579,15 @@ function Shell() {
             className="rounded-full p-0.5 transition-colors hover:bg-white/10"
           >
             <BatteryFull className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={openDrawer}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label="باز کردن منوی جانبی"
+            className="rounded-full p-1 transition-colors hover:bg-white/10"
+          >
+            <Menu className="h-[18px] w-[18px]" />
           </button>
         </div>
       </div>
@@ -610,12 +730,12 @@ function Shell() {
         </div>
       </div>
 
-      {/* نوار خانه — کشیدن به بالا: اپ باز → بستن | اپ بسته → مرکز کنترل */}
+      {/* نوار خانه — لمس: اپ باز → بستن | اپ بسته → مرکز کنترل */}
       <div
         role="button"
         tabIndex={0}
         aria-label="نوار خانه"
-        onClick={() => (app ? closeApp() : ccOpen ? closeCC() : openCC())}
+        onClick={() => (app ? closeLayerUI("app") : ccOpen ? closeLayerUI("cc") : openCC())}
         className="absolute inset-x-0 bottom-0 z-20 flex h-9 cursor-pointer items-start justify-center pt-2"
       >
         <div className="h-1.5 w-28 rounded-full bg-white/45" />
@@ -644,14 +764,114 @@ function Shell() {
           onClick={() => setHint(false)}
           className="hint-toast absolute inset-x-6 bottom-[104px] z-40 rounded-2xl border border-white/15 bg-black/55 px-3 py-2.5 text-center text-[10px] leading-5 text-foreground/90 backdrop-blur-md"
         >
-          از <b>بالای صفحه</b> بکشید: مرکز اعلان‌ها — از <b>پایین</b>: مرکز کنترل — نگه‌داشتن
-          آیکون‌ها: مرتب‌سازی
+          دکمه <b>☰</b> (بالا-چپ) منوی جانبی — دکمه <b>→</b> در هر اپ: بازگشت — دکمه برگشت خود گوشی
+          هم کار می‌کند
         </button>
       )}
 
+      {/* منوی جانبی */}
+      <div
+        className={`absolute inset-0 z-[80] ${drawerOpen ? "" : "pointer-events-none"}`}
+        data-testid="drawer"
+      >
+        <div
+          onClick={() => closeLayerUI("drawer")}
+          className="absolute inset-0 bg-black/50 transition-opacity duration-300"
+          style={{ opacity: drawerOpen ? 1 : 0 }}
+          aria-hidden="true"
+        />
+        <div
+          className={`frost no-scrollbar absolute inset-y-0 right-0 flex w-[80%] max-w-[304px] flex-col gap-2 overflow-y-auto rounded-l-[26px] border-l border-white/10 p-3.5 transition-transform duration-[420ms] ease-[cubic-bezier(0.32,0.72,0,1)] ${
+            drawerOpen ? "translate-x-0" : "translate-x-[108%]"
+          }`}
+          role="dialog"
+          aria-label="منوی جانبی"
+          aria-hidden={!drawerOpen}
+        >
+          <div className="mb-1 flex items-center gap-2.5">
+            <div className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-gradient-to-br from-emerald-500 to-teal-700 shadow-lg shadow-black/40">
+              <DollarSign className="h-5.5 w-5.5 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-extrabold leading-[22px]">رصدگر دلار</p>
+              <p className="text-[9px] text-muted-foreground">منوی دسترسی سریع</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => closeLayerUI("drawer")}
+              aria-label="بستن منو"
+              className="flex h-8 w-8 flex-none items-center justify-center rounded-full border border-white/15 bg-white/10"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <p className="mt-1 px-1 text-[9px] font-extrabold tracking-wide text-muted-foreground/75">اپ‌ها</p>
+          {gridOrder.map((id) => {
+            const a = APPS[id];
+            const Icon = a.icon;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => navFromDrawer("app", id)}
+                className="flex w-full items-center gap-2.5 rounded-[14px] border border-white/10 bg-white/[0.04] px-2.5 py-2 text-right transition-transform active:scale-[0.98] active:bg-white/10"
+              >
+                <div className={`flex h-[38px] w-[38px] flex-none items-center justify-center rounded-xl bg-gradient-to-br ${a.cls}`}>
+                  <Icon className="h-[18px] w-[18px] text-white" />
+                </div>
+                <span className="min-w-0 flex-1 truncate text-xs font-bold">{a.label}</span>
+                <ChevronLeft className="h-4 w-4 flex-none text-muted-foreground/80" />
+              </button>
+            );
+          })}
+
+          <p className="mt-1 px-1 text-[9px] font-extrabold tracking-wide text-muted-foreground/75">مراکز</p>
+          <button
+            type="button"
+            onClick={() => navFromDrawer("nc")}
+            className="flex w-full items-center gap-2.5 rounded-[14px] border border-white/10 bg-white/[0.04] px-2.5 py-2 text-right transition-transform active:scale-[0.98] active:bg-white/10"
+          >
+            <div className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/15">
+              <BellRing className="h-[18px] w-[18px] text-amber-300" />
+            </div>
+            <span className="min-w-0 flex-1 truncate text-xs font-bold">مرکز اعلان‌ها</span>
+            <ChevronLeft className="h-4 w-4 flex-none text-muted-foreground/80" />
+          </button>
+          <button
+            type="button"
+            onClick={() => navFromDrawer("cc")}
+            className="flex w-full items-center gap-2.5 rounded-[14px] border border-white/10 bg-white/[0.04] px-2.5 py-2 text-right transition-transform active:scale-[0.98] active:bg-white/10"
+          >
+            <div className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-xl border border-white/15 bg-white/10">
+              <SlidersHorizontal className="h-[18px] w-[18px] text-foreground/90" />
+            </div>
+            <span className="min-w-0 flex-1 truncate text-xs font-bold">مرکز کنترل</span>
+            <ChevronLeft className="h-4 w-4 flex-none text-muted-foreground/80" />
+          </button>
+
+          <p className="mt-1 px-1 text-[9px] font-extrabold tracking-wide text-muted-foreground/75">دسترسی سریع</p>
+          <button
+            type="button"
+            onClick={() => refreshMarket(true)}
+            disabled={msRefreshing}
+            className="flex w-full items-center gap-2.5 rounded-[14px] border border-white/10 bg-white/[0.04] px-2.5 py-2 text-right transition-transform active:scale-[0.98] active:bg-white/10"
+          >
+            <div className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/15">
+              <RefreshCw className={`h-[18px] w-[18px] text-emerald-400 ${msRefreshing ? "animate-spin" : ""}`} />
+            </div>
+            <span className="min-w-0 flex-1 truncate text-xs font-bold">بروزرسانی قیمت‌ها</span>
+            <ChevronLeft className="h-4 w-4 flex-none text-muted-foreground/80" />
+          </button>
+          <p className="mt-1 text-center text-[8px] leading-4 text-muted-foreground/60">
+            این ابزار صرفاً اطلاع‌رسانی است و توصیه سرمایه‌گذاری محسوب نمی‌شود.
+          </p>
+        </div>
+      </div>
+
       {/* مرکز اعلان‌ها و کنترل */}
-      <NotificationCenter progress={ncOpen ? 1 : ncProgress} onClose={closeNC} />
-      <ControlCenter progress={ccOpen ? 1 : ccProgress} onClose={closeCC} />
+      <NotificationCenter progress={ncOpen ? 1 : ncProgress} onClose={() => closeLayerUI("nc")} />
+      <ControlCenter progress={ccOpen ? 1 : ccProgress} onClose={() => closeLayerUI("cc")} />
 
       {/* شبح آیکون در حال جابه‌جایی */}
       {drag && (
@@ -682,14 +902,39 @@ function Shell() {
           data-testid="app-sheet"
           data-app-id={app.id}
         >
-          <div className="no-scrollbar absolute inset-0 overflow-y-auto pb-8 pt-10">
+          {/* نوار بالای اپ — برگشت + عنوان + منو */}
+          <div className="absolute inset-x-0 top-0 z-[6] flex h-12 items-center gap-2 px-2.5" data-testid="app-topbar">
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-background/80 to-transparent" />
+            <button
+              type="button"
+              onClick={() => closeLayerUI("app")}
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-label="بازگشت به صفحه قبل"
+              className="relative z-[1] flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full border border-white/15 bg-[rgba(30,38,47,0.88)] backdrop-blur-md transition-colors hover:bg-white/20"
+            >
+              <ArrowRight className="h-[18px] w-[18px]" />
+            </button>
+            <span className="relative z-[1] min-w-0 flex-1 truncate text-[13px] font-extrabold drop-shadow">
+              {APPS[app.id].label}
+            </span>
+            <button
+              type="button"
+              onClick={openDrawer}
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-label="باز کردن منوی جانبی"
+              className="relative z-[1] flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full border border-white/15 bg-[rgba(30,38,47,0.88)] backdrop-blur-md transition-colors hover:bg-white/20"
+            >
+              <Menu className="h-[18px] w-[18px]" />
+            </button>
+          </div>
+          <div className="no-scrollbar absolute inset-0 overflow-y-auto pb-8 pt-14">
             {appContent}
           </div>
           <div
             role="button"
             tabIndex={0}
             aria-label="بستن اپ"
-            onClick={closeApp}
+            onClick={() => closeLayerUI("app")}
             onPointerDown={(e) => e.stopPropagation()}
             className="absolute inset-x-0 bottom-0 flex h-8 cursor-pointer items-start justify-center pt-2.5"
           >

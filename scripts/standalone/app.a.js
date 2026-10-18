@@ -97,7 +97,10 @@ var IC = {
   sigM: '<path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16" opacity=".35"/>',
   sigL: '<path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8" opacity=".35"/><path d="M17 20V8" opacity=".35"/><path d="M22 4v16" opacity=".35"/>',
   calOff: '<path d="M4.2 4.2A2 2 0 0 0 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 1.8-1.2"/><path d="M21 15V6a2 2 0 0 0-2-2H9"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h7"/><path d="M21 10h-5"/><path d="m2 2 20 20"/>',
-  ext: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>'
+  ext: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  menu: '<line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/>',
+  arrowBack: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  chevL: '<polyline points="15 18 9 12 15 6"/>'
 };
 function icon(n, sz, cls) {
   return '<svg class="ic ' + (cls || '') + '" style="width:' + (sz || 16) + 'px;height:' + (sz || 16) + 'px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + IC[n] + '</svg>';
@@ -122,10 +125,48 @@ var S = {
   appPhase: 'closed', // closed | opening | open | closing
   ncOpen: false, ncProgress: 0,
   ccOpen: false, ccProgress: 0,
+  drawerOpen: false, drawerProgress: 0,
   page: 0,
   gesture: null,
   press: null
 };
+
+/* ---------- لایه‌های تاریخچه — پشتیبانی از دکمه برگشت خود گوشی ----------
+ * باز شدن هر لایه (اپ/منو/مراکز) یک ورودی history اضافه می‌کند؛
+ * دکمه برگشت گوشی یا سوایپ برگشت iOS بالاترین لایه را می‌بندد.
+ */
+var lastPushed = null;
+function pushLayer(name) {
+  lastPushed = name;
+  try { history.pushState({ sd: name }, ''); } catch (e) { lastPushed = null; }
+}
+function topOpenLayer() {
+  if (S.drawerOpen) return 'drawer';
+  if (S.ncOpen) return 'nc';
+  if (S.ccOpen) return 'cc';
+  if (S.app && S.appPhase !== 'closing') return 'app';
+  return null;
+}
+function closeByName(name) {
+  if (name === 'drawer') closeDrawerNow();
+  else if (name === 'app') closeApp();
+  else if (name === 'nc') closeNC();
+  else if (name === 'cc') closeCC();
+}
+function closeLayerUI(name) {
+  if (!name) return;
+  if (lastPushed === name) {
+    lastPushed = null;
+    try { history.back(); } catch (e) { closeByName(name); }
+  } else {
+    closeByName(name);
+  }
+}
+window.addEventListener('popstate', function () {
+  lastPushed = null;
+  var t = topOpenLayer();
+  if (t) closeByName(t);
+});
 
 /* ---------- برچسب‌ها ---------- */
 var APPS = {
@@ -151,6 +192,8 @@ var dotsEl = $('#dots'), dockIn = $('#dock-in');
 var ncLayer = $('#nc-layer'), ncBack = $('#nc-back'), ncSheet = $('#nc-sheet');
 var ccLayer = $('#cc-layer'), ccBack = $('#cc-back'), ccSheet = $('#cc-sheet');
 var sheet = $('#app-sheet'), appScroll = $('#app-scroll');
+var appTitle = $('#app-title');
+var drawerLayer = $('#drawer-layer'), drawerBack = $('#drawer-back'), drawerPanel = $('#drawer-panel');
 var ghost = $('#drag-ghost'), sbClock = $('#sb-clock');
 
 /* ---------- صفحات، پارالاکس، نقطه‌ها ---------- */
@@ -178,13 +221,19 @@ pages.addEventListener('scroll', onPageScroll, { passive: true });
 function renderStatusRight() {
   $('#sb-right').innerHTML =
     icon('signal', 14) + icon('wifi', 14) +
-    '<button type="button" class="sb-batt" id="sb-batt" aria-label="باز کردن مرکز کنترل">' + icon('battery', 20) + '</button>';
+    '<button type="button" class="sb-batt" id="sb-batt" aria-label="باز کردن مرکز کنترل">' + icon('battery', 20) + '</button>' +
+    '<button type="button" class="sb-menu" id="sb-menu" aria-label="باز کردن منوی جانبی">' + icon('menu', 18) + '</button>';
   $('#sb-batt').addEventListener('click', function (e) { e.stopPropagation(); openCC(); });
+  $('#sb-menu').addEventListener('click', function (e) { e.stopPropagation(); openDrawer(); });
 }
 function tickClock() { sbClock.textContent = faTime(new Date()); }
 sbClock.addEventListener('click', function (e) { e.stopPropagation(); openNC(); });
 
 /* ---------- مرکز اعلان‌ها / کنترل ---------- */
+function showNC() { renderNC(); S.ncOpen = true; setNC(1); }
+function showCC() { renderCC(); S.ccOpen = true; setCC(1); }
+function commitNC() { if (S.ncOpen) return; showNC(); pushLayer('nc'); }
+function commitCC() { if (S.ccOpen) return; showCC(); pushLayer('cc'); }
 function setNC(v) { S.ncProgress = Math.max(0, Math.min(1, v)); applyCenter(ncLayer, ncBack, ncSheet, S.ncProgress, true); }
 function setCC(v) { S.ccProgress = Math.max(0, Math.min(1, v)); applyCenter(ccLayer, ccBack, ccSheet, S.ccProgress, false); }
 function applyCenter(layer, back, panel, progress, fromTop) {
@@ -196,20 +245,65 @@ function applyCenter(layer, back, panel, progress, fromTop) {
   if (progress === 0 || progress === 1) panel.classList.add('spring');
   else panel.classList.remove('spring');
 }
-function openNC() { if (S.ncOpen) return; renderNC(); S.ncOpen = true; setNC(1); }
+function openNC() { commitNC(); }
 function closeNC() { S.ncOpen = false; setNC(0); }
-function openCC() { if (S.ccOpen) return; renderCC(); S.ccOpen = true; setCC(1); }
+function openCC() { commitCC(); }
 function closeCC() { S.ccOpen = false; setCC(0); }
+
+/* ---------- منوی جانبی ---------- */
+function setDrawer(v) {
+  S.drawerProgress = Math.max(0, Math.min(1, v));
+  drawerLayer.classList.toggle('on', S.drawerProgress > 0);
+  drawerBack.style.opacity = S.drawerProgress;
+  drawerPanel.style.transform = 'translateX(' + ((1 - S.drawerProgress) * 108).toFixed(2) + '%)';
+  if (S.drawerProgress === 0 || S.drawerProgress === 1) drawerPanel.classList.add('spring');
+  else drawerPanel.classList.remove('spring');
+}
+function openDrawer() {
+  if (S.drawerOpen) return;
+  if (S.ncOpen) closeNC();
+  if (S.ccOpen) closeCC();
+  renderDrawer();
+  S.drawerOpen = true;
+  setDrawer(1);
+  buzz();
+  pushLayer('drawer');
+}
+function closeDrawerNow() { S.drawerOpen = false; setDrawer(0); }
+function navFromDrawer(kind, id) {
+  /* بستن منو بدون تغییر تاریخچه — ورودی منو با replaceState به مقصد تبدیل می‌شود */
+  S.drawerOpen = false;
+  setDrawer(0);
+  var name = kind === 'app' ? 'app' : kind;
+  try { history.replaceState({ sd: name }, ''); lastPushed = name; } catch (e) {}
+  buzz();
+  if (kind === 'app') openApp(id, null, true);
+  else if (kind === 'nc') showNC();
+  else if (kind === 'cc') showCC();
+}
+drawerBack.addEventListener('click', function () { closeLayerUI('drawer'); });
+drawerPanel.addEventListener('click', function (e) {
+  var x = e.target.closest('[data-drawer-close]');
+  if (x) { closeLayerUI('drawer'); return; }
+  var nav = e.target.closest('[data-dnav]');
+  if (nav) { navFromDrawer(nav.dataset.dnav, nav.dataset.id); return; }
+  var act = e.target.closest('[data-dact]');
+  if (act && act.dataset.dact === 'refresh-prices') refreshPrices();
+});
 ncBack.addEventListener('click', closeNC);
 ccBack.addEventListener('click', closeCC);
 
 /* حرکات کشیدن از بالا/پایین روی سطح قاب */
 device.addEventListener('pointerdown', function (e) {
-  if (S.wiggle || S.drag || S.gesture || S.ncOpen || S.ccOpen) return;
+  if (S.wiggle || S.drag || S.gesture || S.drawerOpen || S.ncOpen || S.ccOpen) return;
   if (e.target.closest('[data-nogesture]')) return;
   var rect = device.getBoundingClientRect();
   var y = e.clientY - rect.top;
   var inApp = !!S.app && S.appPhase !== 'closing';
+  if (y < 46 || y > rect.height - 44) {
+    /* لمس دکمه‌ها در نوار وضعیت/نوار خانه → کلیک مستقیم؛ حرکت شروع نشود تا setPointerCapture کلیک را نبلعد */
+    if (e.target.closest('button,[role="button"],a,select,input,textarea')) return;
+  }
   if (y < 46) {
     S.gesture = { type: 'nc', startY: e.clientY, id: e.pointerId };
     try { device.setPointerCapture(e.pointerId); } catch (err) {}
@@ -229,9 +323,9 @@ device.addEventListener('pointerup', function (e) {
   var g = S.gesture;
   S.gesture = null;
   if (!g || e.pointerId !== g.id) return;
-  if (g.type === 'nc') { if (S.ncProgress > 0.4) { renderNC(); S.ncOpen = true; setNC(1); } else { S.ncOpen = false; setNC(0); } }
-  else if (g.type === 'cc') { if (S.ccProgress > 0.4) { renderCC(); S.ccOpen = true; setCC(1); } else { S.ccOpen = false; setCC(0); } }
-  else if (g.type === 'close-app') { if (e.clientY - g.startY < -36 && S.app && S.appPhase !== 'closing') closeApp(); }
+  if (g.type === 'nc') { if (S.ncProgress > 0.4) { S.ncOpen = false; commitNC(); } else { S.ncOpen = false; setNC(0); } }
+  else if (g.type === 'cc') { if (S.ccProgress > 0.4) { S.ccOpen = false; commitCC(); } else { S.ccOpen = false; setCC(0); } }
+  else if (g.type === 'close-app') { if (e.clientY - g.startY < -36 && S.app && S.appPhase !== 'closing') closeLayerUI('app'); }
 });
 device.addEventListener('pointercancel', function () {
   S.gesture = null;
@@ -253,7 +347,7 @@ function applySheetGeom(animate) {
     sheet.style.borderRadius = '0px';
   }
 }
-function openApp(id, srcEl) {
+function openApp(id, srcEl, noPush) {
   if (!srcEl) { srcEl = dockIn.querySelector('[data-app="' + id + '"]'); }
   var d = device.getBoundingClientRect();
   var r = srcEl ? srcEl.getBoundingClientRect() : d;
@@ -269,6 +363,7 @@ function openApp(id, srcEl) {
   requestAnimationFrame(function () {
     requestAnimationFrame(function () { S.appPhase = 'open'; applySheetGeom(true); });
   });
+  if (!noPush) pushLayer('app');
 }
 function closeApp() {
   if (!S.app || S.appPhase === 'closing') return;
@@ -276,10 +371,18 @@ function closeApp() {
   applySheetGeom(true);
   setTimeout(function () { sheet.hidden = true; S.app = null; S.appPhase = 'closed'; }, 430);
 }
-$('#homebar').addEventListener('click', function () { if (S.app) closeApp(); else if (S.ccOpen) closeCC(); else openCC(); });
-$('#app-homebar').addEventListener('click', closeApp);
+$('#homebar').addEventListener('click', function () { if (S.app) closeLayerUI('app'); else if (S.ccOpen) closeLayerUI('cc'); else openCC(); });
+$('#app-homebar').addEventListener('click', function () { closeLayerUI('app'); });
 $('#app-homebar').addEventListener('pointerdown', function (e) { e.stopPropagation(); });
-window.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (S.ncOpen) closeNC(); else if (S.ccOpen) closeCC(); else if (S.app) closeApp(); } });
+$('#app-back').addEventListener('click', function () { closeLayerUI('app'); });
+$('#app-menu').addEventListener('click', function (e) { e.stopPropagation(); openDrawer(); });
+window.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  if (S.drawerOpen) closeLayerUI('drawer');
+  else if (S.ncOpen) closeLayerUI('nc');
+  else if (S.ccOpen) closeLayerUI('cc');
+  else if (S.app) closeLayerUI('app');
+});
 
 /* ---------- حالت لرزش و جابه‌جایی آیکون‌ها ---------- */
 var LONG_PRESS_MS = 450;

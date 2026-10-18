@@ -368,6 +368,8 @@ function renderAboutApp() {
     '<section class="about-sec"><div class="about-h"><span style="color:var(--amber)">' + icon('hand', 16) + '</span><h2 class="about-t">حرکات لمسی</h2></div>' +
     '<ul style="display:flex;flex-direction:column;gap:6px;font-size:11px;line-height:20px;color:var(--mutedfg);margin:0;padding:0;list-style:none">' +
     '<li>• نگه‌داشتن هر آیکون (حدود نیم ثانیه) → حالت لرزش؛ سپس آیکون‌ها را بکشید تا جابه‌جا شوند و «پایان» را بزنید.</li>' +
+    '<li>• دکمه ☰ در گوشه بالا-چپ (یا داخل هر اپ) → منوی جانبی دسترسی سریع به همه اپ‌ها و مراکز.</li>' +
+    '<li>• دکمه برگشت (→) در بالای هر اپ، نوار پایین، یا دکمه برگشت خود گوشی → بازگشت به صفحه قبل.</li>' +
     '<li>• کشیدن به چپ/راست → جابه‌جایی بین صفحات با پارالاکس کاغذدیواری.</li>' +
     '<li>• کشیدن از بالای صفحه → مرکز اعلان‌ها (تغییر جهت بازار و وضعیت سامانه).</li>' +
     '<li>• کشیدن از پایین صفحه → مرکز کنترل (کلیدها و بروزرسانی قیمت‌ها).</li>' +
@@ -387,6 +389,7 @@ function renderAboutApp() {
 
 /* ---------- مسیریاب اپ‌ها ---------- */
 function renderApp(id, keep) {
+  if (appTitle) appTitle.textContent = APPS[id] ? APPS[id].label : 'رصدگر دلار';
   if (id === 'news') renderNewsApp();
   else if (id === 'structure') renderStructureApp();
   else if (id === 'suggestion') renderSuggestionApp();
@@ -441,6 +444,7 @@ function homeTick() {
   updateTodayCount();
 }
 function boot() {
+  try { if (history.state && history.state.sd) history.replaceState(null, ''); } catch (e) {}
   renderStatusRight();
   tickClock();
   setInterval(tickClock, 1000);
