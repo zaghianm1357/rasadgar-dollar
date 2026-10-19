@@ -754,3 +754,229 @@ export function preMortemFactors(input: PreMortemInput): string[] {
   }
   return out;
 }
+
+/* ---------- هشدار جدی رنج فشرده ---------- */
+
+export interface RangeWarning {
+  active: boolean;
+  /** tight = رنج فشرده (هشدار جدی) | normal = رنج معمولی */
+  severity: "tight" | "normal";
+  message: string;
+  advice: string[];
+  metrics: {
+    atrPctile: number | null; // صدک ATR14 فعلی در توزیع تاریخی
+    er: number | null; // نسبت کارایی ۲۰ دوره‌ای
+    boxPctOfAtr: number | null; // ارتفاع جعبه ۲۰ کندل اخیر نسبت به ATR
+  };
+}
+
+/**
+ * تشخیص رنج فشرده: ATR در ناحیه پایین توزیع تاریخی خودش + مسیر بی‌رمق (ER پایین).
+ * صدک ATR ≤ ۲۰ و ER ≤ ۰٫۳ → فشرده؛ در غیر این صورت ER ≤ ۰٫۱۵ → رنج معمولی.
+ */
+export function rangeCompression(
+  highs: number[],
+  lows: number[],
+  closes: number[]
+): RangeWarning {
+  const mk = (
+    active: boolean,
+    severity: "tight" | "normal",
+    message: string,
+    advice: string[],
+    atrPctile: number | null,
+    er: number | null,
+    boxPctOfAtr: number | null
+  ): RangeWarning => ({ active, severity, message, advice, metrics: { atrPctile, er, boxPctOfAtr } });
+
+  if (closes.length < 60) {
+    return mk(false, "normal", "", [], null, null, null);
+  }
+  /* سری ATR14 */
+  const trs: number[] = [];
+  for (let i = 1; i < closes.length; i++) {
+    trs.push(
+      Math.max(
+        highs[i] - lows[i],
+        Math.abs(highs[i] - closes[i - 1]),
+        Math.abs(lows[i] - closes[i - 1])
+      )
+    );
+  }
+  const atrSeries: number[] = [];
+  const period = 14;
+  for (let i = period; i < trs.length; i++) {
+    let s = 0;
+    for (let j = i - period + 1; j <= i; j++) s += trs[j];
+    atrSeries.push(s / period);
+  }
+  if (atrSeries.length < 60) {
+    return mk(false, "normal", "", [], null, efficiencyRatio(closes), null);
+  }
+  const atrNow = atrSeries[atrSeries.length - 1];
+  let below = 0;
+  for (const a of atrSeries) if (a <= atrNow) below++;
+  const atrPctile = Math.round((below / atrSeries.length) * 100);
+  const er = efficiencyRatio(closes);
+  /* ارتفاع جعبه ۲۰ کندل اخیر نسبت به ATR */
+  const box = highs.slice(-20);
+  const boxLo = lows.slice(-20);
+  const boxH = Math.max(...box) - Math.min(...boxLo);
+  const boxPctOfAtr = atrNow > 0 ? Math.round((boxH / atrNow) * 10) / 10 : null;
+
+  const advice = [
+    "تا شکست معتبر صبر کنید: بسته‌شدن کندل خارج از محدوده + پولبک موفق، نه یک کندل شانه‌ای.",
+    "شکست‌های کاذب در رنج فشرده شایع‌اند — ورود زودهنگام روی شکست، بالاترین ریسک را دارد.",
+    "حد ضرر خیلی نزدیک در این شرایط با کوچک‌ترین نوسان حذف می‌شود — فاصله استاپ را واقع‌بینانه بگیرید.",
+    "معامله در میانه رنج نکنید — فقط واکنش به لبه‌ها با تأیید، یا پرهیز کامل تا روشن‌شدن جهت.",
+  ];
+
+  if (atrPctile <= 20 && (er ?? 1) <= 0.3) {
+    return mk(
+      true,
+      "tight",
+      `هشدار جدی: بازار در رنج فشرده قرار دارد — دامنه نوسان (ATR) در صدک ${atrPctile} توزیع یک‌ساله خودش است و ارتفاع محدوده معاملاتی فقط ${boxPctOfAtr ?? "—"} برابر ATR است. احتمال انفجار قیمتی ناگهانی یا اسپاسم‌های کاذب بالا می‌رود.`,
+      advice,
+      atrPctile,
+      er === null ? null : Math.round(er * 100) / 100,
+      boxPctOfAtr
+    );
+  }
+  if ((er ?? 1) <= 0.15) {
+    return mk(
+      true,
+      "normal",
+      `بازار در رنج است — نسبت کارایی ${Math.round((er ?? 0) * 100)}٪ و صدک ATR روی ${atrPctile} است؛ سطوح افقی غالب‌اند و شکست‌ها اغلب برمی‌گردند.`,
+      advice,
+      atrPctile,
+      er === null ? null : Math.round(er * 100) / 100,
+      boxPctOfAtr
+    );
+  }
+  return mk(false, "normal", "", [], atrPctile, er === null ? null : Math.round(er * 100) / 100, boxPctOfAtr);
+}
+
+/* ---------- نواحی ورود مبتنی بر ساختار ---------- */
+
+export interface EntryZone {
+  side: "buy" | "sell";
+  zoneLo: number;
+  zoneHi: number;
+  sl: number;
+  tp1: number;
+  tp2: number;
+  activeNow: boolean; // قیمت الان داخل ناحیه است یا ناحیه انتظار است
+  basis: string;
+  invalidate: string;
+}
+
+export interface EntryZoneOutput {
+  trend: TrendDir | null;
+  trendFa: string;
+  zones: EntryZone[];
+  note: string;
+  rangeWarning: RangeWarning | null;
+}
+
+function rp(v: number): number {
+  return Math.round(v * 100) / 100;
+}
+
+/**
+ * ناحیه ورود خرید/فروش بر اساس ساختار:
+ *  - روند صعودی → ناحیه پولبک به حمایت/کف سوئینگ؛ SL زیر کف − ۰٫۵ATR؛ TP با RR ۲ و ۳
+ *  - روند نزولی → ناحیه پولبک به مقاومت/سقف سوئینگ؛ آینه‌ای
+ *  - رنج پهن → دو ناحیه لبه‌ای با هدف میانه رنج
+ *  - رنج فشرده → هیچ ناحیه‌ای پیشنهاد نمی‌شود؛ فقط هشدار جدی
+ * خروجی «ناحیه آموزشی مبتنی بر ساختار» است، نه سیگنال قطعی.
+ */
+export function entryZonesFromStructure(input: {
+  trend: TrendDir | null;
+  price: number | null;
+  support: number | null;
+  resistance: number | null;
+  atrAbs: number | null;
+  range: RangeWarning;
+}): EntryZoneOutput {
+  const { trend, price, support, resistance, atrAbs, range } = input;
+  const out: EntryZoneOutput = {
+    trend,
+    trendFa: trend === "bullish" ? "صعودی" : trend === "bearish" ? "نزولی" : trend === "neutral" ? "خنثی" : "نامشخص",
+    zones: [],
+    note: "",
+    rangeWarning: range.active ? range : null,
+  };
+
+  if (range.active && range.severity === "tight") {
+    out.note =
+      "به دلیل رنج فشرده، ناحیه ورودی پیشنهاد نمی‌شود — ورود در این شرایط قمار است، نه تحلیل. منتظر شکست معتبر و تثبیت بمانید.";
+    return out;
+  }
+  if (!price || !atrAbs || atrAbs <= 0) {
+    out.note = "داده کافی (قیمت یا ATR) برای پیشنهاد ناحیه ورود موجود نیست.";
+    return out;
+  }
+
+  const pad = 0.25 * atrAbs; // ضخامت ناحیه
+  const buf = 0.5 * atrAbs; // فاصله استاپ از لبه
+
+  const buyZone = (lo: number, hi: number, basis: string): EntryZone => {
+    const entry = (lo + hi) / 2;
+    const sl = lo - buf;
+    const risk = entry - sl;
+    return {
+      side: "buy",
+      zoneLo: rp(lo),
+      zoneHi: rp(hi),
+      sl: rp(sl),
+      tp1: rp(entry + 2 * risk),
+      tp2: rp(entry + 3 * risk),
+      activeNow: price >= lo && price <= hi,
+      basis,
+      invalidate: `بسته‌شدن کندل زیر ${rp(sl)} ساختار خرید را باطل می‌کند.`,
+    };
+  };
+  const sellZone = (lo: number, hi: number, basis: string): EntryZone => {
+    const entry = (lo + hi) / 2;
+    const sl = hi + buf;
+    const risk = sl - entry;
+    return {
+      side: "sell",
+      zoneLo: rp(lo),
+      zoneHi: rp(hi),
+      sl: rp(sl),
+      tp1: rp(entry - 2 * risk),
+      tp2: rp(entry - 3 * risk),
+      activeNow: price >= lo && price <= hi,
+      basis,
+      invalidate: `بسته‌شدن کندل بالای ${rp(sl)} ساختار فروش را باطل می‌کند.`,
+    };
+  };
+
+  if (trend === "bullish" && support && support < price) {
+    const hi = Math.min(support + pad, price);
+    out.zones.push(
+      buyZone(support, Math.max(hi, support + 0.05 * atrAbs), "پولبک به حمایت/کف سوئینگ در ساختار صعودی — خرید در محدوده سبک‌گیری، نه تعقیب قیمت")
+    );
+    out.note = "ساختار صعودی است؛ ناحیه زیر «انتظار پولبک» است — اگر قیمت بدون اصلاح برود بالا، تعقیب نکنید.";
+    return out;
+  }
+  if (trend === "bearish" && resistance && resistance > price) {
+    const lo = Math.max(resistance - pad, price);
+    out.zones.push(
+      sellZone(Math.min(lo, resistance - 0.05 * atrAbs), resistance, "پولبک به مقاومت/سقف سوئینگ در ساختار نزولی — فروش در محدوده اصلاح، نه تعقیب سقوط")
+    );
+    out.note = "ساختار نزولی است؛ ناحیه بالا «انتظار اصلاح» است — اگر قیمت بدون اصلاح سقوط کرد، فروش در کف نکنید.";
+    return out;
+  }
+  if (range.active && range.severity === "normal" && support && resistance && resistance > support) {
+    out.zones.push(
+      buyZone(support, support + pad, "لبه پایینی رنج پهن — فقط با تأیید کندل بازگشتی؛ هدف اول میانه رنج"),
+      sellZone(resistance - pad, resistance, "لبه بالایی رنج پهن — فقط با تأیید کندل بازگشتی؛ هدف اول میانه رنج")
+    );
+    out.note = "بازار رنج است؛ معامله فقط از لبه‌ها با تأیید، و هدف‌گیری میانه رنج — نه انتظار شکست.";
+    return out;
+  }
+  out.note = "ساختار فعلی جهت‌گیری روشن ندارد (خنثی/داده ناکافی) — ناحیه ورود قابل استخراج نیست و حدس زده نمی‌شود.";
+  return out;
+}

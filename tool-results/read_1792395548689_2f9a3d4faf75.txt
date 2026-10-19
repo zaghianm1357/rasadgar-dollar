@@ -1,0 +1,757 @@
+     1→     1→/**
+     2→     2→ * موتور محاسباتی «دستیار معامله‌گر» (BIG TRADER)
+     3→     3→ * توابع خالص و مستقل از فریم‌ورک — هم در API سرور و هم در رابط کاربری استفاده می‌شود.
+     4→     4→ * همه خروجی‌ها اطلاع‌رسانی هستند و توصیه قطعی خرید/فروش محسوب نمی‌شوند.
+     5→     5→ */
+     6→     6→
+     7→     7→export type TrendDir = "bullish" | "bearish" | "neutral";
+     8→     8→export type Verdict = "strong" | "moderate" | "no-trade";
+     9→     9→
+    10→    10→/* ---------- آماری ---------- */
+    11→    11→
+    12→    12→/** بازده لگاریتمی ساده بین مقادیر متوالی */
+    13→    13→export function pctReturns(closes: number[]): number[] {
+    14→    14→  const out: number[] = [];
+    15→    15→  for (let i = 1; i < closes.length; i++) {
+    16→    16→    const a = closes[i - 1];
+    17→    17→    if (a !== 0 && isFinite(a) && isFinite(closes[i])) out.push((closes[i] - a) / a);
+    18→    18→  }
+    19→    19→  return out;
+    20→    20→}
+    21→    21→
+    22→    22→/** ضریب همبستگی پیرسون بین دو سری هم‌طول */
+    23→    23→export function pearson(a: number[], b: number[]): number | null {
+    24→    24→  const n = Math.min(a.length, b.length);
+    25→    25→  if (n < 20) return null;
+    26→    26→  let sa = 0;
+    27→    27→  let sb = 0;
+    28→    28→  for (let i = 0; i < n; i++) {
+    29→    29→    sa += a[i];
+    30→    30→    sb += b[i];
+    31→    31→  }
+    32→    32→  const ma = sa / n;
+    33→    33→  const mb = sb / n;
+    34→    34→  let num = 0;
+    35→    35→  let da = 0;
+    36→    36→  let dbb = 0;
+    37→    37→  for (let i = 0; i < n; i++) {
+    38→    38→    const x = a[i] - ma;
+    39→    39→    const y = b[i] - mb;
+    40→    40→    num += x * y;
+    41→    41→    da += x * x;
+    42→    42→    dbb += y * y;
+    43→    43→  }
+    44→    44→  if (da === 0 || dbb === 0) return null;
+    45→    45→  return num / Math.sqrt(da * dbb);
+    46→    46→}
+    47→    47→
+    48→    48→/** ATR درصدی (میانگین دامنه واقعی نسبت به قیمت) */
+    49→    49→export function atrPct(
+    50→    50→  highs: number[],
+    51→    51→  lows: number[],
+    52→    52→  closes: number[],
+    53→    53→  period = 14
+    54→    54→): number | null {
+    55→    55→  const n = closes.length;
+    56→    56→  if (n < period + 1) return null;
+    57→    57→  const trs: number[] = [];
+    58→    58→  for (let i = 1; i < n; i++) {
+    59→    59→    trs.push(
+    60→    60→      Math.max(
+    61→    61→        highs[i] - lows[i],
+    62→    62→        Math.abs(highs[i] - closes[i - 1]),
+    63→    63→        Math.abs(lows[i] - closes[i - 1])
+    64→    64→      )
+    65→    65→    );
+    66→    66→  }
+    67→    67→  let a = 0;
+    68→    68→  for (let i = trs.length - period; i < trs.length; i++) a += trs[i];
+    69→    69→  a /= period;
+    70→    70→  return (a / closes[n - 1]) * 100;
+    71→    71→}
+    72→    72→
+    73→    73→/** نسبت کارایی (Efficiency Ratio) — معیار رونددار بودن بازار */
+    74→    74→export function efficiencyRatio(closes: number[], window = 20): number | null {
+    75→    75→  if (closes.length < window + 1) return null;
+    76→    76→  const seg = closes.slice(-(window + 1));
+    77→    77→  const net = Math.abs(seg[seg.length - 1] - seg[0]);
+    78→    78→  let path = 0;
+    79→    79→  for (let i = 1; i < seg.length; i++) path += Math.abs(seg[i] - seg[i - 1]);
+    80→    80→  if (path === 0) return null;
+    81→    81→  return net / path;
+    82→    82→}
+    83→    83→
+    84→    84→/* ---------- ویژگی ۱: موتور همگرایی پویا ---------- */
+    85→    85→
+    86→    86→export interface FactorResult {
+    87→    87→  score: number;
+    88→    88→  label: string;
+    89→    89→  detail: string;
+    90→    90→}
+    91→    91→
+    92→    92→/**
+    93→    93→ * هم‌جهتی تایم‌فریم‌ها (وزن ۴۰)
+    94→    94→ * سه تایم‌فریم ۱۵د/۱س/۴س: هر سه هم‌جهت = ۴۰ | دو هم‌جهت + یک خنثی = ۲۰ | تضاد = ۰
+    95→    95→ */
+    96→    96→export function tfAlignmentFactor(dirs: TrendDir[]): FactorResult {
+    97→    97→  const valid = dirs.filter((d) => d !== "neutral");
+    98→    98→  const bulls = valid.filter((d) => d === "bullish").length;
+    99→    99→  const bears = valid.filter((d) => d === "bearish").length;
+   100→   100→  const neutralCount = dirs.filter((d) => d === "neutral").length;
+   101→   101→  if (valid.length === 3 && (bulls === 3 || bears === 3)) {
+   102→   102→    return {
+   103→   103→      score: 40,
+   104→   104→      label: "هم‌جهت کامل",
+   105→   105→      detail: "هر سه تایم‌فریم ۱۵ دقیقه، ۱ ساعته و ۴ ساعته هم‌جهت‌اند.",
+   106→   106→    };
+   107→   107→  }
+   108→   108→  if (bulls === 0 || bears === 0) {
+   109→   109→    return {
+   110→   110→      score: 20,
+   111→   111→      label: "هم‌جهت نسبی",
+   112→   112→      detail: `دو تایم‌فریم هم‌جهت و ${neutralCount > 0 ? "یک تایم‌فریم خنثی" : "یک تایم‌فریم بی‌جهت"} است.`,
+   113→   113→    };
+   114→   114→  }
+   115→   115→  return {
+   116→   116→    score: 0,
+   117→   117→    label: "تضاد تایم‌فریم‌ها",
+   118→   118→    detail: "تایم‌فریم‌ها در تضادند — ساختار کوتاه‌مدت و میان‌مدت هم‌جهت نیستند.",
+   119→   119→  };
+   120→   120→}
+   121→   121→
+   122→   122→/** خلأ خبری (وزن ۳۰) — فاصله تا نزدیک‌ترین خبر با اهمیت بالا */
+   123→   123→export function newsGapFactor(minutesLeft: number | null): FactorResult {
+   124→   124→  if (minutesLeft === null) {
+   125→   125→    return { score: 30, label: "بدون خبر مهم", detail: "خبر High Impact در صف پیش‌رو نیست." };
+   126→   126→  }
+   127→   127→  if (minutesLeft < 120) {
+   128→   128→    return {
+   129→   129→      score: 0,
+   130→   130→      label: "خبر نزدیک",
+   131→   131→      detail: `خبر مهم تا کمتر از ۲ ساعت دیگر (${Math.round(minutesLeft)} دقیقه) منتشر می‌شود.`,
+   132→   132→    };
+   133→   133→  }
+   134→   134→  if (minutesLeft <= 240) {
+   135→   135→    return {
+   136→   136→      score: 15,
+   137→   137→      label: "خبر میان‌نزدیک",
+   138→   138→      detail: `خبر مهم حدود ${Math.round(minutesLeft / 60)} ساعت بعد منتشر می‌شود.`,
+   139→   139→    };
+   140→   140→  }
+   141→   141→  return {
+   142→   142→    score: 30,
+   143→   143→    label: "خلأ خبری",
+   144→   144→    detail: `نزدیک‌ترین خبر مهم بیش از ۴ ساعت فاصله دارد (${Math.round(minutesLeft / 60)} ساعت).`,
+   145→   145→  };
+   146→   146→}
+   147→   147→
+   148→   148→/**
+   149→   149→ * همبستگی با DXY (وزن ۲۰)
+   150→   150→ * برای طلا انتظار همبستگی معکوس داریم؛ برای سایر نمادها جهت انتظاری ثابت فرض نمی‌شود.
+   151→   151→ */
+   152→   152→export function dxyCorrelationFactor(r: number | null, expectInverse: boolean): FactorResult {
+   153→   153→  if (r === null) {
+   154→   154→    return { score: 0, label: "داده ناکافی", detail: "داده کافی برای محاسبه همبستگی با DXY موجود نیست." };
+   155→   155→  }
+   156→   156→  const rr = Math.round(r * 100) / 100;
+   157→   157→  if (expectInverse) {
+   158→   158→    if (r <= -0.6)
+   159→   159→      return {
+   160→   160→        score: 20,
+   161→   161→        label: "معکوس سالم",
+   162→   162→        detail: `همبستگی ۳۰ روزه با DXY برابر ${rr} است — رابطه معکوس معمول برقرار است.`,
+   163→   163→      };
+   164→   164→    if (r < 0.6)
+   165→   165→      return {
+   166→   166→        score: 10,
+   167→   167→        label: "خنثی",
+   168→   168→        detail: `همبستگی ۳۰ روزه با DXY برابر ${rr} است — رابطه ضعیف یا مبهم است.`,
+   169→   169→      };
+   170→   170→    return {
+   171→   171→      score: 0,
+   172→   172→      label: "واگرایی",
+   173→   173→      detail: `همبستگی ۳۰ روزه با DXY برابر ${rr} است — رابطه معکوس معمول شکسته شده است.`,
+   174→   174→    };
+   175→   175→  }
+   176→   176→  return Math.abs(r) >= 0.6
+   177→   177→    ? { score: 20, label: "همبستگی مشخص", detail: `همبستگی ۳۰ روزه با DXY برابر ${rr} است.` }
+   178→   178→    : { score: 10, label: "همبستگی ضعیف", detail: `همبستگی ۳۰ روزه با DXY برابر ${rr} است.` };
+   179→   179→}
+   180→   180→
+   181→   181→/** نوسان‌پذیری ATR (وزن ۱۰) — نوار سالم مخصوص هر نماد بر حسب درصد */
+   182→   182→export function atrFactor(
+   183→   183→  atrPctValue: number | null,
+   184→   184→  healthyBand: [number, number]
+   185→   185→): FactorResult {
+   186→   186→  if (atrPctValue === null) {
+   187→   187→    return { score: 5, label: "داده ناکافی", detail: "ATR محاسبه نشد." };
+   188→   188→  }
+   189→   189→  const v = Math.round(atrPctValue * 100) / 100;
+   190→   190→  if (atrPctValue < healthyBand[0] * 0.5) {
+   191→   191→    return {
+   192→   192→      score: 5,
+   193→   193→      label: "بازار رنج",
+   194→   194→      detail: `ATR روزانه ${v}٪ است — نوسان بسیار کم و بازار راکد.`,
+   195→   195→    };
+   196→   196→  }
+   197→   197→  if (atrPctValue > healthyBand[1] * 1.5) {
+   198→   198→    return {
+   199→   199→      score: 0,
+   200→   200→      label: "نوسان افراطی",
+   201→   201→      detail: `ATR روزانه ${v}٪ است — نوسان به‌شدت بالاتر از حالت معمول.`,
+   202→   202→    };
+   203→   203→  }
+   204→   204→  if (atrPctValue < healthyBand[0]) {
+   205→   205→    return { score: 5, label: "نوسان کم", detail: `ATR روزانه ${v}٪ است — نوسان پایین‌تر از نوار سالم.` };
+   206→   206→  }
+   207→   207→  if (atrPctValue > healthyBand[1]) {
+   208→   208→    return {
+   209→   209→      score: 5,
+   210→   210→      label: "نوسان بالا",
+   211→   211→      detail: `ATR روزانه ${v}٪ است — نوسان بالاتر از نوار سالم ولی افراطی نیست.`,
+   212→   212→    };
+   213→   213→  }
+   214→   214→  return { score: 10, label: "نوسان سالم", detail: `ATR روزانه ${v}٪ است — داخل نوار سالم.` };
+   215→   215→}
+   216→   216→
+   217→   217→export interface ConfluenceResult {
+   218→   218→  total: number;
+   219→   219→  verdict: Verdict;
+   220→   220→  factors: { tf: FactorResult; news: FactorResult; dxy: FactorResult; atr: FactorResult };
+   221→   221→}
+   222→   222→
+   223→   223→export function verdictOf(total: number): Verdict {
+   224→   224→  return total >= 75 ? "strong" : total >= 50 ? "moderate" : "no-trade";
+   225→   225→}
+   226→   226→
+   227→   227→export function verdictLabelFa(v: Verdict): string {
+   228→   228→  return v === "strong" ? "شرایط قوی" : v === "moderate" ? "شرایط متوسط" : "بدون معامله";
+   229→   229→}
+   230→   230→
+   231→   231→export function confluenceScore(factors: ConfluenceResult["factors"]): ConfluenceResult {
+   232→   232→  const total = factors.tf.score + factors.news.score + factors.dxy.score + factors.atr.score;
+   233→   233→  return { total, verdict: verdictOf(total), factors };
+   234→   234→}
+   235→   235→
+   236→   236→/* ---------- رژیم بازار ---------- */
+   237→   237→
+   238→   238→export interface RegimeResult {
+   239→   239→  type: "trending" | "range" | "volatile" | "illiquid" | "unknown";
+   240→   240→  label: string;
+   241→   241→  reason: string;
+   242→   242→  er: number | null;
+   243→   243→  atrPct: number | null;
+   244→   244→}
+   245→   245→
+   246→   246→export function classifyRegime(
+   247→   247→  closes: number[],
+   248→   248→  atrPctValue: number | null,
+   249→   249→  healthyBand: [number, number]
+   250→   250→): RegimeResult {
+   251→   251→  const er = efficiencyRatio(closes);
+   252→   252→  if (atrPctValue === null || er === null) {
+   253→   253→    return {
+   254→   254→      type: "unknown",
+   255→   255→      label: "قابل‌تشخیص نیست",
+   256→   256→      reason: "داده کافی برای دسته‌بندی رژیم بازار موجود نیست.",
+   257→   257→      er,
+   258→   258→      atrPct: atrPctValue,
+   259→   259→    };
+   260→   260→  }
+   261→   261→  if (atrPctValue > healthyBand[1] * 1.5) {
+   262→   262→    return {
+   263→   263→      type: "volatile",
+   264→   264→      label: "پرنوسان",
+   265→   265→      reason: `ATR روزانه ${Math.round(atrPctValue * 100) / 100}٪ است — دامنه نوسان به‌شدت بزرگ‌تر از معمول؛ کنترل ریسک اولویت دارد.`,
+   266→   266→      er,
+   267→   267→      atrPct: atrPctValue,
+   268→   268→    };
+   269→   269→  }
+   270→   270→  if (atrPctValue < healthyBand[0] * 0.5) {
+   271→   271→    return {
+   272→   272→      type: "illiquid",
+   273→   273→      label: "کم‌نوسان/کم‌نقدشونده",
+   274→   274→      reason: `ATR روزانه ${Math.round(atrPctValue * 100) / 100}٪ است — حرکت‌ها کوچک و بازار بی‌رمق است.`,
+   275→   275→      er,
+   276→   276→      atrPct: atrPctValue,
+   277→   277→    };
+   278→   278→  }
+   279→   279→  if (er >= 0.35) {
+   280→   280→    return {
+   281→   281→      type: "trending",
+   282→   282→      label: "رونددار",
+   283→   283→      reason: `نسبت کارایی ${Math.round(er * 100)}٪ است — قیمت با مسیر نسبتاً یکنواخت حرکت می‌کند (تداوم روند).`,
+   284→   284→      er,
+   285→   285→      atrPct: atrPctValue,
+   286→   286→    };
+   287→   287→  }
+   288→   288→  if (er <= 0.15) {
+   289→   289→    return {
+   290→   290→      type: "range",
+   291→   291→      label: "رنج",
+   292→   292→      reason: `نسبت کارایی ${Math.round(er * 100)}٪ است — قیمت رفت‌وبرگشتی است و سطوح افقی غالب‌اند.`,
+   293→   293→      er,
+   294→   294→      atrPct: atrPctValue,
+   295→   295→    };
+   296→   296→  }
+   297→   297→  return {
+   298→   298→    type: "range",
+   299→   299→    label: "رنج با گرایش",
+   300→   300→    reason: `نسبت کارایی ${Math.round(er * 100)}٪ است — بین رفت‌وبرگشت و روند؛ جهت‌گیری مشخص نیست.`,
+   301→   301→    er,
+   302→   302→    atrPct: atrPctValue,
+   303→   303→  };
+   304→   304→}
+   305→   305→
+   306→   306→/* ---------- ویژگی ۳: تولیدکننده پلن معامله ---------- */
+   307→   307→
+   308→   308→export interface PlanInput {
+   309→   309→  side: "buy" | "sell";
+   310→   310→  entry: number;
+   311→   311→  balance: number;
+   312→   312→  riskPct: number;
+   313→   313→  rr: number; // ۲ یا ۳
+   314→   314→  slMode: "swing" | "atr";
+   315→   315→  swingLevel: number | null; // آخرین سوئینگ مناسب (کف برای خرید / سقف برای فروش)
+   316→   316→  atr: number | null; // مقدار ATR (قیمت — نه درصد)
+   317→   317→  atrMult: number;
+   318→   318→  contractSize: number; // ارزش هر یک واحد حرکت قیمت به ازای هر ۱ لات استاندارد
+   319→   319→  symbolLabel: string;
+   320→   320→}
+   321→   321→
+   322→   322→export interface PlanOutput {
+   323→   323→  ok: boolean;
+   324→   324→  error?: string;
+   325→   325→  sl: number | null;
+   326→   326→  tp: number | null;
+   327→   327→  slDist: number | null;
+   328→   328→  tpDist: number | null;
+   329→   329→  riskAmount: number | null;
+   330→   330→  lots: number | null;
+   331→   331→  lossAtSL: number | null;
+   332→   332→  profitAtTP: number | null;
+   333→   333→  copyText: string;
+   334→   334→  warnings: string[];
+   335→   335→}
+   336→   336→
+   337→   337→export function computeTradePlan(input: PlanInput): PlanOutput {
+   338→   338→  const warnings: string[] = [];
+   339→   339→  const base: PlanOutput = {
+   340→   340→    ok: false,
+   341→   341→    sl: null,
+   342→   342→    tp: null,
+   343→   343→    slDist: null,
+   344→   344→    tpDist: null,
+   345→   345→    riskAmount: null,
+   346→   346→    lots: null,
+   347→   347→    lossAtSL: null,
+   348→   348→    profitAtTP: null,
+   349→   349→    copyText: "",
+   350→   350→    warnings,
+   351→   351→  };
+   352→   352→  const { side, entry, balance, riskPct, rr, slMode, swingLevel, atr, atrMult, contractSize } = input;
+   353→   353→  if (!(entry > 0)) return { ...base, error: "قیمت ورود معتبر نیست." };
+   354→   354→  if (!(balance > 0)) return { ...base, error: "موجودی حساب معتبر نیست." };
+   355→   355→  if (!(riskPct > 0 && riskPct <= 10)) return { ...base, error: "درصد ریسک باید بین صفر و ۱۰ باشد." };
+   356→   356→  if (contractSize <= 0)
+   357→   357→    return { ...base, error: "اندازه قرارداد نامعتبر است — مشخصات کارگزاری را تأیید کنید." };
+   358→   358→
+   359→   359→  let slDist: number | null = null;
+   360→   360→  if (slMode === "swing") {
+   361→   361→    if (swingLevel === null || !(swingLevel > 0)) {
+   362→   362→      warnings.push("سطح سوئینگ در دسترس نیست — حد ضرر بر اساس ATR پیشنهاد شد.");
+   363→   363→    } else {
+   364→   364→      slDist = Math.abs(entry - swingLevel);
+   365→   365→      if (slDist <= 0) warnings.push("سوئینگ با قیمت ورود برابر است — از حالت ATR استفاده کنید.");
+   366→   366→    }
+   367→   367→  }
+   368→   368→  if (slDist === null) {
+   369→   369→    if (atr === null || !(atr > 0)) return { ...base, error: "ATR در دسترس نیست — حد ضرر قابل محاسبه نیست." };
+   370→   370→    slDist = atr * atrMult;
+   371→   371→  }
+   372→   372→  const riskAmount = (balance * riskPct) / 100;
+   373→   373→  const lotsRaw = riskAmount / (slDist * contractSize);
+   374→   374→  const lots = Math.max(0.01, Math.floor(lotsRaw * 100) / 100);
+   375→   375→  const lossAtSL = lots * slDist * contractSize;
+   376→   376→  const tpDist = slDist * rr;
+   377→   377→  const sl = side === "buy" ? entry - slDist : entry + slDist;
+   378→   378→  const tp = side === "buy" ? entry + tpDist : entry - tpDist;
+   379→   379→  const profitAtTP = lossAtSL * rr;
+   380→   380→  const copyText = `${side === "buy" ? "Buy" : "Sell"} ${input.symbolLabel} @ ${entry} | SL: ${
+   381→   381→    Math.round(sl * 100) / 100
+   382→   382→  } | TP: ${Math.round(tp * 100) / 100} | Lot: ${lots} (Risk ${riskPct}%)`;
+   383→   383→  warnings.push("اندازه قرارداد و ارزش پیپ به کارگزاری بستگی دارد — پیش از استفاده تأیید کنید.");
+   384→   384→  warnings.push("این محاسبه تضمین نتیجه یا توصیه معامله نیست.");
+   385→   385→  return {
+   386→   386→    ok: true,
+   387→   387→    sl: Math.round(sl * 100) / 100,
+   388→   388→    tp: Math.round(tp * 100) / 100,
+   389→   389→    slDist: Math.round(slDist * 100) / 100,
+   390→   390→    tpDist: Math.round(tpDist * 100) / 100,
+   391→   391→    riskAmount: Math.round(riskAmount * 100) / 100,
+   392→   392→    lots,
+   393→   393→    lossAtSL: Math.round(lossAtSL * 100) / 100,
+   394→   394→    profitAtTP: Math.round(profitAtTP * 100) / 100,
+   395→   395→    copyText,
+   396→   396→    warnings,
+   397→   397→  };
+   398→   398→}
+   399→   399→
+   400→   400→/* ---------- ویژگی ۴: ردیاب واگرایی بین‌بازاری ---------- */
+   401→   401→
+   402→   402→export interface DivergenceResult {
+   403→   403→  level: "normal" | "weak" | "broken" | "unknown";
+   404→   404→  color: "green" | "amber" | "red" | "gray";
+   405→   405→  text: string;
+   406→   406→  reason: string;
+   407→   407→}
+   408→   408→
+   409→   409→/**
+   410→   410→ * مقایسه حرکت امروز نماد و DXY + وضعیت همبستگی ۳۰ روزه.
+   411→   411→ * برای طلا: رابطه معمول «طلا صعود ↔ دلار نزول» است.
+   412→   412→ * خروجی مشاهده است، نه اثبات علت.
+   413→   413→ */
+   414→   414→export function divergenceStatus(
+   415→   415→  symChangePct: number | null,
+   416→   416→  dxyChangePct: number | null,
+   417→   417→  corr: number | null
+   418→   418→): DivergenceResult {
+   419→   419→  if (symChangePct === null || dxyChangePct === null) {
+   420→   420→    return {
+   421→   421→      level: "unknown",
+   422→   422→      color: "gray",
+   423→   423→      text: "داده لحظه‌ای کامل نیست",
+   424→   424→      reason: "قیمت امروز نماد یا DXY در دسترس نیست — وضعیت واگرایی قابل ارزیابی نیست.",
+   425→   425→    };
+   426→   426→  }
+   427→   427→  const s = symChangePct > 0.05 ? 1 : symChangePct < -0.05 ? -1 : 0;
+   428→   428→  const d = dxyChangePct > 0.05 ? 1 : dxyChangePct < -0.05 ? -1 : 0;
+   429→   429→  const corrTxt = corr === null ? "—" : Math.round(corr * 100) / 100;
+   430→   430→  const brokenCorr = corr !== null && corr > 0.6;
+   431→   431→  if (s !== 0 && d !== 0 && s === d) {
+   432→   432→    return {
+   433→   433→      level: brokenCorr ? "broken" : "weak",
+   434→   434→      color: brokenCorr ? "red" : "amber",
+   435→   435→      text: brokenCorr ? "هشدار: همبستگی شکسته شده!" : "همبستگی ضعیف: احتیاط کنید",
+   436→   436→      reason: `نماد و DXY هم‌جهت حرکت کرده‌اند (نماد ${symChangePct > 0 ? "↑" : "↓"} و DXY ${
+   437→   437→        dxyChangePct > 0 ? "↑" : "↓"
+   438→   438→      } — همبستگی ۳۰ روزه: ${corrTxt}). این خلاف رابطه معمول است؛ احتمال حرکت فریبنده (Fake Breakout) بالاتر می‌رود.`,
+   439→   439→    };
+   440→   440→  }
+   441→   441→  if (s !== 0 && d !== 0 && s !== d) {
+   442→   442→    return {
+   443→   443→      level: "normal",
+   444→   444→      color: "green",
+   445→   445→      text: `همبستگی نرمال: نماد ${symChangePct > 0 ? "↑" : "↓"} و DXY ${dxyChangePct > 0 ? "↑" : "↓"}`,
+   446→   446→      reason: `رابطه معمول برقرار است (همبستگی ۳۰ روزه: ${corrTxt}) — حرکت‌ها با الگوی تاریخی هم‌خوان‌اند.`,
+   447→   447→    };
+   448→   448→  }
+   449→   449→  return {
+   450→   450→    level: "weak",
+   451→   451→    color: "amber",
+   452→   452→    text: "همبستگی ضعیف: احتیاط کنید",
+   453→   453→    reason: `یکی از دو طرف حرکت معنادار ندارد (همبستگی ۳۰ روزه: ${corrTxt}) — سیگنال تأییدی از DXY دریافت نمی‌شود.`,
+   454→   454→  };
+   455→   455→}
+   456→   456→
+   457→   457→/* ---------- ویژگی ۵: قواعد مربی رفتاری ---------- */
+   458→   458→
+   459→   459→export const NUDGE_RULES = {
+   460→   460→  refreshWindowMs: 5 * 60 * 1000,
+   461→   461→  refreshMax: 10,
+   462→   462→  revengeLockMs: 15 * 60 * 1000,
+   463→   463→  maxLossesPerDay: 3,
+   464→   464→} as const;
+   465→   465→
+   466→   466→/** شمارش رفرش‌های پنجره ۵ دقیقه اخیر + پیام هشدار */
+   467→   467→export function refreshNudge(timestamps: number[], now = Date.now()): { count: number; warn: boolean; message: string } {
+   468→   468→  const recent = timestamps.filter((t) => now - t < NUDGE_RULES.refreshWindowMs);
+   469→   469→  if (recent.length > NUDGE_RULES.refreshMax) {
+   470→   470→    return {
+   471→   471→      count: recent.length,
+   472→   472→      warn: true,
+   473→   473→      message: "بازار پرنوسان است، صبر کنید — بروزرسانی پیاپی تصمیم را بهتر نمی‌کند.",
+   474→   474→    };
+   475→   475→  }
+   476→   476→  return { count: recent.length, warn: false, message: "" };
+   477→   477→}
+   478→   478→
+   479→   479→/** بررسی قفل Revenge Trading پس از ثبت ضرر */
+   480→   480→export function revengeLock(lastLossAtISO: string | null, now = Date.now()): { locked: boolean; minutesLeft: number } {
+   481→   481→  if (!lastLossAtISO) return { locked: false, minutesLeft: 0 };
+   482→   482→  const t = new Date(lastLossAtISO).getTime();
+   483→   483→  if (!isFinite(t)) return { locked: false, minutesLeft: 0 };
+   484→   484→  const left = Math.ceil((t + NUDGE_RULES.revengeLockMs - now) / 60000);
+   485→   485→  return left > 0 ? { locked: true, minutesLeft: left } : { locked: false, minutesLeft: 0 };
+   486→   486→}
+   487→   487→
+   488→   488→/** سه ضرر متوالی در یک روز → پیشنهاد استراحت */
+   489→   489→export function restSuggestion(todayResults: ("win" | "loss" | "be")[]): { suggest: boolean; message: string } {
+   490→   490→  const losses = todayResults.filter((r) => r === "loss").length;
+   491→   491→  if (losses >= NUDGE_RULES.maxLossesPerDay) {
+   492→   492→    return {
+   493→   493→      suggest: true,
+   494→   494→      message: "امروز ۳ معامله ضررده ثبت شده است — پیشنهاد می‌کنیم تا فردا استراحت کنید و بازار را فقط تماشا کنید.",
+   495→   495→    };
+   496→   496→  }
+   497→   497→  return { suggest: false, message: "" };
+   498→   498→}
+   499→   499→
+   500→   500→/* ---------- ارزیابی کیفیت تصمیم (ژورنال) ---------- */
+   501→   501→
+   502→   502→export interface JournalReview {
+   503→   503→  followedPlan: boolean;
+   504→   504→  riskRespected: boolean;
+   505→   505→  slMovedBadly: boolean;
+   506→   506→  assumptionViolated: boolean;
+   507→   507→}
+   508→   508→
+   509→   509→export function decisionQuality(
+   510→   510→  r: JournalReview,
+   511→   511→  result: "win" | "loss" | "be"
+   512→   512→): { grade: "good" | "lucky" | "bad-execution" | "bad-process" | "neutral"; label: string; note: string } {
+   513→   513→  if (r.followedPlan && r.riskRespected && result === "win")
+   514→   514→    return { grade: "good", label: "تصمیم خوب + نتیجه مثبت", note: "فرآیند و نتیجه هر دو درست بودند — الگوی قابل تکرار." };
+   515→   515→  if (r.followedPlan && r.riskRespected && result === "loss")
+   516→   516→    return {
+   517→   517→      grade: "neutral",
+   518→   518→      label: "تصمیم سالم + نتیجه منفی",
+   519→   519→      note: "ضرر بخش طبیعی معامله است؛ نتیجه یک معامله اثبات بدبودن روش نیست.",
+   520→   520→    };
+   521→   521→  if ((!r.followedPlan || !r.riskRespected) && result === "win")
+   522→   522→    return {
+   523→   523→      grade: "lucky",
+   524→   524→      label: "نتیجه مثبت با فرآیند ناسالم",
+   525→   525→      note: "این سود قابل اتکا نیست — احتمالاً شانس بوده؛ قانون‌شکنی جایزه نمی‌گیرد.",
+   526→   526→    };
+   527→   527→  if (!r.followedPlan || !r.riskRespected)
+   528→   528→    return {
+   529→   529→      grade: "bad-execution",
+   530→   530→      label: "اجرای ناسالم",
+   531→   531→      note: r.slMovedBadly
+   532→   532→        ? "جابه‌جایی نامناسب حد ضرر یا خارج‌شدن از برنامه — اول اجرای برنامه را درست کنید."
+   533→   533→        : "خارج از برنامه معامله شده است — ریسک یا برنامه رعایت نشد.",
+   534→   534→    };
+   535→   535→  if (r.assumptionViolated)
+   536→   536→    return {
+   537→   537→      grade: "neutral",
+   538→   538→      label: "فرض اولیه نقض شد",
+   539→   539→      note: "داده‌های بعدی فرض ورود را نقض کردند — بررسی کنید آیا شرط ابطال به‌موقع فعال شد.",
+   540→   540→    };
+   541→   541→  return { grade: "neutral", label: "نیازمند بررسی", note: "ترکیب نتیجه و اجرا نیاز به بررسی بیشتری دارد." };
+   542→   542→}
+   543→   543→
+   544→   544→/* ---------- تغییرات از آخرین بازدید ---------- */
+   545→   545→
+   546→   546→export interface VisitSnapshot {
+   547→   547→  atISO: string;
+   548→   548→  trends: Record<string, string>; // کلید "xau:1h" → جهت
+   549→   549→  score: number | null;
+   550→   550→  divergence: string | null;
+   551→   551→  highEventId: string | null;
+   552→   552→  price: number | null;
+   553→   553→}
+   554→   554→
+   555→   555→export interface VisitChange {
+   556→   556→  kind: "trend" | "score" | "divergence" | "event" | "price";
+   557→   557→  text: string;
+   558→   558→}
+   559→   559→
+   560→   560→export function diffSinceLastVisit(prev: VisitSnapshot, cur: VisitSnapshot): VisitChange[] {
+   561→   561→  const out: VisitChange[] = [];
+   562→   562→  for (const key of Object.keys(cur.trends)) {
+   563→   563→    const before = prev.trends?.[key];
+   564→   564→    const after = cur.trends[key];
+   565→   565→    if (before && after && before !== after) {
+   566→   566→      const [sym, tf] = key.split(":");
+   567→   567→      const symFa = sym === "xau" ? "طلا" : "داوجونز";
+   568→   568→      const tfFa: Record<string, string> = {
+   569→   569→        "15m": "۱۵ دقیقه",
+   570→   570→        "1h": "۱ ساعته",
+   571→   571→        "4h": "۴ ساعته",
+   572→   572→        "1d": "روزانه",
+   573→   573→      };
+   574→   574→      const dirFa: Record<string, string> = { bullish: "صعودی", bearish: "نزولی", neutral: "خنثی" };
+   575→   575→      out.push({
+   576→   576→        kind: "trend",
+   577→   577→        text: `جهت ساختار ${symFa} در تایم‌فریم ${tfFa[tf] ?? tf} از «${dirFa[before] ?? before}» به «${dirFa[after] ?? after}» تغییر کرد.`,
+   578→   578→      });
+   579→   579→    }
+   580→   580→  }
+   581→   581→  if (prev.score !== null && cur.score !== null && Math.abs(cur.score - prev.score) >= 10) {
+   582→   582→    out.push({
+   583→   583→      kind: "score",
+   584→   584→      text: `امتیاز اطمینان از ${prev.score} به ${cur.score} تغییر کرد.`,
+   585→   585→    });
+   586→   586→  }
+   587→   587→  if (prev.divergence && cur.divergence && prev.divergence !== cur.divergence) {
+   588→   588→    out.push({
+   589→   589→      kind: "divergence",
+   590→   590→      text: `وضعیت همبستگی با DXY از «${prev.divergence}» به «${cur.divergence}» تغییر کرد.`,
+   591→   591→    });
+   592→   592→  }
+   593→   593→  if (prev.highEventId && cur.highEventId && prev.highEventId !== cur.highEventId) {
+   594→   594→    out.push({ kind: "event", text: "خبر مهم جدیدی به تقویم اضافه یا جایگزین خبر قبلی شد." });
+   595→   595→  }
+   596→   596→  if (prev.price !== null && cur.price !== null && prev.price > 0) {
+   597→   597→    const pct = ((cur.price - prev.price) / prev.price) * 100;
+   598→   598→    if (Math.abs(pct) >= 0.5) {
+   599→   599→      out.push({
+   600→   600→        kind: "price",
+   601→   601→        text: `قیمت نماد نسبت به آخرین بازدید ${pct > 0 ? "+" : ""}${Math.round(pct * 100) / 100}٪ تغییر کرده است.`,
+   602→   602→      });
+   603→   603→    }
+   604→   604→  }
+   605→   605→  return out;
+   606→   606→}
+   607→   607→
+   608→   608→/* ---------- ویژگی ۲: سازنده سناریوهای خبری ---------- */
+   609→   609→
+   610→   610→export interface ScenarioEventInput {
+   611→   611→  titleFa: string | null;
+   612→   612→  title: string;
+   613→   613→  impact: string;
+   614→   614→  forecast: string | null;
+   615→   615→  previous: string | null;
+   616→   616→  xauAbove: TrendDir | "mixed" | null;
+   617→   617→  xauBelow: TrendDir | "mixed" | null;
+   618→   618→  djiAbove: TrendDir | "mixed" | null;
+   619→   619→  djiBelow: TrendDir | "mixed" | null;
+   620→   620→}
+   621→   621→
+   622→   622→export interface ScenarioOutput {
+   623→   623→  id: string;
+   624→   624→  title: string;
+   625→   625→  trigger: string;
+   626→   626→  xauDir: string | null;
+   627→   627→  djiDir: string | null;
+   628→   628→  confirm: string;
+   629→   629→  invalidate: string;
+   630→   630→  limits: string;
+   631→   631→}
+   632→   632→
+   633→   633→const DIR_FA: Record<string, string> = {
+   634→   634→  bullish: "افزایشی",
+   635→   635→  bearish: "کاهشی",
+   636→   636→  neutral: "خنثی",
+   637→   637→  mixed: "دووجهی",
+   638→   638→};
+   639→   639→
+   640→   640→/** ساخت دو سناریوی مشروط برای یک خبر — جهت‌ها از تحلیل هوش مصنوعی فید می‌آیند */
+   641→   641→export function buildScenarios(
+   642→   642→  ev: ScenarioEventInput,
+   643→   643→  structure4h: TrendDir | null,
+   644→   644→  levels: { resistance: number | null; support: number | null }
+   645→   645→): { scenarios: ScenarioOutput[]; conflict: string | null } {
+   646→   646→  const fc = ev.forecast || "—";
+   647→   647→  const pv = ev.previous || "—";
+   648→   648→  const limits =
+   649→   649→    "واکنش بازار به اندازه اختلاف عدد واقعی با پیش‌بینی، شرایط لحظه انتشار و عوامل زمینه‌ای دیگر هم بستگی دارد؛ این سناریوها پیش‌بینی قطعی نیستند.";
+   650→   650→  const scenarios: ScenarioOutput[] = [];
+   651→   651→  let conflict: string | null = null;
+   652→   652→
+   653→   653→  if (ev.xauAbove === null && ev.xauBelow === null) {
+   654→   654→    return {
+   655→   655→      conflict: null,
+   656→   656→      scenarios: [
+   657→   657→        {
+   658→   658→          id: "unknown",
+   659→   659→          title: "داده جهت‌دار موجود نیست",
+   660→   660→          trigger: `برای «${ev.titleFa || ev.title}» تحلیل جهت‌دار ذخیره نشده است.`,
+   661→   661→          xauDir: null,
+   662→   662→          djiDir: null,
+   663→   663→          confirm: "—",
+   664→   664→          invalidate: "—",
+   665→   665→          limits: "تحلیل فقط مشروط و کیفی نگه داشته می‌شود؛ داده ناقص را با حدس پر نمی‌کنیم.",
+   666→   666→        },
+   667→   667→      ],
+   668→   668→    };
+   669→   669→  }
+   670→   670→
+   671→   671→  const aboveDir = ev.xauAbove ?? "neutral";
+   672→   672→  const belowDir = ev.xauBelow ?? "neutral";
+   673→   673→  scenarios.push({
+   674→   674→    id: "better",
+   675→   675→    title: "سناریوی اول — داده بهتر از انتظار",
+   676→   676→    trigger: `اگر عدد واقعی بالاتر از پیش‌بینی (${fc}) منتشر شود (مقدار قبلی: ${pv})`,
+   677→   677→    xauDir: DIR_FA[aboveDir] ?? null,
+   678→   678→    djiDir: ev.djiAbove ? DIR_FA[ev.djiAbove] : null,
+   679→   679→    confirm: `تأیید رفتاری: پایداری قیمت بالای مقاومت ${levels.resistance ?? "نزدیک"} و تداوم کندل‌های صعودی در تایم‌فریم ۱۵ دقیقه.`,
+   680→   680→    invalidate: `ابطال: بازگشت زیر کف ${levels.support ?? "نزدیک"} یا انتشار اظهارنظر خنثی‌کننده پس از خبر.`,
+   681→   681→    limits,
+   682→   682→  });
+   683→   683→  scenarios.push({
+   684→   684→    id: "worse",
+   685→   685→    title: "سناریوی دوم — داده بدتر از انتظار",
+   686→   686→    trigger: `اگر عدد واقعی پایین‌تر از پیش‌بینی (${fc}) منتشر شود (مقدار قبلی: ${pv})`,
+   687→   687→    xauDir: DIR_FA[belowDir] ?? null,
+   688→   688→    djiDir: ev.djiBelow ? DIR_FA[ev.djiBelow] : null,
+   689→   689→    confirm: `تأیید رفتاری: شکست کف ${levels.support ?? "نزدیک"} و تداوم کندل‌های نزولی در تایم‌فریم ۱۵ دقیقه.`,
+   690→   690→    invalidate: `ابطال: تثبیت مجدد بالای مقاومت ${levels.resistance ?? "نزدیک"} یا بازگشت سریع V شکل.`,
+   691→   691→    limits,
+   692→   692→  });
+   693→   693→
+   694→   694→  /* هشدار تضاد: ساختار فعلی در برابر جهت سناریو */
+   695→   695→  if (structure4h) {
+   696→   696→    const s4h = structure4h;
+   697→   697→    if (s4h === "bullish" && aboveDir === "bearish") {
+   698→   698→      conflict = `ساختار ۴ ساعته فعلی صعودی است اما سناریوی «بهتر از انتظار» برای طلا کاهشی است — تضاد ریسکی؛ ورود پیش از خبر ریسک بالا دارد.`;
+   699→   699→    } else if (s4h === "bearish" && belowDir === "bullish") {
+   700→   700→      conflict = `ساختار ۴ ساعته فعلی نزولی است اما سناریوی «بدتر از انتظار» برای طلا افزایشی است — تضاد ریسکی؛ ورود پیش از خبر ریسک بالا دارد.`;
+   701→   701→    }
+   702→   702→  }
+   703→   703→  return { scenarios, conflict };
+   704→   704→}
+   705→   705→
+   706→   706→/* ---------- پیش‌مرگ معامله ---------- */
+   707→   707→
+   708→   708→export interface PreMortemInput {
+   709→   709→  side: "buy" | "sell" | null;
+   710→   710→  structure4h: TrendDir | null;
+   711→   711→  tfAlignment: FactorResult;
+   712→   712→  newsMinutes: number | null;
+   713→   713→  divergence: DivergenceResult;
+   714→   714→  regime: RegimeResult;
+   715→   715→  rsi: number | null;
+   716→   716→}
+   717→   717→
+   718→   718→export function preMortemFactors(input: PreMortemInput): string[] {
+   719→   719→  const out: string[] = [];
+   720→   720→  const side = input.side;
+   721→   721→  if (side) {
+   722→   722→    const wanted = side === "buy" ? "bullish" : "bearish";
+   723→   723→    if (input.structure4h && input.structure4h !== wanted && input.structure4h !== "neutral") {
+   724→   724→      out.push(
+   725→   725→        `ساختار ۴ ساعته ${input.structure4h === "bullish" ? "صعودی" : "نزولی"} است و با جهت معامله شما (${side === "buy" ? "خرید" : "فروش"}) مخالف — معامله خلاف جهت روند میان‌مدت است.`
+   726→   726→      );
+   727→   727→    }
+   728→   728→    if (input.tfAlignment.score === 0) {
+   729→   729→      out.push("تایم‌فریم‌ها در تضادند — محتمل‌ترین دلیل شکست: ناهماهنگی ساختار کوتاه‌مدت و میان‌مدت.");
+   730→   730→    }
+   731→   731→  }
+   732→   732→  if (input.newsMinutes !== null && input.newsMinutes < 240) {
+   733→   733→    out.push(
+   734→   734→      `خبر مهم کمتر از ۴ ساعت دیگر منتشر می‌شود — اسپرد و لغزش ممکن است به‌طور موقت چند برابر شود و حد ضرر با گپ اجرا شود.`
+   735→   735→    );
+   736→   736→  }
+   737→   737→  if (input.divergence.level === "broken" || input.divergence.level === "weak") {
+   738→   738→    out.push("رابطه معمول با DXY به‌هم ریخته یا ضعیف است — حرکت ممکن است فریبنده (Fake Breakout) باشد.");
+   739→   739→  }
+   740→   740→  if (input.regime.type === "range" && side) {
+   741→   741→    out.push("بازار در رژیم رنج است — شکست‌ها در رنج اغلب برمی‌گردند و استاپ‌خوردن متوالی شایع است.");
+   742→   742→  }
+   743→   743→  if (input.regime.type === "volatile") {
+   744→   744→    out.push("نوسان افراطی است — حد ضرر کوتاه با نوسان معمول بازار حذف می‌شود.");
+   745→   745→  }
+   746→   746→  if (input.rsi !== null && side === "buy" && input.rsi >= 70) {
+   747→   747→    out.push(`RSI روی ${Math.round(input.rsi)} است (اشباع خرید) — ورود خرید در سقف محلی ریسک بالایی دارد.`);
+   748→   748→  }
+   749→   749→  if (input.rsi !== null && side === "sell" && input.rsi <= 30) {
+   750→   750→    out.push(`RSI روی ${Math.round(input.rsi)} است (اشباع فروش) — ورود فروش در کف محلی ریسک بالایی دارد.`);
+   751→   751→  }
+   752→   752→  if (out.length === 0) {
+   753→   753→    out.push("در داده‌های فعلی عامل مخالف برجسته‌ای یافت نشد — با این حال شواهد موافق، تضمین موفقیت نیستند.");
+   754→   754→  }
+   755→   755→  return out;
+   756→   756→}
+   757→   757→

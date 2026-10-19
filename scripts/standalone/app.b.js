@@ -139,7 +139,7 @@ function widgetPulse(el) {
 /* ---------- لوگوی BIG TRADER ---------- */
 function bigTraderHeaderHTML() {
   return '<div class="bt-hero" data-nogesture>' +
-    '<span class="bt-logo-ic">' + icon('briefcase', 20) + '</span>' +
+    '<img class="bt-logo-img hero" src="data:image/png;base64,__BT_LOGO_B64__" alt="لوگوی BIG TRADER — نشان شیر و تاج">' +
     '<div style="min-width:0;flex:1">' +
     '<p class="bt-logo-t" dir="ltr">BIG TRADER</p>' +
     '<p class="bt-logo-s">دستیار هوشمند معامله‌گری · رصدگر دلار</p>' +
@@ -405,7 +405,7 @@ function renderDrawer() {
   drawerPanel.innerHTML =
     '<div class="grabber"></div>' +
     '<div class="drawer-head">' +
-    '<span class="drawer-logo bt-drawer-logo">' + icon('briefcase', 22) + '</span>' +
+    '<img class="bt-logo-img drawer" src="data:image/png;base64,__BT_LOGO_B64__" alt="لوگوی BIG TRADER">' +
     '<div style="min-width:0;flex:1"><p class="drawer-t" dir="ltr">BIG TRADER</p><p class="drawer-s">رصدگر دلار — منوی دسترسی سریع</p></div>' +
     '<button type="button" class="nc-close" data-drawer-close aria-label="بستن منو">' + icon('x', 16) + '</button>' +
     '</div>' +

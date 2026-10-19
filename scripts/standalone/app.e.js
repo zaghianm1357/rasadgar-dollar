@@ -2,7 +2,7 @@
 
 function btHead() {
   return '<div class="bt-head">' +
-    '<span class="bt-logo-ic">' + icon('briefcase', 18) + '</span>' +
+    '<img class="bt-logo-img" src="data:image/png;base64,__BT_LOGO_B64__" alt="لوگوی BIG TRADER — نشان شیر و تاج">' +
     '<div class="bt-head-t"><p class="bt-logo-t" dir="ltr">BIG TRADER</p>' +
     '<p class="bt-logo-s">دستیار هوشمند معامله‌گری — اطلاع‌رسانی، نه توصیه</p></div>' +
     '<button type="button" class="ai-rf" data-bt-refresh aria-label="بروزرسانی داده دستیار">' + icon('refresh', 12) + '</button>' +
@@ -63,8 +63,9 @@ function btViewHTML() {
   var specs = '';
   for (i = 0; i < d.conf.specs.length; i++) {
     var s = d.conf.specs[i];
-    specs += '<div class="bt-spec"><span class="k">' + s[0] + '</span><span class="v">' + s[1] + (s[2] ? '<em>نیازمند تأیید</em>' : '') + '</span></div>';
+    specs += '<div class="bt-spec"><span class="k">' + s[0] + '</span><span class="v">' + s[1] + (s[2] ? '<em title="این مقدار به کارگزاری شما بستگی دارد">نیازمند تأیید</em>' : '') + '</span></div>';
   }
+  var specsNote = '<p class="bt-note" style="border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.06);border-radius:8px;padding:6px 8px">چرا «نیازمند تأیید»؟ اندازه قرارداد، ارزش پیپ، اسپرد، ساعات معامله و حداقل حجم به کارگزاری و نوع حساب شما بستگی دارد؛ ابزار مقادیر معمول بازار را نشان می‌دهد و از حدس زدن مشخصات حساب شما خودداری می‌کند. پیش از محاسبه حجم و ریسک، این مقادیر را با پنل کارگزاری خود تطبیق دهید.</p>';
   var changes = BT.changes.length
     ? '<ul class="bt-list">' + BT.changes.map(function (c) { return '<li>' + c + '</li>'; }).join('') + '</ul>'
     : '<p class="bt-note">تغییر قابل‌توجهی نسبت به بازدید قبلی شما ثبت نشده است (یا این اولین بازدید است).</p>';
@@ -85,7 +86,7 @@ function btViewHTML() {
       '<div class="bt-cell"><p>همبستگی با DXY</p><b dir="ltr">' + (d.corr === null ? '—' : faDigits(Math.round(d.corr * 100) / 100)) + '</b><span>۳۰ بازده روزانه</span></div>' +
       '</div>' +
       '<p class="bt-note">' + (d.conf.inv ? 'رابطه معمول این نماد با دلار معکوس است؛ ' : 'جهت رابطه این نماد با دلار ثابت فرض نمی‌شود؛ ') + 'حرکت هم‌زمان دلیل علّی نیست و DXY فقط یکی از عوامل زمینه‌ای است.</p>', 'var(--amber)') +
-    btSec('شناسنامه نماد — ' + d.conf.name, 'briefcase', specs, 'var(--amber)') +
+    btSec('شناسنامه نماد — ' + d.conf.name, 'briefcase', specs + specsNote, 'var(--amber)') +
     btSec('چه چیزی از آخرین بازدید تغییر کرده؟', 'refresh', changes + '<p class="bt-note">فقط تغییر واقعی داده‌ها نمایش داده می‌شود؛ هشدار، دستور ورود یا خروج نیست.</p>', 'var(--violet)');
 }
 
@@ -163,17 +164,19 @@ function btPlanHTML() {
     '<button type="button" data-bt-posadd aria-label="افزودن پوزیشن">+</button></div>' +
     '<p class="bt-note">چند نماد متفاوت می‌توانند هم‌زمان تحت‌تأثیر یک عامل مشترک (دلار) باشند؛ همبستگی ثابت فرض نمی‌شود.</p>';
 
+  var zf = BT.zf || {};
   return lockHTML +
     btSec('تولیدکننده خودکار پلن معامله', 'crosshair',
       '<div class="bt-form2">' +
-      '<label>جهت<select id="bt_side"><option value="buy">خرید (Buy)</option><option value="sell">فروش (Sell)</option></select></label>' +
-      '<label>نقطه ورود<input id="bt_entry" inputmode="decimal" dir="ltr" placeholder="' + (d.price ? Math.round(d.price * 100) / 100 : '4200') + '"></label>' +
+      '<label>جهت<select id="bt_side"><option value="buy"' + (zf.side === 'buy' ? ' selected' : '') + '>خرید (Buy)</option><option value="sell"' + (zf.side === 'sell' ? ' selected' : '') + '>فروش (Sell)</option></select></label>' +
+      '<label>نقطه ورود<input id="bt_entry" inputmode="decimal" dir="ltr" placeholder="' + (d.price ? Math.round(d.price * 100) / 100 : '4200') + '" value="' + (zf.entry || '') + '"></label>' +
       '<label>موجودی حساب ($)<input id="bt_balance" inputmode="decimal" dir="ltr" placeholder="1000" value="1000"></label>' +
       '<label>ریسک (٪)<input id="bt_risk" inputmode="decimal" dir="ltr" placeholder="1" value="1"></label>' +
       '<label>نسبت R/R<select id="bt_rr"><option value="2">۱ به ۲</option><option value="3">۱ به ۳</option></select></label>' +
       '<label>مبنای حد ضرر<select id="bt_slmode"><option value="atr">ATR × ۱.۵ (خودکار)</option><option value="swing">آخرین سوئینگ</option></select></label>' +
       '</div>' +
       '<button type="button" class="bt-gen" data-bt-gen' + (lock.locked ? ' disabled' : '') + '>ساخت پلن</button>' + result, 'var(--violet)') +
+    zonesSec(d) +
     btSec('چک‌لیست پیش از معامله', 'check', chk + readyNote, 'var(--emerald)') +
     btSec('اگر این معامله شکست بخورد، محتمل‌ترین دلیل چیست؟', 'alert', pmBtns + pmList, 'var(--red)') +
     btSec('ریسک تجمیعی پوزیشن‌ها', 'alert', posSec, 'var(--amber)');
@@ -276,6 +279,92 @@ function btJournalHTML() {
   return h;
 }
 
+/* ---------- نواحی ورود مبتنی بر ساختار (در تب پلن) ---------- */
+function zonesSec(d) {
+  var ez = d.entryZones;
+  if (!ez) return '';
+  if (!ez.zones.length) {
+    return btSec('نواحی ورود پیشنهادی بر اساس ساختار (الگوریتمی)', 'target', '<p class="bt-note">' + ez.note + '</p>', 'var(--sky)');
+  }
+  var h = '<p class="bt-note">ساختار ۴ساعته: ' + ez.trendFa + ' — ' + ez.note + '</p>';
+  for (var i = 0; i < ez.zones.length; i++) {
+    var z = ez.zones[i];
+    h += '<div class="zone-card ' + z.side + '">' +
+      '<div class="zt"><b class="' + (z.side === 'buy' ? 'g' : 'r') + '">' + (z.side === 'buy' ? 'ناحیه خرید' : 'ناحیه فروش') + '</b>' +
+      '<span class="bt-chip ' + (z.activeNow ? 'ok' : '') + '">' + (z.activeNow ? 'ناحیه فعال (قیمت داخل آن است)' : 'ناحیه انتظار پولبک') + '</span></div>' +
+      '<div class="zg"><span>ناحیه ورود: <b dir="ltr">' + z.zoneLo + ' – ' + z.zoneHi + '</b></span>' +
+      '<span>حد ضرر: <b class="r" dir="ltr">' + z.sl + '</b></span>' +
+      '<span>هدف ۱ (RR۲): <b class="g" dir="ltr">' + z.tp1 + '</b></span>' +
+      '<span>هدف ۲ (RR۳): <b class="g" dir="ltr">' + z.tp2 + '</b></span></div>' +
+      '<p class="m">' + z.basis + '</p><p class="m amber">' + z.invalidate + '</p>' +
+      '<button type="button" class="bt-gen small" data-bt-zoneuse="' + z.side + '" data-bt-entry="' + (Math.round(((z.zoneLo + z.zoneHi) / 2) * 100) / 100) + '">انتقال به فرم پلن</button>' +
+      '</div>';
+  }
+  h += '<p class="bt-note">نواحی آموزشی و مبتنی بر سوئینگ/ATR هستند — سیگنال قطعی نیستند؛ تأیید کندل داخل ناحیه شرط اجراست و محاسبه حجم جداگانه در فرم پلن انجام می‌شود.</p>';
+  return btSec('نواحی ورود پیشنهادی بر اساس ساختار (الگوریتمی)', 'target', h, 'var(--sky)');
+}
+
+/* ---------- تب عوامل کمّی ---------- */
+function btFactorsHTML() {
+  if (BT.fqBusy) {
+    return '<div class="bt-state"><span class="spin">' + icon('refresh', 20) + '</span>در حال برآورد رگرسیون‌های تاریخی…<span class="s">بازده نماد و عوامل در افق‌های ۱/۵/۲۰ روزه — دریافت ۴ سری ۲ساله، کمی طول می‌کشد</span></div>';
+  }
+  if (BT.fqErr && !BT.fq) {
+    return '<div class="bt-state"><span style="color:var(--red)">' + icon('wifi', 22) + '</span>' + BT.fqErr +
+      '<button type="button" class="btn" data-bt-fq-reload>' + icon('refresh', 13) + 'تلاش مجدد</button></div>';
+  }
+  var fq = BT.fq;
+  if (!fq) return '<div class="bt-state">داده عوامل آماده نشده است.</div>';
+  var score = btFqLocalScore(fq);
+  var scoreLabel = score === null ? 'بدون امتیاز معتبر' : score > 15 ? 'فشار صعودی' : score < -15 ? 'فشار نزولی' : 'فشار خنثی/متعادل';
+  var scoreCls = score === null ? '' : score > 15 ? 'ok' : score < -15 ? 'bad' : 'mid';
+  var sumW = btFqSumValidW(fq);
+  var w = btFqWeights();
+
+  var rows = '';
+  for (var i = 0; i < fq.rows.length; i++) {
+    var r = fq.rows[i];
+    var bc = function (b) { return b ? (b.beta >= 0 ? '+' : '') + faDigits(b.beta) + '<span class="t">t=' + faDigits(b.t) + '</span>' : '—'; };
+    rows += '<tr>' +
+      '<td class="fa"><b>' + r.nameFa + '</b><span dir="ltr">Yahoo: ' + r.sourceYahoo + '</span><span>وزن ' + faNum(w[r.id] !== undefined ? w[r.id] : r.w) + '</span></td>' +
+      '<td dir="ltr">' + btNum(r.current) + '</td>' +
+      '<td dir="ltr">' + (r.change5 === null ? '—' : (r.change5 > 0 ? '+' : '') + faDigits(r.change5) + ' ' + r.unitFa) + '</td>' +
+      '<td dir="ltr">' + (r.z === null ? '—' : (r.z > 0 ? '+' : '') + faDigits(r.z)) + '</td>' +
+      '<td dir="ltr">' + bc(r.beta.h1) + '</td><td dir="ltr">' + bc(r.beta.h5) + '</td><td dir="ltr">' + bc(r.beta.h20) + '</td>' +
+      '<td dir="ltr"><b>' + (r.pressure === null ? 'نامشخص' : (r.pressure > 0 ? '+' : '') + faDigits(r.pressure)) + '</b></td>' +
+      '<td dir="ltr">' + (r.reliability === null ? '—' : faDigits(r.reliability)) + '</td>' +
+      '<td class="' + (r.effect === 'supportive' ? 'g' : r.effect === 'restrictive' ? 'r' : r.effect === 'conflict' ? 'a' : '') + '">' + r.effectFa + '</td>' +
+      '</tr>';
+  }
+  var interps = '';
+  for (i = 0; i < fq.rows.length; i++) {
+    if (fq.rows[i].interpFa) interps += '<p class="bt-note boxed">' + fq.rows[i].interpFa + '</p>';
+    else if (fq.rows[i].unreliableReason) interps += '<p class="bt-note warn">⚠ ' + fq.rows[i].nameFa + ': ' + fq.rows[i].unreliableReason + ' — Pressure محاسبه نشد و عدد حدس زده نشد.</p>';
+  }
+  var skips = '';
+  if (fq.skipped.length) {
+    skips = '<div class="bt-warn">عوامل کنارگذاشته‌شده از امتیاز (وزن بقیه بازتنظیم شد — مجموع وزن مؤثر: ' + faDigits(sumW) + '): <ul>' +
+      fq.skipped.map(function (s) { return '<li>• ' + s.nameFa + ': ' + s.reason + '</li>'; }).join('') + '</ul></div>';
+  }
+  var wInputs = '';
+  for (i = 0; i < fq.rows.length; i++) {
+    var rw = fq.rows[i];
+    wInputs += '<label class="bt-fw-row"><span>' + rw.nameFa + '</span><input type="number" min="0" max="1" step="0.05" dir="ltr" data-bt-fw="' + rw.id + '" value="' + (w[rw.id] !== undefined ? w[rw.id] : rw.w) + '" aria-label="وزن ' + rw.nameFa + '"></label>';
+  }
+  var notes = '<ul class="bt-list">' + fq.notes.map(function (n) { return '<li>' + n + '</li>'; }).join('') + '</ul>';
+  return btSec('شاخص فشار مدل — Composite', 'sparkles',
+    '<div class="bt-score-row"><div class="bt-score ' + scoreCls + '"><b dir="ltr">' + (score === null ? '—' : (score > 0 ? '+' : '') + faDigits(score)) + '</b><span>−۱۰۰ تا +۱۰۰</span></div>' +
+    '<div class="bt-score-txt"><p class="bt-score-v">' + scoreLabel + '</p>' +
+    '<p class="bt-note">مثبت = فشار تاریخی مدل به سمت رشد نماد · منفی = فشار به سمت افت · نزدیک صفر = فشار خالص کم یا عوامل متضاد. این «شاخص فشار مدل» است — احتمال صعود، بازده مورد انتظار یا تضمین حرکت نیست.</p></div></div>' + skips, 'var(--violet)') +
+    btSec('جدول کمّی عوامل — رابطه تاریخی/آماری، نه علّی', 'activity',
+      '<div class="fq-scroll"><table class="mini-tbl fq"><thead><tr><th>عامل</th><th>مقدار جاری</th><th>تغییر ۵روزه</th><th>Z</th><th>β افق ۱ر</th><th>β افق ۵ر</th><th>β افق ۲۰ر</th><th>Pressure</th><th>قابلیت اتکا</th><th>اثر فعلی</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      interps + '<p class="bt-src">نمونه: ' + faDigits(fq.sampleBars || 0) + ' کندل روزانه ۲ساله · محاسبه محلی روی همین دستگاه — آخرین محاسبه: ' + faTime(new Date(fq.generatedAtISO)) + '</p>', 'var(--sky)') +
+    btSec('تنظیمات وزن عوامل (۰ تا ۱)', 'crosshair',
+      wInputs +
+      '<p class="bt-note">وزن‌ها در امتیاز تجمیعی همان بالا اعمال می‌شوند. اگر داده عاملی موجود نباشد از امتیاز کنار گذاشته می‌شود و وزن عوامل باقی‌مانده شفاف بازتنظیم می‌شود (مجموع وزن مؤثر فعلی: ' + faDigits(sumW) + ').</p>', 'var(--violet)') +
+    btSec('روش و محدودیت‌ها', 'alert', notes + '<p class="bt-note bold">این جدول کمّی‌سازی شفاف رابطه تاریخی عوامل با نماد است؛ برای تصمیم معامله به تنهایی کافی نیست و توصیه خرید/فروش محسوب نمی‌شود.</p>', 'var(--amber)');
+}
+
 /* ---------- رندر اصلی اپ ---------- */
 function renderTraderApp(soft) {
   if (!soft) { BT.tab = btGet('bt_tab_v1', 'view'); }
@@ -289,6 +378,15 @@ function renderTraderApp(soft) {
   }
   if (BT.nudge) inner += '<div class="bt-warn">⚠ ' + BT.nudge + '</div>';
   if (BT.data && BT.data.degraded) inner += '<div class="bt-warn">حالت کاهش‌یافته: دریافت داده زنده Yahoo ناموفق بود — فقط اسنپ‌شات فایل نمایش داده می‌شود؛ عوامل وابسته به داده زنده با برچسب «داده ناکافی» علامت خورده‌اند. با دکمه بروزرسانی دوباره تلاش کنید.</div>';
+  /* هشدار جدی رنج فشرده / رنج — همیشه بالای همه تب‌ها */
+  if (BT.data && BT.data.rangeWarning && BT.data.rangeWarning.active) {
+    var rwv = BT.data.rangeWarning;
+    inner += '<div class="bt-rangewarn' + (rwv.severity === 'tight' ? ' red' : '') + '">' +
+      '<b>' + (rwv.severity === 'tight' ? 'هشدار جدی: رنج فشرده' : 'هشدار: بازار رنج است') + '</b>' +
+      '<p>' + rwv.message + '</p>' +
+      (rwv.severity === 'tight' ? '<ul>' + rwv.advice.map(function (a) { return '<li>' + a + '</li>'; }).join('') + '</ul>' : '') +
+      '<span class="m">سنجه‌ها: صدک ATR ' + (rwv.metrics.atrPctile === null ? '—' : faDigits(rwv.metrics.atrPctile)) + ' · نسبت کارایی ' + (rwv.metrics.er === null ? '—' : faDigits(rwv.metrics.er)) + ' · ارتفاع محدوده ' + (rwv.metrics.boxPctOfAtr === null ? '—' : faDigits(rwv.metrics.boxPctOfAtr)) + ' برابر ATR</span></div>';
+  }
 
   if (BT.busy) {
     inner += '<div class="bt-state"><span class="spin">' + icon('refresh', 20) + '</span>در حال دریافت سری روزانه و محاسبه وضعیت بازار…<span class="s">ساختار، DXY، US10Y، اخبار و امتیاز اطمینان</span></div>';
@@ -298,6 +396,7 @@ function renderTraderApp(soft) {
   } else if (BT.data) {
     if (BT.tab === 'view') inner += btViewHTML();
     else if (BT.tab === 'plan') inner += btPlanHTML();
+    else if (BT.tab === 'factors') inner += btFactorsHTML();
     else if (BT.tab === 'news') inner += btNewsHTML();
     else inner += btJournalHTML();
     inner += '<p class="bt-foot">منبع: ' + (BT.data.degraded ? 'اسنپ‌شات فایل (داده زنده در دسترس نبود)' : 'سری روزانه Yahoo Finance (پروکسی عمومی) · ساختار و اخبار: اسنپ‌شات فایل') + ' — آخرین محاسبه: ' + faTime(new Date()) +
@@ -307,6 +406,8 @@ function renderTraderApp(soft) {
   btBind();
   /* بارگذاری اولیه — فقط وقتی هیچ داده یا وضعیتی وجود ندارد */
   if (!BT.data && !BT.busy && !BT.err) btLoadData(false);
+  /* بارگذاری تنبل عوامل کمّی هنگام باز شدن تب */
+  if (BT.tab === 'factors' && BT.data && !BT.fq && !BT.fqBusy && !BT.fqErr) btLoadFactors(false);
 }
 function btBind() {
   var rf = appScroll.querySelector('[data-bt-refresh]');
@@ -318,12 +419,32 @@ function btBind() {
     BT.nudge = n.warn ? n.message : '';
     btLoadData(true);
   });
+  var fqr = appScroll.querySelector('[data-bt-fq-reload]');
+  if (fqr) fqr.addEventListener('click', function () { btLoadFactors(true); });
+  var fws = appScroll.querySelectorAll('[data-bt-fw]');
+  for (var wi = 0; wi < fws.length; wi++) {
+    (function (b) {
+      b.addEventListener('change', function () {
+        btFqSetWeight(b.dataset.btFw, Number(b.value));
+        renderTraderApp(true);
+      });
+    })(fws[wi]);
+  }
+  var zus = appScroll.querySelectorAll('[data-bt-zoneuse]');
+  for (var zi = 0; zi < zus.length; zi++) {
+    (function (b) {
+      b.addEventListener('click', function () {
+        BT.zf = { side: b.dataset.btZoneuse, entry: b.dataset.btEntry };
+        renderTraderApp(true);
+      });
+    })(zus[zi]);
+  }
   var syms = appScroll.querySelectorAll('[data-bt-sym]');
   for (var i = 0; i < syms.length; i++) {
     (function (b) {
       b.addEventListener('click', function () {
         if (BT.sym === b.dataset.btSym) return;
-        BT.sym = b.dataset.btSym; BT.data = null; BT.plan = null; BT.changes = []; BT.pmSide = null;
+        BT.sym = b.dataset.btSym; BT.data = null; BT.plan = null; BT.changes = []; BT.pmSide = null; BT.fq = null; BT.fqErr = null; BT.zf = null;
         btLoadData(true);
       });
     })(syms[i]);

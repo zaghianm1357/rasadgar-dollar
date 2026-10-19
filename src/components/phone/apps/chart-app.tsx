@@ -10,7 +10,8 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { faTime } from "@/lib/tehran";
+import { faTime, faDigits } from "@/lib/tehran";
+import type { EntryZoneOutput, RangeWarning } from "@/lib/trader-engine";
 
 /* ---------- تنظیمات چارت ---------- */
 
@@ -126,6 +127,8 @@ export function ChartApp() {
   const [aiAt, setAiAt] = useState<string | null>(null);
   const [aiKey, setAiKey] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [aiZones, setAiZones] = useState<EntryZoneOutput | null>(null);
+  const [aiRw, setAiRw] = useState<RangeWarning | null>(null);
 
   /* ref برای دسترسی بدون stale closure */
   const symRef = useRef(symbol);
@@ -240,6 +243,8 @@ export function ChartApp() {
           setAiText(String(j.analysis ?? ""));
           setAiAt(j.generatedAtISO ? String(j.generatedAtISO) : null);
           setAiKey(`${sym}@${itv}`);
+          setAiZones((j.zones as EntryZoneOutput | null) ?? null);
+          setAiRw((j.rangeWarning as RangeWarning | null) ?? null);
           setAiStatus("done");
         } else {
           setAiError(String(j?.error ?? "خطای نامشخص"));
@@ -418,7 +423,59 @@ export function ChartApp() {
                     این تحلیل مربوط به نماد/تایم‌فریم قبلی است — دکمه «تحلیل هوشمند» را دوباره بزنید
                   </p>
                 )}
+                {aiRw?.active && (
+                  <div
+                    className={`rounded-lg border px-2 py-1.5 ${aiRw.severity === "tight" ? "border-rose-500/60 bg-rose-500/15" : "border-amber-500/50 bg-amber-500/10"}`}
+                    data-testid="chart-rangewarn"
+                  >
+                    <p className={`text-[10.5px] font-black ${aiRw.severity === "tight" ? "text-rose-200" : "text-amber-200"}`}>
+                      {aiRw.severity === "tight" ? "هشدار جدی: رنج فشرده" : "هشدار: بازار رنج است"}
+                    </p>
+                    <p className="mt-0.5 text-[9.5px] leading-4 text-foreground/85">{aiRw.message}</p>
+                    {aiRw.severity === "tight" && (
+                      <ul className="mt-1 flex flex-col gap-0.5">
+                        {aiRw.advice.slice(0, 3).map((a, i) => (
+                          <li key={i} className="flex items-start gap-1 text-[9px] leading-4 text-rose-200/90">
+                            <span className="mt-1 h-1 w-1 flex-none rounded-full bg-rose-400" />
+                            {a}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <p className="mt-1 text-[8.5px] text-muted-foreground">
+                      سنجه‌ها: صدک ATR {aiRw.metrics.atrPctile === null ? "—" : faDigits(aiRw.metrics.atrPctile)} · نسبت کارایی {aiRw.metrics.er === null ? "—" : faDigits(aiRw.metrics.er)}
+                    </p>
+                  </div>
+                )}
                 <p className="whitespace-pre-wrap text-[11px] leading-6 text-foreground/90">{aiText}</p>
+                {aiZones && (
+                  <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 px-2 py-1.5" data-testid="chart-zones">
+                    <p className="text-[10.5px] font-black text-sky-200">نواحی ورود مبتنی بر ساختار (الگوریتمی)</p>
+                    <p className="mt-0.5 text-[9px] leading-4 text-muted-foreground">ساختار این تایم‌فریم: {aiZones.trendFa} — {aiZones.note}</p>
+                    {aiZones.zones.map((z, i) => (
+                      <div key={i} className="mt-1 rounded-lg border border-border/60 bg-background/40 p-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[10px] font-black ${z.side === "buy" ? "text-emerald-300" : "text-rose-300"}`}>
+                            {z.side === "buy" ? "ناحیه خرید" : "ناحیه فروش"}
+                          </span>
+                          <span className={`rounded-full px-1.5 py-px text-[8.5px] font-bold ${z.activeNow ? "bg-emerald-500/15 text-emerald-300" : "bg-white/10 text-zinc-300"}`}>
+                            {z.activeNow ? "فعال" : "انتظار پولبک"}
+                          </span>
+                        </div>
+                        <div className="mt-0.5 grid grid-cols-2 gap-x-2 text-[9px] font-bold">
+                          <p>ناحیه: <span dir="ltr">{z.zoneLo} – {z.zoneHi}</span></p>
+                          <p>SL: <span className="text-rose-300" dir="ltr">{z.sl}</span></p>
+                          <p>TP۱ (RR۲): <span className="text-emerald-300" dir="ltr">{z.tp1}</span></p>
+                          <p>TP۲ (RR۳): <span className="text-emerald-300" dir="ltr">{z.tp2}</span></p>
+                        </div>
+                        <p className="mt-0.5 text-[8.5px] leading-4 text-amber-300/90">{z.invalidate}</p>
+                      </div>
+                    ))}
+                    <p className="mt-1 text-[8.5px] leading-4 text-muted-foreground">
+                      نواحی آموزشی مبتنی بر سوئینگ/ATR هستند — سیگنال قطعی نیستند؛ تأیید کندل داخل ناحیه شرط اجراست.
+                    </p>
+                  </div>
+                )}
                 <p className="pt-0.5 text-center text-[9px] text-muted-foreground/70">
                   تحلیل صرفاً اطلاع‌رسانی است و توصیه معاملاتی محسوب نمی‌شود — منبع داده: Yahoo Finance
                 </p>

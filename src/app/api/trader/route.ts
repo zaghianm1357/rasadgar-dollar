@@ -14,6 +14,8 @@ import {
   preMortemFactors,
   atrPct,
   pearson,
+  rangeCompression,
+  entryZonesFromStructure,
 } from "@/lib/trader-engine";
 import type { TrendDir, ScenarioEventInput } from "@/lib/trader-engine";
 import type { TraderResponse, SymbolSpecItem } from "@/lib/trader-types";
@@ -426,6 +428,18 @@ async function computeTrader(symbolKey: "xau" | "dji", newsEvents: NewsEventRow[
   if (symData === null) notes.push("ساختار بازار این نماد در محاسبه آخر سرور در دسترس نبود.");
   if (dxyDaily === null) notes.push("داده DXY دریافت نشد — پنل همبستگی غیرفعال است.");
 
+  /* هشدار رنج فشرده + نواحی ورود مبتنی بر ساختار */
+  const rangeWarning = rangeCompression(highs, lows, closes);
+  const atrAbs = atrPctDaily !== null && closes.length ? (atrPctDaily / 100) * closes[closes.length - 1] : null;
+  const entryZones = entryZonesFromStructure({
+    trend: structure4h,
+    price: closes.length ? closes[closes.length - 1] : null,
+    support,
+    resistance,
+    atrAbs,
+    range: rangeWarning,
+  });
+
   return {
     ok: true,
     generatedAtISO: new Date().toISOString(),
@@ -498,6 +512,8 @@ async function computeTrader(symbolKey: "xau" | "dji", newsEvents: NewsEventRow[
       dxyCompatible: divergence.level === "normal",
       dataFresh: ms.status === "live" || ms.status === "cached",
     },
+    rangeWarning,
+    entryZones,
   };
 }
 

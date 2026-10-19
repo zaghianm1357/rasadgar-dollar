@@ -615,9 +615,12 @@ function Shell() {
             {/* سربرگ اصلی — لوگوی BIG TRADER */}
             <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2" data-testid="bt-header-logo">
               <div className="flex min-w-0 items-center gap-2">
-                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-700 shadow-lg shadow-black/40">
-                  <Briefcase className="h-5 w-5 text-white" />
-                </span>
+                <img
+                  src="/logo3.png"
+                  alt="لوگوی BIG TRADER — نشان شیر و تاج"
+                  className="h-9 w-9 flex-none rounded-full shadow-lg shadow-black/40 ring-1 ring-white/20"
+                  data-testid="bt-header-logo-img"
+                />
                 <div className="min-w-0 leading-tight">
                   <p dir="ltr" className="truncate bg-gradient-to-l from-amber-200 via-amber-400 to-orange-400 bg-clip-text text-[17px] font-black tracking-wide text-transparent">
                     BIG TRADER

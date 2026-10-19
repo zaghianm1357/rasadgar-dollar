@@ -42,7 +42,13 @@ const js = [
   readFileSync(BASE + '/app.d.js', 'utf8'),
   readFileSync(BASE + '/app.e.js', 'utf8'),
 ].join('\n');
-const wrapped = '(function(){\n' + js + '\n})();';
+
+/* لوگوی BIG TRADER (base64) — در app.b.js و app.e.js جای‌گذاری می‌شود */
+const logoB64 = readFileSync(BASE + '/logo-b64.txt', 'utf8').trim();
+if (logoB64.length < 1000) throw new Error('logo-b64 invalid');
+const jsWithLogo = js.split('__BT_LOGO_B64__').join(logoB64);
+if (!jsWithLogo.includes('data:image/png;base64,')) throw new Error('logo placeholder missing');
+const wrapped = '(function(){\n' + jsWithLogo + '\n})();';
 
 // امن‌سازی JSON برای جای‌گذاری داخل <script>
 const json = JSON.stringify(snap)

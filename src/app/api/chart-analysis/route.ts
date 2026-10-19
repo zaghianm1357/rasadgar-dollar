@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import ZAI from "z-ai-web-dev-sdk";
 import { getMeta, setMeta } from "@/lib/ff";
+import { rangeCompression, entryZonesFromStructure } from "@/lib/trader-engine";
+import type { EntryZoneOutput, RangeWarning } from "@/lib/trader-engine";
 
 export const dynamic = "force-dynamic";
 
@@ -213,6 +215,10 @@ interface AiCacheEntry {
   analysis: string;
   generatedAtISO: string;
   price: number | null;
+  /** نواحی ورود مبتنی بر ساختار — الگوریتمی و مستقل از LLM */
+  zones: EntryZoneOutput | null;
+  /** هشدار رنج فشرده در تایم‌فریم تحلیل‌شده */
+  rangeWarning: RangeWarning | null;
 }
 
 function cacheKey(symbol: string, interval: string): string {
@@ -225,7 +231,7 @@ async function readCache(key: string): Promise<AiCacheEntry | null> {
     if (!raw) return null;
     const obj = JSON.parse(raw) as AiCacheEntry;
     if (!obj || typeof obj.analysis !== "string" || !obj.analysis) return null;
-    return obj;
+    return { ...obj, zones: obj.zones ?? null, rangeWarning: obj.rangeWarning ?? null };
   } catch {
     return null;
   }
@@ -286,6 +292,29 @@ async function computeAnalysis(symbol: string, interval: string): Promise<AiCach
     last12CandlesOHLC: last12,
   };
 
+  /* جهت ساختار همین تایم‌فریم: EMA20/50 + موقعیت قیمت + جهت سوئینگ‌ها */
+  let trendScore = 0;
+  if (isFinite(e20) && isFinite(e50)) trendScore += e20 > e50 ? 1 : -1;
+  if (isFinite(e50)) trendScore += last > e50 ? 1 : -1;
+  if (highs.length >= 2) trendScore += highs[highs.length - 1] > highs[highs.length - 2] ? 1 : -1;
+  if (lows.length >= 2) trendScore += lows[lows.length - 1] > lows[lows.length - 2] ? 1 : -1;
+  const trend = trendScore >= 2 ? ("bullish" as const) : trendScore <= -2 ? ("bearish" as const) : ("neutral" as const);
+
+  /* هشدار رنج فشرده + نواحی ورود الگوریتمی — مستقل از خروجی LLM */
+  const rangeWarning = rangeCompression(
+    candles.map((c) => c.h),
+    candles.map((c) => c.l),
+    closes
+  );
+  const zones = entryZonesFromStructure({
+    trend,
+    price: last,
+    support: recentLow,
+    resistance: recentHigh,
+    atrAbs: isFinite(atr) ? atr : null,
+    range: rangeWarning,
+  });
+
   const zai = await ZAI.create();
   const askLLM = () =>
     zai.chat.completions.create({
@@ -317,6 +346,8 @@ async function computeAnalysis(symbol: string, interval: string): Promise<AiCach
     analysis: text,
     generatedAtISO: new Date().toISOString(),
     price: roundPrice(last),
+    zones,
+    rangeWarning,
   };
 }
 

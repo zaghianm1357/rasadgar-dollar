@@ -636,7 +636,31 @@ function buildAiText(px, itv) {
   var volTxt = 'معمولی';
   if (atr != null && itv.atr) volTxt = atr < itv.atr[0] ? 'پایین' : atr > itv.atr[1] ? 'بالا' : 'معمولی';
   var sec4 = '<p class="ai-sec"><b>ریسک:</b> میانگین دامنه نوسان (ATR۱۴) حدود ' + (atr == null ? '—' : faDigits(atr.toFixed(2)) + '٪') + ' قیمت است — نوسان ' + volTxt + '؛ ' + faDigits(String(ratio)) + '٪ از ۲۰ کندل اخیر صعودی بسته شده‌اند. در تایم‌فریم‌های کوچک‌تر سیگنال‌ها نویز بیشتری دارند؛ تایید با تایم‌فریم بالاتر توصیه می‌شود.</p>';
-  return sec1 + sec2 + sec3 + sec4;
+  /* هشدار رنج فشرده + نواحی ورود الگوریتمی (موتور مشترک — از app.d) */
+  var sec0 = '', sec5 = '';
+  try {
+    var rwz = trRangeComp(px.h, px.l, c);
+    var trendKey = total >= 2 ? 'bullish' : total <= -2 ? 'bearish' : 'neutral';
+    var ez = trZones(trendKey, last, ll, hh, atr != null ? (atr / 100) * last : null, rwz);
+    if (rwz.active) {
+      sec0 = '<div class="ai-range' + (rwz.severity === 'tight' ? ' red' : '') + '"><b>' + (rwz.severity === 'tight' ? 'هشدار جدی: رنج فشرده' : 'هشدار: بازار رنج است') + '</b><span>' + rwz.message + '</span>' +
+        (rwz.severity === 'tight' ? '<ul>' + rwz.advice.map(function (a) { return '<li>' + a + '</li>'; }).join('') + '</ul>' : '') + '</div>';
+    }
+    sec5 = '<p class="ai-sec"><b>نواحی ورود مبتنی بر ساختار (الگوریتمی):</b> ساختار این تایم‌فریم ' + ez.trendFa + ' است — ' + ez.note;
+    if (ez.zones.length) {
+      sec5 += '</p>';
+      for (var zi = 0; zi < ez.zones.length; zi++) {
+        var z = ez.zones[zi];
+        sec5 += '<div class="ai-zone"><b class="' + (z.side === 'buy' ? 'g' : 'r') + '">' + (z.side === 'buy' ? 'ناحیه خرید' : 'ناحیه فروش') + (z.activeNow ? ' — فعال (قیمت داخل ناحیه)' : ' — انتظار پولبک') + '</b>' +
+          '<span>ناحیه: ' + aiPx(z.zoneLo) + ' تا ' + aiPx(z.zoneHi) + ' · حد ضرر: ' + aiPx(z.sl) + ' · هدف ۱ (RR۲): ' + aiPx(z.tp1) + ' · هدف ۲ (RR۳): ' + aiPx(z.tp2) + '</span>' +
+          '<span class="m">' + z.basis + ' — ' + z.invalidate + '</span></div>';
+      }
+      sec5 += '<p class="ai-sec"><span class="m">نواحی آموزشی مبتنی بر سوئینگ/ATR هستند — سیگنال قطعی نیستند؛ تأیید کندل داخل ناحیه شرط اجراست.</span></p>';
+    } else {
+      sec5 += '</p>';
+    }
+  } catch (e) { /* موتور مشترک در دسترس نبود — بخش‌های اصلی تحلیل مستقل‌اند */ }
+  return sec0 + sec1 + sec2 + sec3 + sec4 + sec5;
 }
 function aiBody() { var p = document.getElementById('ai_panel'); return p ? p.querySelector('.ai-body') : null; }
 function aiSyncHeader() {

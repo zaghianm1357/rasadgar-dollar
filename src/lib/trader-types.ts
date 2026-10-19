@@ -1,5 +1,5 @@
 /** تایپ‌های پاسخ API دستیار معامله‌گر (/api/trader) */
-import type { FactorResult, RegimeResult, DivergenceResult, ConfluenceResult, ScenarioOutput } from "./trader-engine";
+import type { FactorResult, RegimeResult, DivergenceResult, ConfluenceResult, ScenarioOutput, EntryZoneOutput, RangeWarning } from "./trader-engine";
 import type { MSRow } from "./types";
 
 export interface SymbolSpecItem {
@@ -60,4 +60,8 @@ export interface TraderResponse {
   };
   preMortem: { factors: string[]; balanceNote: string };
   checklistAuto: { newsNear: boolean; tfSummary: string; dxyCompatible: boolean; dataFresh: boolean };
+  /** هشدار رنج/رنج فشرده — همیشه برچسب زمانی داده دارد */
+  rangeWarning: RangeWarning;
+  /** نواحی ورود مبتنی بر ساختار (الگوریتمی) */
+  entryZones: EntryZoneOutput;
 }

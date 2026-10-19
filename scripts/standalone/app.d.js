@@ -10,7 +10,8 @@ var BT_KEYS = {
   visit: 'bt_visit_v1',
   refresh: 'bt_refresh_v1',
   lastloss: 'bt_last_loss_v1',
-  positions: 'bt_positions_v1'
+  positions: 'bt_positions_v1',
+  fqw: 'bt_fqw_v1'
 };
 function btGet(k, fb) {
   try {
@@ -222,10 +223,10 @@ var BT_SYMS = {
 };
 var BT_TF_FA = { '15m': '۱۵ دقیقه', '1h': '۱ ساعته', '4h': '۴ ساعته', '1d': 'روزانه' };
 var BT_TREND_FA = { bullish: 'صعودی', bearish: 'نزولی', neutral: 'خنثی' };
-var BT_TABS = [['view', 'نمای بازار'], ['plan', 'پلن و ریسک'], ['news', 'اخبار و سناریو'], ['journal', 'ژورنال']];
+var BT_TABS = [['view', 'نمای بازار'], ['plan', 'پلن و ریسک'], ['factors', 'عوامل'], ['news', 'اخبار'], ['journal', 'ژورنال']];
 
 /* ---------- وضعیت اپ ---------- */
-var BT = { tab: 'view', sym: 'xau', data: null, busy: false, err: null, changes: [], nudge: '', pmSide: null, checks: {}, plan: null, copied: false };
+var BT = { tab: 'view', sym: 'xau', data: null, busy: false, err: null, changes: [], nudge: '', pmSide: null, checks: {}, plan: null, copied: false, fq: null, fqBusy: false, fqErr: null };
 var BT_CACHE = { at: 0, data: null };
 
 /* ---------- دریافت سری روزانه از Yahoo (پروکسی عمومی) ---------- */
@@ -368,6 +369,11 @@ function btCompute(symKey, series, dxy, tnx) {
 
   var preM = trPreMortem({ side: null, structure4h: structure4h, tfScore: tfF.score, newsMin: mins, div: div.level, regime: regime.type, rsi: rsi });
 
+  /* هشدار رنج فشرده + نواحی ورود مبتنی بر ساختار */
+  var rw = trRangeComp(h, l, c);
+  var atrAbs = atr !== null ? (atr / 100) * price : null;
+  var zones = trZones(structure4h, price, ll, hh, atrAbs, rw);
+
   return {
     conf: conf, price: price, changePct: changePct, dxyPrice: dc[dc.length - 1], dxyChangePct: dChg,
     tnxPrice: tnx.c[tnx.c.length - 1], tnxChangePct: tChg, corr: corr,
@@ -376,7 +382,8 @@ function btCompute(symKey, series, dxy, tnx) {
     nextHigh: nextHigh, mins: mins,
     total: total, verdict: total >= 75 ? 'strong' : total >= 50 ? 'moderate' : 'no-trade',
     factors: { tf: tfF, news: newsF, dxy: dxyF, atr: atrF },
-    div: div, scenarios: scenarios, conflict: conflict, history: history, preMortem: preM
+    div: div, scenarios: scenarios, conflict: conflict, history: history, preMortem: preM,
+    rangeWarning: rw, entryZones: zones
   };
 }
 /* محاسبه کاهش‌یافته — وقتی سری زنده Yahoo در دسترس نیست: فقط اسنپ‌شات فایل با برچسب صادقانه */
@@ -429,7 +436,9 @@ function btComputeDegraded(symKey) {
     div: { level: 'unknown', color: 'gray', text: 'داده لحظه‌ای کامل نیست', reason: 'دریافت سری زنده Yahoo ناموفق بود — وضعیت واگرایی با اسنپ‌شات ارزیابی نمی‌شود.' },
     scenarios: scenarios, conflict: conflict,
     history: { available: false, reason: 'داده قیمت تاریخی نماد در دسترس نیست — سری زنده دریافت نشد.', n: 0 },
-    preMortem: trPreMortem({ side: null, structure4h: structure4h, tfScore: tfF.score, newsMin: mins, div: 'unknown', regime: 'unknown', rsi: null })
+    preMortem: trPreMortem({ side: null, structure4h: structure4h, tfScore: tfF.score, newsMin: mins, div: 'unknown', regime: 'unknown', rsi: null }),
+    rangeWarning: { active: false, severity: 'normal', message: '', advice: [], metrics: { atrPctile: null, er: null, boxPctOfAtr: null } },
+    entryZones: { trend: structure4h, trendFa: structure4h === 'bullish' ? 'صعودی' : structure4h === 'bearish' ? 'نزولی' : 'نامشخص', zones: [], note: 'داده زنده در دسترس نیست — ناحیه ورود حدس زده نمی‌شود؛ با بروزرسانی موفق دوباره تلاش کنید.', rangeWarning: null }
   };
 }
 function btLoadData(force) {
@@ -487,4 +496,330 @@ function btVisitDiff() {
     }
     btSet(BT_KEYS.visit, cur);
   } catch (e) {}
+}
+
+/* ================= کمّی‌سازی اجباری اثر عوامل + رنج فشرده + نواحی ورود (نسخه مستقل) ================= */
+
+function trOls(x, y, lag) {
+  var n = Math.min(x.length, y.length), i;
+  if (n < 25) return null;
+  var sx = 0, sy = 0, sxx = 0, sxy = 0, syy = 0;
+  for (i = 0; i < n; i++) { sx += x[i]; sy += y[i]; sxx += x[i] * x[i]; sxy += x[i] * y[i]; syy += y[i] * y[i]; }
+  var mx = sx / n, my = sy / n;
+  var vx = sxx / n - mx * mx, vy = syy / n - my * my;
+  if (!(vx > 1e-12)) return null;
+  var beta = (sxy / n - mx * my) / vx;
+  var alpha = my - beta * mx;
+  var u = new Array(n), ssr = 0;
+  for (i = 0; i < n; i++) { u[i] = y[i] - (alpha + beta * x[i]); ssr += u[i] * u[i]; }
+  var sxxC = 0;
+  for (i = 0; i < n; i++) sxxC += (x[i] - mx) * (x[i] - mx);
+  var long = 0;
+  for (i = 0; i < n; i++) long += (x[i] - mx) * (x[i] - mx) * u[i] * u[i];
+  var L = Math.min(lag || 0, n - 2), l, j;
+  for (l = 1; l <= L; l++) for (j = l; j < n; j++) long += 2 * (x[j] - mx) * u[j] * (x[j - l] - mx) * u[j - l];
+  var se = NaN;
+  if (sxxC > 1e-12 && long >= 0) { var nwVar = long / (sxxC * sxxC); if (isFinite(nwVar) && nwVar > 0) se = Math.sqrt(nwVar); }
+  if (!isFinite(se)) { var dof = n - 2; if (dof <= 0) return null; se = Math.sqrt((ssr / dof) / sxxC); }
+  if (!isFinite(se) || se <= 0) return null;
+  var t = beta / se, ci = 1.96 * se;
+  return { beta: Math.round(beta * 1000) / 1000, se: Math.round(se * 10000) / 10000, t: Math.round(t * 100) / 100, ciLo: Math.round((beta - ci) * 1000) / 1000, ciHi: Math.round((beta + ci) * 1000) / 1000, n: n };
+}
+function trDayKey(t) { return new Date(t * 1000).toISOString().slice(0, 10); }
+function trPairs(st, sc, ft, fc, h, mode) {
+  var fm = {}, i;
+  for (i = 0; i < ft.length; i++) fm[trDayKey(ft[i])] = fc[i];
+  var x = [], y = [];
+  for (i = 0; i + h < sc.length; i++) {
+    var fa = fm[trDayKey(st[i])], fb = fm[trDayKey(st[i + h])];
+    if (fa === undefined || fb === undefined || !(sc[i] > 0)) continue;
+    var fx = mode === 'pct' ? (fb - fa) / fa * 100 : fb - fa;
+    var fy = (sc[i + h] - sc[i]) / sc[i] * 100;
+    if (!isFinite(fx) || !isFinite(fy)) continue;
+    x.push(fx); y.push(fy);
+  }
+  return { x: x, y: y };
+}
+function trSplit(x, y) {
+  var n = Math.min(x.length, y.length);
+  if (n < 40) return null;
+  var mid = Math.floor(n / 2);
+  var b1 = trOls(x.slice(0, mid), y.slice(0, mid), 0), b2 = trOls(x.slice(mid), y.slice(mid), 0);
+  if (!b1 || !b2) return null;
+  return (b1.beta > 0) === (b2.beta > 0);
+}
+function trMeanStd(v) {
+  var n = v.length, i;
+  if (n < 30) return null;
+  var s = 0;
+  for (i = 0; i < n; i++) s += v[i];
+  var m = s / n, ss = 0;
+  for (i = 0; i < n; i++) ss += (v[i] - m) * (v[i] - m);
+  var std = Math.sqrt(ss / n);
+  if (!(std > 1e-12)) return null;
+  return { mean: m, std: std };
+}
+function trZ(cur, hist) {
+  var tail = hist.slice(-252), ms = trMeanStd(tail);
+  if (!ms) return null;
+  return Math.round((cur - ms.mean) / ms.std * 100) / 100;
+}
+function trPctile(cur, hist) {
+  if (hist.length < 30) return null;
+  var below = 0, i;
+  for (i = 0; i < hist.length; i++) if (hist[i] <= cur) below++;
+  return Math.round(below / hist.length * 100);
+}
+function trRel(n, t, signCons, split) {
+  var dataScore = Math.min(n / 150, 1);
+  var at = Math.abs(t);
+  var sigScore = at >= 2 ? 1 : Math.max(0, (at - 0.5) / 1.5);
+  var stability = 0.5 * signCons + 0.5 * (split === null ? 0.5 : split ? 1 : 0);
+  var rel = (0.35 * dataScore + 0.35 * sigScore + 0.3 * stability) * 1;
+  return Math.round(Math.max(0, Math.min(1, rel)) * 100) / 100;
+}
+function trComposite(items) {
+  if (!items.length) return null;
+  var sw = 0, num = 0, i;
+  for (i = 0; i < items.length; i++) { sw += items[i].w; num += items[i].w * items[i].p; }
+  if (!(sw > 0)) return null;
+  return Math.round(100 * Math.tanh(num / sw) * 10) / 10;
+}
+var FQ_EFFECT_FA = { supportive: 'حمایتی', restrictive: 'بازدارنده', neutral: 'خنثی', conflict: 'متناقض', unknown: 'نامشخص' };
+function trEffect(b1, b5, b20, z, chg5, std5) {
+  if (!b5 || chg5 === null || chg5 === undefined) return 'unknown';
+  var sig = [], i;
+  var others = [b1, b20];
+  for (i = 0; i < others.length; i++) if (others[i] && others[i].n >= 60 && Math.abs(others[i].t) >= 2) sig.push(others[i]);
+  for (i = 0; i < sig.length; i++) if ((sig[i].beta > 0) !== (b5.beta > 0)) return 'conflict';
+  var smallZ = z !== null && Math.abs(z) < 0.5;
+  var smallMove = std5 !== null ? Math.abs(chg5) < 0.25 * std5 : Math.abs(chg5) < 1e-9;
+  if (smallZ && smallMove) return 'neutral';
+  var dir = (b5.beta > 0 ? 1 : -1) * (chg5 > 0 ? 1 : chg5 < 0 ? -1 : 0);
+  if (dir === 0) return 'neutral';
+  return dir > 0 ? 'supportive' : 'restrictive';
+}
+
+/* تعریف عوامل هر نماد — همان ساختار سرور */
+var FQ_DEFS = {
+  xau: [
+    { id: 'DXY', nameFa: 'شاخص دلار (DXY)', yahoo: 'DX-Y.NYB', unit: 'pct', unitFa: '٪', w: 0.4, roleFa: 'ارزش دلار — رابطه معمول با طلا معکوس است' },
+    { id: 'US10Y', nameFa: 'بازده ۱۰ساله خزانه (US10Y)', yahoo: '^TNX', unit: 'pp', unitFa: 'واحد درصد بازده', w: 0.35, roleFa: 'هزینه فرصت نگهداری طلا — جانشین نرخ واقعی (اسمی)' },
+    { id: 'SPX', nameFa: 'شاخص S&P 500', yahoo: '^GSPC', unit: 'pct', unitFa: '٪', w: 0.25, roleFa: 'اشتها به ریسک — جریان ریسک‌گریزی سرمایه' }
+  ],
+  dji: [
+    { id: 'US10Y', nameFa: 'بازده ۱۰ساله خزانه (US10Y)', yahoo: '^TNX', unit: 'pp', unitFa: 'واحد درصد بازده', w: 0.35, roleFa: 'نرخ بهره و ارزش‌گذاری سهام' },
+    { id: 'VIX', nameFa: 'شاخص نوسان (VIX)', yahoo: '^VIX', unit: 'pts', unitFa: 'امتیاز', w: 0.35, roleFa: 'سطح ترس/ریسک‌گریزی بازار' },
+    { id: 'DXY', nameFa: 'شاخص دلار (DXY)', yahoo: 'DX-Y.NYB', unit: 'pct', unitFa: '٪', w: 0.3, roleFa: 'ارزش دلار و اثر بر درآمد ارزی شرکت‌ها' }
+  ]
+};
+
+/* محاسبه فاکتورها از سری‌های ۲ساله — خروجی هم‌ساختار با API سرور */
+function btComputeFactors(symKey, symSer, facSers) {
+  var defs = FQ_DEFS[symKey], rows = [], i, k;
+  for (i = 0; i < defs.length; i++) {
+    var def = defs[i], ser = facSers[i];
+    if (!ser || ser.c.length < 100) {
+      rows.push({ id: def.id, nameFa: def.nameFa, roleFa: def.roleFa, sourceYahoo: def.yahoo, unitFa: def.unitFa, current: null, currentZPctile: null, change5: null, z: null, beta: { h1: null, h5: null, h20: null }, reliable5: false, unreliableReason: 'سری ۲ساله این عامل از پروکسی دریافت نشد — داده ناکافی و عدد حدس زده نمی‌شود.', pressure: null, reliability: null, effect: 'unknown', effectFa: 'نامشخص', w: def.w, interpFa: null });
+      continue;
+    }
+    var closes = ser.c;
+    /* مقیاس TNX ×۱۰ */
+    if (def.unit === 'pp') {
+      var sorted = closes.slice().sort(function (a, b) { return a - b; });
+      if (sorted[Math.floor(sorted.length / 2)] > 20) closes = closes.map(function (v) { return v / 10; });
+    }
+    var mode = def.unit === 'pct' ? 'pct' : 'delta';
+    var p1 = trPairs(symSer.t, symSer.c, ser.t, closes, 1, mode);
+    var p5 = trPairs(symSer.t, symSer.c, ser.t, closes, 5, mode);
+    var p20 = trPairs(symSer.t, symSer.c, ser.t, closes, 20, mode);
+    var b1 = trOls(p1.x, p1.y, 0), b5 = trOls(p5.x, p5.y, 4), b20 = trOls(p20.x, p20.y, 19);
+    var split = trSplit(p5.x, p5.y);
+    var cur = closes[closes.length - 1];
+    var z = trZ(cur, closes), pctile = trPctile(cur, closes);
+    var chg5 = p5.x.length ? Math.round(p5.x[p5.x.length - 1] * 100) / 100 : null;
+    var ms5 = trMeanStd(p5.x);
+    var reliable5 = b5 !== null && b5.n >= 60 && Math.abs(b5.t) >= 2;
+    var reason = null;
+    if (b5 === null) reason = 'نمونه کافی نیست — β برآورد نشد.';
+    else if (b5.n < 60) reason = 'نمونه کافی نیست (' + b5.n + ' مشاهده — کمتر از ۶۰).';
+    else if (Math.abs(b5.t) < 2) reason = 'از نظر آماری معنادار نیست (|t|=' + b5.t + ' < ۲) — عدد اثر قابل اتکا نیست.';
+    var signCons = 1;
+    if (b5) {
+      var oth = [], oo = [b1, b20];
+      for (k = 0; k < oo.length; k++) if (oo[k] && oo[k].n >= 60 && Math.abs(oo[k].t) >= 2) oth.push(oo[k]);
+      if (oth.length) {
+        var match = 0;
+        for (k = 0; k < oth.length; k++) if ((oth[k].beta > 0) === (b5.beta > 0)) match++;
+        var ratio = match / oth.length;
+        signCons = ratio === 1 ? 1 : ratio === 0 ? 0.3 : 0.6;
+      }
+    }
+    var rel = reliable5 && b5 ? trRel(b5.n, b5.t, signCons, split) : null;
+    var press = reliable5 && b5 && z !== null && rel !== null ? Math.round((b5.beta > 0 ? 1 : -1) * z * rel * 1000) / 1000 : null;
+    var effect = trEffect(b1, b5, b20, z, chg5, ms5 ? ms5.std : null);
+    var interp = null;
+    if (b5 && reliable5) {
+      var unitTxt = def.unit === 'pct' ? '۱٪ تغییر' : def.unit === 'pp' ? '۱ واحد درصد تغییر' : '۱ امتیاز تغییر';
+      interp = 'در نمونه ' + b5.n + ' روزه، ' + unitTxt + ' در ' + def.nameFa + ' به‌طور متوسط با ' + (b5.beta >= 0 ? '+' : '') + b5.beta + '٪ تغییر در نماد طی افق ۵روزه همراه بوده است (فاصله اطمینان ۹۵٪: ' + b5.ciLo + ' تا ' + b5.ciHi + ').';
+    }
+    rows.push({ id: def.id, nameFa: def.nameFa, roleFa: def.roleFa, sourceYahoo: def.yahoo, unitFa: def.unitFa, current: Math.round(cur * 100) / 100, currentZPctile: pctile, change5: chg5, z: z, beta: { h1: b1, h5: b5, h20: b20 }, reliable5: reliable5, unreliableReason: reason, pressure: press, reliability: rel, effect: effect, effectFa: FQ_EFFECT_FA[effect], w: def.w, interpFa: interp });
+  }
+  var used = [], skipped = [], i2;
+  for (i2 = 0; i2 < rows.length; i2++) {
+    if (rows[i2].pressure !== null) used.push({ id: rows[i2].id, nameFa: rows[i2].nameFa, w: rows[i2].w, p: rows[i2].pressure });
+    else skipped.push({ id: rows[i2].id, nameFa: rows[i2].nameFa, reason: rows[i2].unreliableReason || 'β قابل اتکا نیست' });
+  }
+  return { ok: true, rows: rows, used: used, skipped: skipped, score: trComposite(used), generatedAtISO: new Date().toISOString(),
+    notes: [
+      'β = تغییر درصدی نماد به‌ازای ۱ واحد تغییر عامل در همان افق — رابطه تاریخی/آماری است، نه اثر علّی.',
+      'خطای استاندارد با تصحیح Newey-West (نمونه‌های افق ۵ و ۲۰ روزه هم‌پوشان‌اند)؛ فاصله اطمینان ۹۵٪ تقریبی است.',
+      'Z = (مقدار جاری − میانگین ۲۵۲روزه) ÷ انحراف معیار همان دوره.',
+      'Pressure بر اساس «سطح غیرعادی» عامل (Z) است ولی ستون «اثر فعلی» بر اساس «جهت حرکت اخیر» — این دو می‌توانند متفاوت باشند.',
+      'اگر β معنادار نباشد، Pressure محاسبه نمی‌شود و عامل با وزن بازتنظیم‌شده از امتیاز کنار گذاشته می‌شود.',
+      'غافلگیری استانداردشده خبری (Surprise Z) در نسخه مستقل در دسترس نیست — نیازمند تاریخچه پایگاه داده سرور است.',
+      'شاخص فشار مدل، احتمال صعود یا بازده مورد انتظار نیست و حرکت قیمت را تضمین نمی‌کند.'
+    ] };
+}
+
+/* ---------- رنج فشرده ---------- */
+function trRangeComp(h, l, c) {
+  var n = c.length, i;
+  if (n < 60) return { active: false, severity: 'normal', message: '', advice: [], metrics: { atrPctile: null, er: null, boxPctOfAtr: null } };
+  var trs = [];
+  for (i = 1; i < n; i++) trs.push(Math.max(h[i] - l[i], Math.abs(h[i] - c[i - 1]), Math.abs(l[i] - c[i - 1])));
+  var atrSeries = [], period = 14;
+  for (i = period; i < trs.length; i++) { var s = 0, j; for (j = i - period + 1; j <= i; j++) s += trs[j]; atrSeries.push(s / period); }
+  if (atrSeries.length < 60) return { active: false, severity: 'normal', message: '', advice: [], metrics: { atrPctile: null, er: trER(c), boxPctOfAtr: null } };
+  var atrNow = atrSeries[atrSeries.length - 1], below = 0;
+  for (i = 0; i < atrSeries.length; i++) if (atrSeries[i] <= atrNow) below++;
+  var atrPctile = Math.round(below / atrSeries.length * 100);
+  var er = trER(c);
+  var hh = -Infinity, ll = Infinity;
+  for (i = Math.max(0, n - 20); i < n; i++) { if (h[i] > hh) hh = h[i]; if (l[i] < ll) ll = l[i]; }
+  var boxPctOfAtr = atrNow > 0 ? Math.round((hh - ll) / atrNow * 10) / 10 : null;
+  var advice = [
+    'تا شکست معتبر صبر کنید: بسته‌شدن کندل خارج از محدوده + پولبک موفق، نه یک کندل شانه‌ای.',
+    'شکست‌های کاذب در رنج فشرده شایع‌اند — ورود زودهنگام روی شکست، بالاترین ریسک را دارد.',
+    'حد ضرر خیلی نزدیک در این شرایط با کوچک‌ترین نوسان حذف می‌شود — فاصله استاپ را واقع‌بینانه بگیرید.',
+    'معامله در میانه رنج نکنید — فقط واکنش به لبه‌ها با تأیید، یا پرهیز کامل تا روشن‌شدن جهت.'
+  ];
+  if (atrPctile <= 20 && (er === null || er <= 0.3)) {
+    return { active: true, severity: 'tight', message: 'هشدار جدی: بازار در رنج فشرده قرار دارد — دامنه نوسان (ATR) در صدک ' + atrPctile + ' توزیع تاریخی خودش است و ارتفاع محدوده معاملاتی فقط ' + boxPctOfAtr + ' برابر ATR است. احتمال انفجار قیمتی ناگهانی یا اسپاسم‌های کاذب بالا می‌رود.', advice: advice, metrics: { atrPctile: atrPctile, er: er === null ? null : Math.round(er * 100) / 100, boxPctOfAtr: boxPctOfAtr } };
+  }
+  if (er !== null && er <= 0.15) {
+    return { active: true, severity: 'normal', message: 'بازار در رنج است — نسبت کارایی ' + Math.round(er * 100) + '٪ و صدک ATR روی ' + atrPctile + ' است؛ سطوح افقی غالب‌اند و شکست‌ها اغلب برمی‌گردند.', advice: advice, metrics: { atrPctile: atrPctile, er: Math.round(er * 100) / 100, boxPctOfAtr: boxPctOfAtr } };
+  }
+  return { active: false, severity: 'normal', message: '', advice: [], metrics: { atrPctile: atrPctile, er: er === null ? null : Math.round(er * 100) / 100, boxPctOfAtr: boxPctOfAtr } };
+}
+
+/* ---------- نواحی ورود مبتنی بر ساختار ---------- */
+function trZones(trend, price, sup, res, atrAbs, rw) {
+  var trendFa = trend === 'bullish' ? 'صعودی' : trend === 'bearish' ? 'نزولی' : trend === 'neutral' ? 'خنثی' : 'نامشخص';
+  var out = { trend: trend, trendFa: trendFa, zones: [], note: '', rangeWarning: rw && rw.active ? rw : null };
+  var rp = function (v) { return Math.round(v * 100) / 100; };
+  if (rw && rw.active && rw.severity === 'tight') {
+    out.note = 'به دلیل رنج فشرده، ناحیه ورودی پیشنهاد نمی‌شود — ورود در این شرایط قمار است، نه تحلیل. منتظر شکست معتبر و تثبیت بمانید.';
+    return out;
+  }
+  if (!price || !atrAbs || atrAbs <= 0) {
+    out.note = 'داده کافی (قیمت یا ATR) برای پیشنهاد ناحیه ورود موجود نیست.';
+    return out;
+  }
+  var pad = 0.25 * atrAbs, buf = 0.5 * atrAbs;
+  var buyZone = function (lo, hi, basis) {
+    var entry = (lo + hi) / 2, sl = lo - buf, risk = entry - sl;
+    return { side: 'buy', zoneLo: rp(lo), zoneHi: rp(hi), sl: rp(sl), tp1: rp(entry + 2 * risk), tp2: rp(entry + 3 * risk), activeNow: price >= lo && price <= hi, basis: basis, invalidate: 'بسته‌شدن کندل زیر ' + rp(sl) + ' ساختار خرید را باطل می‌کند.' };
+  };
+  var sellZone = function (lo, hi, basis) {
+    var entry = (lo + hi) / 2, sl = hi + buf, risk = sl - entry;
+    return { side: 'sell', zoneLo: rp(lo), zoneHi: rp(hi), sl: rp(sl), tp1: rp(entry - 2 * risk), tp2: rp(entry - 3 * risk), activeNow: price >= lo && price <= hi, basis: basis, invalidate: 'بسته‌شدن کندل بالای ' + rp(sl) + ' ساختار فروش را باطل می‌کند.' };
+  };
+  if (trend === 'bullish' && sup && sup < price) {
+    var hiB = Math.min(sup + pad, price);
+    out.zones.push(buyZone(sup, Math.max(hiB, sup + 0.05 * atrAbs), 'پولبک به حمایت/کف سوئینگ در ساختار صعودی — خرید در محدوده سبک‌گیری، نه تعقیب قیمت'));
+    out.note = 'ساختار صعودی است؛ ناحیه زیر «انتظار پولبک» است — اگر قیمت بدون اصلاح برود بالا، تعقیب نکنید.';
+    return out;
+  }
+  if (trend === 'bearish' && res && res > price) {
+    var loB = Math.max(res - pad, price);
+    out.zones.push(sellZone(Math.min(loB, res - 0.05 * atrAbs), res, 'پولبک به مقاومت/سقف سوئینگ در ساختار نزولی — فروش در محدوده اصلاح، نه تعقیب سقوط'));
+    out.note = 'ساختار نزولی است؛ ناحیه بالا «انتظار اصلاح» است — اگر قیمت بدون اصلاح سقوط کرد، فروش در کف نکنید.';
+    return out;
+  }
+  if (rw && rw.active && rw.severity === 'normal' && sup && res && res > sup) {
+    out.zones.push(buyZone(sup, sup + pad, 'لبه پایینی رنج پهن — فقط با تأیید کندل بازگشتی؛ هدف اول میانه رنج'));
+    out.zones.push(sellZone(res - pad, res, 'لبه بالایی رنج پهن — فقط با تأیید کندل بازگشتی؛ هدف اول میانه رنج'));
+    out.note = 'بازار رنج است؛ معامله فقط از لبه‌ها با تأیید، و هدف‌گیری میانه رنج — نه انتظار شکست.';
+    return out;
+  }
+  out.note = 'ساختار فعلی جهت‌گیری روشن ندارد (خنثی/داده ناکافی) — ناحیه ورود قابل استخراج نیست و حدس زده نمی‌شود.';
+  return out;
+}
+
+/* ---------- بارگذاری تنبل عوامل کمّی (۴ سری ۲ساله از پروکسی) ---------- */
+var BT_FQ_CACHE = { at: 0, sym: null, data: null };
+function btLoadFactors(force) {
+  if (BT.fqBusy) return;
+  if (!force && BT_FQ_CACHE.data && BT_FQ_CACHE.sym === BT.sym && Date.now() - BT_FQ_CACHE.at < 15 * 60 * 1000) {
+    BT.fq = BT_FQ_CACHE.data;
+    renderTraderApp(true);
+    return;
+  }
+  BT.fqBusy = true; BT.fqErr = null;
+  renderTraderApp(true);
+  var symKey = BT.sym;
+  var conf = BT_SYMS[symKey];
+  var defs = FQ_DEFS[symKey];
+  Promise.all([
+    btFetchSeries(conf.yahoo, '2y'),
+    btFetchSeries(defs[0].yahoo, '2y').catch(function () { return null; }),
+    btFetchSeries(defs[1].yahoo, '2y').catch(function () { return null; }),
+    btFetchSeries(defs[2].yahoo, '2y').catch(function () { return null; })
+  ]).then(function (rs) {
+    var symSer = rs[0];
+    if (!symSer || symSer.c.length < 100) throw new Error('sym-thin');
+    var facSers = [rs[1], rs[2], rs[3]];
+    var data = btComputeFactors(symKey, symSer, facSers);
+    data.sym = symKey;
+    data.sampleBars = symSer.c.length;
+    BT_FQ_CACHE = { at: Date.now(), sym: symKey, data: data };
+    BT.fq = data;
+    BT.fqBusy = false;
+    renderTraderApp(true);
+  }).catch(function () {
+    BT.fqBusy = false;
+    BT.fq = null;
+    BT.fqErr = 'دریافت سری ۲ساله نماد و عوامل از پروکسی‌های عمومی ناموفق بود — این نسخه به اتصال اینترنت باز شما نیاز دارد. عددی حدس زده نمی‌شود؛ دوباره تلاش کنید.';
+    renderTraderApp(true);
+  });
+}
+/* وزن‌های کاربر برای عوامل — per symbol */
+function btFqWeights() {
+  var all = btGet(BT_KEYS.fqw, {});
+  return all[BT.sym] || {};
+}
+function btFqSetWeight(id, v) {
+  var all = btGet(BT_KEYS.fqw, {});
+  all[BT.sym] = all[BT.sym] || {};
+  all[BT.sym][id] = isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+  btSet(BT_KEYS.fqw, all);
+}
+function btFqLocalScore(fq) {
+  if (!fq) return null;
+  var w = btFqWeights(), items = [], i;
+  for (i = 0; i < fq.rows.length; i++) {
+    var r = fq.rows[i];
+    if (r.pressure !== null) items.push({ id: r.id, w: w[r.id] !== undefined ? w[r.id] : r.w, p: r.pressure });
+  }
+  return trComposite(items);
+}
+function btFqSumValidW(fq) {
+  if (!fq) return 0;
+  var w = btFqWeights(), s = 0, i;
+  for (i = 0; i < fq.rows.length; i++) {
+    var r = fq.rows[i];
+    if (r.pressure !== null) s += (w[r.id] !== undefined ? w[r.id] : r.w);
+  }
+  return Math.round(s * 100) / 100;
 }
