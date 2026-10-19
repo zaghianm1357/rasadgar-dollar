@@ -25,6 +25,7 @@ import {
   RefreshCw,
   DollarSign,
   Briefcase,
+  Zap,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { faTime } from "@/lib/tehran";
@@ -43,6 +44,7 @@ import { ControlCenter } from "./control-center";
 import { TrendChangeBanner } from "@/components/dashboard/trend-change-banner";
 import { MarketStructurePanel } from "@/components/dashboard/market-structure-panel";
 import { TradeSuggestion } from "@/components/dashboard/trade-suggestion";
+import { ScalpPanel } from "@/components/dashboard/scalp-panel";
 import { NewsApp } from "./apps/news-app";
 import { AboutApp } from "./apps/about-app";
 import { ChartApp } from "./apps/chart-app";
@@ -50,7 +52,7 @@ import { TraderApp } from "./apps/trader-app";
 
 /* ---------- تعریف اپ‌ها ---------- */
 
-type AppId = "news" | "structure" | "suggestion" | "chart" | "trader" | "about";
+type AppId = "news" | "structure" | "suggestion" | "scalp" | "chart" | "trader" | "about";
 
 const APPS: Record<
   AppId,
@@ -59,12 +61,13 @@ const APPS: Record<
   news: { label: "اخبار دلار", icon: Newspaper, cls: "from-emerald-500 to-teal-700" },
   structure: { label: "ساختار بازار", icon: Activity, cls: "from-sky-500 to-indigo-700" },
   suggestion: { label: "پیشنهاد معامله", icon: Crosshair, cls: "from-violet-500 to-fuchsia-700" },
+  scalp: { label: "سیگنال اسکلپ اونس", icon: Zap, cls: "from-rose-500 to-red-700" },
   chart: { label: "چارت تریدینگ‌ویو", icon: CandlestickChart, cls: "from-amber-500 to-orange-700" },
   trader: { label: "دستیار معامله‌گر", icon: Briefcase, cls: "from-yellow-400 to-amber-700" },
   about: { label: "درباره", icon: Info, cls: "from-zinc-500 to-zinc-700" },
 };
 
-const DEFAULT_GRID_ORDER: AppId[] = ["news", "structure", "suggestion", "chart", "trader", "about"];
+const DEFAULT_GRID_ORDER: AppId[] = ["news", "structure", "suggestion", "scalp", "chart", "trader", "about"];
 const GRID_ORDER_KEY = "home_grid_order_v1";
 const SHELL_HINT_KEY = "shell_hint_v1";
 const LONG_PRESS_MS = 450;
@@ -520,6 +523,12 @@ function Shell() {
     if (app.id === "about") return <AboutApp />;
     if (app.id === "chart") return <ChartApp />;
     if (app.id === "trader") return <TraderApp />;
+    if (app.id === "scalp")
+      return (
+        <div className="p-4">
+          <ScalpPanel fixedSymbol="xau" autoRefreshMs={60000} />
+        </div>
+      );
     if (app.id === "structure")
       return (
         <div className="p-4">
@@ -531,15 +540,14 @@ function Shell() {
         </div>
       );
     return (
-      <div className="p-4">
-        {ms ? (
-          <TradeSuggestion data={ms} />
-        ) : (
+      <div className="flex flex-col gap-3 p-4">
+        {ms ? <TradeSuggestion data={ms} /> : (
           <div className="flex flex-col gap-2">
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-40 w-full" />
           </div>
         )}
+        <ScalpPanel />
       </div>
     );
   })();

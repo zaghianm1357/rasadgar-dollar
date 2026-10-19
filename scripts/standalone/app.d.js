@@ -223,7 +223,7 @@ var BT_SYMS = {
 };
 var BT_TF_FA = { '15m': '۱۵ دقیقه', '1h': '۱ ساعته', '4h': '۴ ساعته', '1d': 'روزانه' };
 var BT_TREND_FA = { bullish: 'صعودی', bearish: 'نزولی', neutral: 'خنثی' };
-var BT_TABS = [['view', 'نمای بازار'], ['plan', 'پلن و ریسک'], ['factors', 'عوامل'], ['news', 'اخبار'], ['journal', 'ژورنال']];
+var BT_TABS = [['view', 'نمای بازار'], ['ai', 'تحلیل هوشمند'], ['factors', 'عوامل'], ['news', 'اخبار']];
 
 /* ---------- وضعیت اپ ---------- */
 var BT = { tab: 'view', sym: 'xau', data: null, busy: false, err: null, changes: [], nudge: '', pmSide: null, checks: {}, plan: null, copied: false, fq: null, fqBusy: false, fqErr: null };

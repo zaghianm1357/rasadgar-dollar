@@ -41,6 +41,7 @@ const js = [
   readFileSync(BASE + '/app.c.js', 'utf8'),
   readFileSync(BASE + '/app.d.js', 'utf8'),
   readFileSync(BASE + '/app.e.js', 'utf8'),
+  readFileSync(BASE + '/app.f.js', 'utf8'),
 ].join('\n');
 
 /* لوگوی BIG TRADER (base64) — در app.b.js و app.e.js جای‌گذاری می‌شود */

@@ -31,7 +31,7 @@ function saveSettings() { lsSet(SETTINGS_KEY, JSON.stringify(settings)); }
 var GRID_KEY = 'sd_grid_order_v1';
 var HINT_KEY = 'sd_hint_v1';
 var DISMISS_KEY = 'sd_banner_dismiss_v1';
-var DEFAULT_ORDER = ['news', 'structure', 'suggestion', 'chart', 'trader', 'about'];
+var DEFAULT_ORDER = ['news', 'structure', 'suggestion', 'scalp', 'chart', 'trader', 'about'];
 
 /* ---------- توابع تاریخ تهران ---------- */
 var TEHRAN = 'Asia/Tehran';
@@ -66,6 +66,7 @@ var IC = {
   newspaper: '<path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/>',
   activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
   crosshair: '<circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/>',
+  zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
   target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
   info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
@@ -188,6 +189,7 @@ var APPS = {
   news: { label: 'اخبار دلار', cls: 'g-news', ic: 'newspaper' },
   structure: { label: 'ساختار بازار', cls: 'g-structure', ic: 'activity' },
   suggestion: { label: 'پیشنهاد معامله', cls: 'g-suggestion', ic: 'crosshair' },
+  scalp: { label: 'سیگنال اسکلپ اونس', cls: 'g-scalp', ic: 'zap' },
   chart: { label: 'چارت تریدینگ‌ویو', cls: 'g-chart', ic: 'candles' },
   trader: { label: 'دستیار معامله‌گر', cls: 'g-trader', ic: 'briefcase' },
   about: { label: 'درباره', cls: 'g-about', ic: 'info' }

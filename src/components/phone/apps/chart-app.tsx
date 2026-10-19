@@ -7,11 +7,7 @@ import {
   ExternalLink,
   LoaderCircle,
   RefreshCw,
-  Sparkles,
-  X,
 } from "lucide-react";
-import { faTime, faDigits } from "@/lib/tehran";
-import type { EntryZoneOutput, RangeWarning } from "@/lib/trader-engine";
 
 /* ---------- تنظیمات چارت ---------- */
 
@@ -120,16 +116,6 @@ export function ChartApp() {
   const [loading, setLoading] = useState(true);
   const [tvError, setTvError] = useState(false);
 
-  /* ---------- تحلیل هوش مصنوعی ---------- */
-  const [aiOpen, setAiOpen] = useState(false);
-  const [aiStatus, setAiStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
-  const [aiText, setAiText] = useState("");
-  const [aiAt, setAiAt] = useState<string | null>(null);
-  const [aiKey, setAiKey] = useState<string | null>(null);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [aiZones, setAiZones] = useState<EntryZoneOutput | null>(null);
-  const [aiRw, setAiRw] = useState<RangeWarning | null>(null);
-
   /* ref برای دسترسی بدون stale closure */
   const symRef = useRef(symbol);
   const tfRef = useRef(interval);
@@ -227,36 +213,6 @@ export function ChartApp() {
     }
   }, []);
 
-  /* تحلیل هوشمند: داده همان نماد/تایم‌فریم → سرور → LLM (با کش ۱۵ دقیقه‌ای) */
-  const runAnalysis = useCallback((force: boolean) => {
-    setAiOpen(true);
-    setAiStatus("loading");
-    setAiError(null);
-    const sym = symRef.current;
-    const itv = tfRef.current;
-    fetch(
-      `/api/chart-analysis?symbol=${encodeURIComponent(sym)}&interval=${itv}${force ? "&force=1" : ""}`,
-    )
-      .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
-      .then(({ ok, j }) => {
-        if (ok && j?.ok) {
-          setAiText(String(j.analysis ?? ""));
-          setAiAt(j.generatedAtISO ? String(j.generatedAtISO) : null);
-          setAiKey(`${sym}@${itv}`);
-          setAiZones((j.zones as EntryZoneOutput | null) ?? null);
-          setAiRw((j.rangeWarning as RangeWarning | null) ?? null);
-          setAiStatus("done");
-        } else {
-          setAiError(String(j?.error ?? "خطای نامشخص"));
-          setAiStatus("error");
-        }
-      })
-      .catch(() => {
-        setAiError("ارتباط با سرور برقرار نشد");
-        setAiStatus("error");
-      });
-  }, []);
-
   return (
     <div className="flex h-full flex-col px-3 pb-1.5">
       {/* انتخاب نماد */}
@@ -304,21 +260,6 @@ export function ChartApp() {
         </div>
         <button
           type="button"
-          onClick={() => runAnalysis(false)}
-          disabled={aiStatus === "loading"}
-          aria-label="تحلیل هوش مصنوعی از وضعیت چارت در تایم‌فریم فعلی"
-          data-testid="chart-ai-btn"
-          className="flex flex-none items-center gap-1 rounded-full border border-violet-500/50 bg-violet-500/15 px-2.5 py-1 text-[10px] font-extrabold text-violet-200 transition-colors hover:bg-violet-500/25 disabled:opacity-60"
-        >
-          {aiStatus === "loading" ? (
-            <LoaderCircle className="h-3 w-3 animate-spin" />
-          ) : (
-            <Sparkles className="h-3 w-3" />
-          )}
-          تحلیل هوشمند
-        </button>
-        <button
-          type="button"
           onClick={openWithAccount}
           aria-label="باز کردن چارت کامل تریدینگ‌ویو در تب جدید برای ورود به حساب کاربری"
           title="ویجت داخلی لاگین ندارد — با حساب خودتان در سایت اصلی وارد شوید"
@@ -328,6 +269,12 @@ export function ChartApp() {
           <ExternalLink className="h-3 w-3" />
           ورود به حساب
         </button>
+        <span
+          className="flex-none rounded-full border border-violet-500/40 bg-violet-500/10 px-2.5 py-1 text-[9px] font-bold text-violet-300/90"
+          title="تحلیل هوشمند به دستیار معامله‌گر منتقل شد"
+        >
+          تحلیل هوشمند → دستیار
+        </span>
       </div>
 
       {/* ناحیه چارت — پر کردن کل فضای باقی‌مانده بدون اسکرول اضافه */}
@@ -361,129 +308,6 @@ export function ChartApp() {
         )}
       </div>
 
-      {/* پنل تحلیل هوش مصنوعی */}
-      {aiOpen && (
-        <div
-          className="mt-1.5 flex h-[38%] max-h-[340px] flex-none flex-col overflow-hidden rounded-xl border border-violet-500/30 bg-card/60"
-          data-testid="chart-ai-panel"
-        >
-          <div className="flex flex-none items-center gap-1.5 border-b border-border/60 px-2.5 py-1.5">
-            <Sparkles className="h-3.5 w-3.5 flex-none text-violet-300" />
-            <span className="min-w-0 flex-1 truncate text-[11px] font-extrabold">
-              تحلیل هوش مصنوعی — {symbol} · {INTERVAL_PRESETS.find((p) => p.value === interval)?.label}
-            </span>
-            {aiStatus === "done" && aiAt && (
-              <span className="flex-none text-[9px] text-muted-foreground/80">{faTime(new Date(aiAt))}</span>
-            )}
-            <button
-              type="button"
-              onClick={() => runAnalysis(true)}
-              disabled={aiStatus === "loading"}
-              aria-label="بروزرسانی تحلیل"
-              className="flex h-6 w-6 flex-none items-center justify-center rounded-full border border-white/15 bg-white/10 disabled:opacity-50"
-            >
-              <RefreshCw className={`h-3 w-3 ${aiStatus === "loading" ? "animate-spin" : ""}`} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setAiOpen(false)}
-              aria-label="بستن پنل تحلیل"
-              className="flex h-6 w-6 flex-none items-center justify-center rounded-full border border-white/15 bg-white/10"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </div>
-
-          <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2">
-            {aiStatus === "loading" && (
-              <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-                <LoaderCircle className="h-6 w-6 animate-spin text-violet-300" />
-                <p className="text-xs font-bold text-foreground/85">در حال تحلیل چارت…</p>
-                <p className="text-[10px] text-muted-foreground">معمولاً ۵ تا ۱۵ ثانیه طول می‌کشد</p>
-              </div>
-            )}
-            {aiStatus === "error" && (
-              <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-                <AlertTriangle className="h-6 w-6 text-amber-400" />
-                <p className="max-w-[280px] text-[11px] leading-5 text-muted-foreground">{aiError}</p>
-                <button
-                  type="button"
-                  onClick={() => runAnalysis(true)}
-                  className="mt-0.5 flex items-center gap-1.5 rounded-full border border-violet-500/50 bg-violet-500/15 px-3.5 py-1.5 text-xs font-extrabold text-violet-200 transition-colors hover:bg-violet-500/25"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  تلاش مجدد
-                </button>
-              </div>
-            )}
-            {aiStatus === "done" && (
-              <div className="flex flex-col gap-1.5">
-                {aiKey !== null && aiKey !== `${symbol}@${interval}` && (
-                  <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-center text-[10px] font-bold text-amber-200">
-                    این تحلیل مربوط به نماد/تایم‌فریم قبلی است — دکمه «تحلیل هوشمند» را دوباره بزنید
-                  </p>
-                )}
-                {aiRw?.active && (
-                  <div
-                    className={`rounded-lg border px-2 py-1.5 ${aiRw.severity === "tight" ? "border-rose-500/60 bg-rose-500/15" : "border-amber-500/50 bg-amber-500/10"}`}
-                    data-testid="chart-rangewarn"
-                  >
-                    <p className={`text-[10.5px] font-black ${aiRw.severity === "tight" ? "text-rose-200" : "text-amber-200"}`}>
-                      {aiRw.severity === "tight" ? "هشدار جدی: رنج فشرده" : "هشدار: بازار رنج است"}
-                    </p>
-                    <p className="mt-0.5 text-[9.5px] leading-4 text-foreground/85">{aiRw.message}</p>
-                    {aiRw.severity === "tight" && (
-                      <ul className="mt-1 flex flex-col gap-0.5">
-                        {aiRw.advice.slice(0, 3).map((a, i) => (
-                          <li key={i} className="flex items-start gap-1 text-[9px] leading-4 text-rose-200/90">
-                            <span className="mt-1 h-1 w-1 flex-none rounded-full bg-rose-400" />
-                            {a}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <p className="mt-1 text-[8.5px] text-muted-foreground">
-                      سنجه‌ها: صدک ATR {aiRw.metrics.atrPctile === null ? "—" : faDigits(aiRw.metrics.atrPctile)} · نسبت کارایی {aiRw.metrics.er === null ? "—" : faDigits(aiRw.metrics.er)}
-                    </p>
-                  </div>
-                )}
-                <p className="whitespace-pre-wrap text-[11px] leading-6 text-foreground/90">{aiText}</p>
-                {aiZones && (
-                  <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 px-2 py-1.5" data-testid="chart-zones">
-                    <p className="text-[10.5px] font-black text-sky-200">نواحی ورود مبتنی بر ساختار (الگوریتمی)</p>
-                    <p className="mt-0.5 text-[9px] leading-4 text-muted-foreground">ساختار این تایم‌فریم: {aiZones.trendFa} — {aiZones.note}</p>
-                    {aiZones.zones.map((z, i) => (
-                      <div key={i} className="mt-1 rounded-lg border border-border/60 bg-background/40 p-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className={`text-[10px] font-black ${z.side === "buy" ? "text-emerald-300" : "text-rose-300"}`}>
-                            {z.side === "buy" ? "ناحیه خرید" : "ناحیه فروش"}
-                          </span>
-                          <span className={`rounded-full px-1.5 py-px text-[8.5px] font-bold ${z.activeNow ? "bg-emerald-500/15 text-emerald-300" : "bg-white/10 text-zinc-300"}`}>
-                            {z.activeNow ? "فعال" : "انتظار پولبک"}
-                          </span>
-                        </div>
-                        <div className="mt-0.5 grid grid-cols-2 gap-x-2 text-[9px] font-bold">
-                          <p>ناحیه: <span dir="ltr">{z.zoneLo} – {z.zoneHi}</span></p>
-                          <p>SL: <span className="text-rose-300" dir="ltr">{z.sl}</span></p>
-                          <p>TP۱ (RR۲): <span className="text-emerald-300" dir="ltr">{z.tp1}</span></p>
-                          <p>TP۲ (RR۳): <span className="text-emerald-300" dir="ltr">{z.tp2}</span></p>
-                        </div>
-                        <p className="mt-0.5 text-[8.5px] leading-4 text-amber-300/90">{z.invalidate}</p>
-                      </div>
-                    ))}
-                    <p className="mt-1 text-[8.5px] leading-4 text-muted-foreground">
-                      نواحی آموزشی مبتنی بر سوئینگ/ATR هستند — سیگنال قطعی نیستند؛ تأیید کندل داخل ناحیه شرط اجراست.
-                    </p>
-                  </div>
-                )}
-                <p className="pt-0.5 text-center text-[9px] text-muted-foreground/70">
-                  تحلیل صرفاً اطلاع‌رسانی است و توصیه معاملاتی محسوب نمی‌شود — منبع داده: Yahoo Finance
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       <p className="flex items-center justify-center gap-1 pt-1.5 text-center text-[9px] leading-4 text-muted-foreground/70">
         <CandlestickChart className="h-3 w-3 flex-none" />

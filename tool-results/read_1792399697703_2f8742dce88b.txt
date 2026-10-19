@@ -1,0 +1,585 @@
+     1→/* ================= رندر رابط کاربری دستیار معامله‌گر ================= */
+     2→
+     3→function btHead() {
+     4→  return '<div class="bt-head">' +
+     5→    '<img class="bt-logo-img" src="data:image/png;base64,__BT_LOGO_B64__" alt="لوگوی BIG TRADER — نشان شیر و تاج">' +
+     6→    '<div class="bt-head-t"><p class="bt-logo-t" dir="ltr">BIG TRADER</p>' +
+     7→    '<p class="bt-logo-s">دستیار هوشمند معامله‌گری — اطلاع‌رسانی، نه توصیه</p></div>' +
+     8→    '<button type="button" class="ai-rf" data-bt-refresh aria-label="بروزرسانی داده دستیار">' + icon('refresh', 12) + '</button>' +
+     9→    '</div>';
+    10→}
+    11→function btSymChips() {
+    12→  var h = '<div class="bt-syms">';
+    13→  var list = [['xau', 'طلا — XAUUSD'], ['dji', 'داوجونز — DJI']];
+    14→  for (var i = 0; i < list.length; i++)
+    15→    h += '<button type="button" class="cchip' + (BT.sym === list[i][0] ? ' on' : '') + '" data-bt-sym="' + list[i][0] + '">' + list[i][1] + '</button>';
+    16→  return h + '</div>';
+    17→}
+    18→function btTabBar() {
+    19→  var h = '<div class="bt-tabs">';
+    20→  for (var i = 0; i < BT_TABS.length; i++)
+    21→    h += '<button type="button" class="cchip' + (BT.tab === BT_TABS[i][0] ? ' on' : '') + '" data-bt-tab="' + BT_TABS[i][0] + '">' + BT_TABS[i][1] + '</button>';
+    22→  return h + '</div>';
+    23→}
+    24→function btSec(title, ic, body, tone) {
+    25→  return '<section class="bt-sec"><div class="bt-sec-h" style="' + (tone ? 'color:' + tone : '') + '">' + icon(ic, 14) + '<h2>' + title + '</h2></div>' + body + '</section>';
+    26→}
+    27→function btPct(v) {
+    28→  if (v === null || v === undefined || isNaN(v)) return '—';
+    29→  return (v > 0 ? '+' : '') + faDigits(Math.round(v * 100) / 100) + '٪';
+    30→}
+    31→function btNum(v) {
+    32→  if (v === null || v === undefined || isNaN(v)) return '—';
+    33→  return faDigits(Math.round(v * 100) / 100);
+    34→}
+    35→function btDot(t) {
+    36→  var cls = t === 'bullish' ? 'bull' : t === 'bearish' ? 'bear' : 'neut';
+    37→  return '<span class="tdot ' + cls + '">' + icon(t === 'bullish' ? 'trendUp' : t === 'bearish' ? 'trendDown' : 'moveH', 10) + (t ? BT_TREND_FA[t] : '—') + '</span>';
+    38→}
+    39→
+    40→/* ---------- تب نمای بازار ---------- */
+    41→function btViewHTML() {
+    42→  var d = BT.data;
+    43→  var scoreCls = d.verdict === 'strong' ? 'ok' : d.verdict === 'moderate' ? 'mid' : 'bad';
+    44→  var rows = [
+    45→    ['هم‌جهتی تایم‌فریم‌ها', d.factors.tf, 40],
+    46→    ['خلأ خبری', d.factors.news, 30],
+    47→    ['همبستگی با DXY', d.factors.dxy, 20],
+    48→    ['نوسان ATR', d.factors.atr, 10]
+    49→  ];
+    50→  var brk = '';
+    51→  for (var i = 0; i < rows.length; i++) {
+    52→    var r = rows[i];
+    53→    brk += '<div class="bt-frow"><div class="bt-frow-t"><span>' + r[0] + '</span><span class="bt-frow-v">' + faDigits(r[1].score) + '/' + faDigits(r[2]) + ' — ' + r[1].label + '</span></div>' +
+    54→      '<div class="bt-bar"><span style="width:' + Math.round(r[1].score / r[2] * 100) + '%"></span></div>' +
+    55→      '<p class="bt-frow-d">' + r[1].detail + '</p></div>';
+    56→  }
+    57→  var tbl = '';
+    58→  var tfs = ['15m', '1h', '4h', '1d'];
+    59→  for (i = 0; i < tfs.length; i++) {
+    60→    var row = btRowOf(BT.sym, tfs[i]);
+    61→    tbl += '<tr><td>' + BT_TF_FA[tfs[i]] + '</td><td>' + btDot(row && row.trend) + '</td><td>' + (row && row.trend ? faDigits(row.strength) + '٪' : '—') + '</td></tr>';
+    62→  }
+    63→  var specs = '';
+    64→  for (i = 0; i < d.conf.specs.length; i++) {
+    65→    var s = d.conf.specs[i];
+    66→    specs += '<div class="bt-spec"><span class="k">' + s[0] + '</span><span class="v">' + s[1] + (s[2] ? '<em title="این مقدار به کارگزاری شما بستگی دارد">نیازمند تأیید</em>' : '') + '</span></div>';
+    67→  }
+    68→  var specsNote = '<p class="bt-note" style="border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.06);border-radius:8px;padding:6px 8px">چرا «نیازمند تأیید»؟ اندازه قرارداد، ارزش پیپ، اسپرد، ساعات معامله و حداقل حجم به کارگزاری و نوع حساب شما بستگی دارد؛ ابزار مقادیر معمول بازار را نشان می‌دهد و از حدس زدن مشخصات حساب شما خودداری می‌کند. پیش از محاسبه حجم و ریسک، این مقادیر را با پنل کارگزاری خود تطبیق دهید.</p>';
+    69→  var changes = BT.changes.length
+    70→    ? '<ul class="bt-list">' + BT.changes.map(function (c) { return '<li>' + c + '</li>'; }).join('') + '</ul>'
+    71→    : '<p class="bt-note">تغییر قابل‌توجهی نسبت به بازدید قبلی شما ثبت نشده است (یا این اولین بازدید است).</p>';
+    72→
+    73→  return btSec('موتور همگرایی پویا — امتیاز اطمینان', 'gauge',
+    74→    '<div class="bt-score-row"><div class="bt-score ' + scoreCls + '"><b>' + faDigits(d.total) + '</b><span>از ۱۰۰</span></div>' +
+    75→    '<div class="bt-score-txt"><p class="bt-score-v">' + trVerdictLabel(d.verdict) + '</p>' +
+    76→    '<p class="bt-note">≥۷۵ قوی · ۵۰–۷۴ متوسط · کمتر از ۵۰ بدون معامله — امتیاز، فرصت را اندازه می‌گیرد، نه نتیجه را تضمین می‌کند.</p></div></div>' + brk, 'var(--violet)') +
+    77→    btSec('تحلیل ساختار بازار — جمع‌بندی ' + d.summary, 'activity',
+    78→      '<table class="mini-tbl"><thead><tr><th>تایم‌فریم</th><th>جهت</th><th>قدرت</th></tr></thead><tbody>' + tbl + '</tbody></table>' +
+    79→      '<p class="bt-note">' + d.tfF.detail + ' برداشت از وضعیت تأییدشده جداست؛ سطوح ۲۰ روز اخیر — مقاومت: ' + btNum(d.hh) + ' · حمایت: ' + btNum(d.ll) + '.</p>' +
+    80→      '<p class="bt-src">داده ساختار: اسنپ‌شات فایل — برای ساختار زنده از اپ «ساختار بازار» با بروزرسانی زنده استفاده کنید.</p>', 'var(--sky)') +
+    81→    btSec('رژیم بازار', 'activity', '<p class="bt-strong">' + d.regime.label + '</p><p class="bt-note">' + d.regime.reason + '</p>', 'var(--sky)') +
+    82→    btSec('وابستگی به DXY و US10Y', 'dollar',
+    83→      '<div class="bt-grid3">' +
+    84→      '<div class="bt-cell"><p>DXY</p><b dir="ltr">' + (d.dxyPrice ? faNum(d.dxyPrice) : '—') + '</b><span>' + btPct(d.dxyChangePct) + '</span></div>' +
+    85→      '<div class="bt-cell"><p>US10Y</p><b dir="ltr">' + (d.tnxPrice ? faNum(d.tnxPrice) : '—') + '</b><span>' + btPct(d.tnxChangePct) + '</span></div>' +
+    86→      '<div class="bt-cell"><p>همبستگی با DXY</p><b dir="ltr">' + (d.corr === null ? '—' : faDigits(Math.round(d.corr * 100) / 100)) + '</b><span>۳۰ بازده روزانه</span></div>' +
+    87→      '</div>' +
+    88→      '<p class="bt-note">' + (d.conf.inv ? 'رابطه معمول این نماد با دلار معکوس است؛ ' : 'جهت رابطه این نماد با دلار ثابت فرض نمی‌شود؛ ') + 'حرکت هم‌زمان دلیل علّی نیست و DXY فقط یکی از عوامل زمینه‌ای است.</p>', 'var(--amber)') +
+    89→    btSec('شناسنامه نماد — ' + d.conf.name, 'briefcase', specs + specsNote, 'var(--amber)') +
+    90→    btSec('چه چیزی از آخرین بازدید تغییر کرده؟', 'refresh', changes + '<p class="bt-note">فقط تغییر واقعی داده‌ها نمایش داده می‌شود؛ هشدار، دستور ورود یا خروج نیست.</p>', 'var(--violet)');
+    91→}
+    92→
+    93→/* ---------- تب پلن و ریسک ---------- */
+    94→function btPlanHTML() {
+    95→  var d = BT.data;
+    96→  var lock = trLock(btGet(BT_KEYS.lastloss, null));
+    97→  var lockHTML = lock.locked
+    98→    ? '<div class="bt-warn red">احتمالاً در حالت Revenge Trading هستید — یک نفس عمیق بکشید. پیشنهاد معامله تا ' + faDigits(lock.minutesLeft) + ' دقیقه قفل است.</div>'
+    99→    : '';
+   100→  var p = BT.plan;
+   101→  var result = '';
+   102→  if (p && p.ok) {
+   103→    var warns = '';
+   104→    for (var i = 0; i < p.warnings.length; i++) warns += '<p class="bt-warn-l">⚠ ' + p.warnings[i] + '</p>';
+   105→    result = '<div class="bt-plan-res">' +
+   106→      '<div class="bt-plan-grid">' +
+   107→      '<span>حد ضرر: <b class="r" dir="ltr">' + p.sl + '</b></span><span>حد سود: <b class="g" dir="ltr">' + p.tp + '</b></span>' +
+   108→      '<span>حجم: <b class="a" dir="ltr">' + p.lots + '</b> لات</span><span>ریسک: <b dir="ltr">$' + p.riskAmount + '</b></span>' +
+   109→      '<span>زیان در SL: <b class="r" dir="ltr">$' + p.lossAtSL + '</b></span><span>سود در TP: <b class="g" dir="ltr">$' + p.profitAtTP + '</b></span>' +
+   110→      '</div>' +
+   111→      '<div class="bt-copy"><code dir="ltr">' + p.copyText + '</code><button type="button" class="ai-rf" data-bt-copy aria-label="کپی خلاصه پلن">' + icon('copy', 11) + '</button></div>' + warns + '</div>';
+   112→  } else if (p && !p.ok) {
+   113→    result = '<p class="bt-warn red">' + p.error + '</p>';
+   114→  }
+   115→  /* چک‌لیست */
+   116→  var auto = [
+   117→    ['خبر مهم نزدیک است؟', d.mins !== null && d.mins < 240],
+   118→    ['تایم‌فریم‌ها ' + d.summary + ' هستند؟', d.summary === 'هم‌جهت'],
+   119→    ['حرکت DXY با سناریو سازگار است؟', d.div.level === 'normal'],
+   120→    ['داده‌های لازم موجود هستند؟', true]
+   121→  ];
+   122→  var chk = '';
+   123→  for (i = 0; i < auto.length; i++)
+   124→    chk += '<div class="bt-chk-row"><span>' + auto[i][0] + '</span><span class="bt-chip ' + (auto[i][1] ? 'ok' : 'bad') + '">' + (auto[i][1] ? 'بله' : 'خیر') + '</span></div>';
+   125→  var manuals = [['reason', 'دلیل معامله روشن و ثبت شده است؟'], ['sl', 'حد ضرر یا شرط ابطال مشخص است؟'], ['cap', 'ریسک معامله با سقف ریسک من سازگار است؟']];
+   126→  var done = 0;
+   127→  for (i = 0; i < manuals.length; i++) {
+   128→    var on = !!BT.checks[manuals[i][0]];
+   129→    if (on) done++;
+   130→    chk += '<label class="bt-chk-row man"><span>' + manuals[i][1] + '</span><input type="checkbox" data-bt-chk="' + manuals[i][0] + '"' + (on ? ' checked' : '') + '></label>';
+   131→  }
+   132→  var readyNote = done === manuals.length
+   133→    ? '<p class="bt-note ok">چک‌لیست کامل شد — اجرای برنامه همچنان بر عهده خودتان است.</p>'
+   134→    : '<p class="bt-note warn">وضعیت: تحلیل ناقص — موارد دستی را تکمیل کنید؛ اطلاعات حدس زده نمی‌شود.</p>';
+   135→
+   136→  /* پیش‌مرگ */
+   137→  var pmBtns = '<div class="bt-pm-btns">' +
+   138→    '<button type="button" class="cchip' + (BT.pmSide === 'buy' ? ' on' : '') + '" data-bt-pm="buy">سناریوی خرید</button>' +
+   139→    '<button type="button" class="cchip' + (BT.pmSide === 'sell' ? ' on' : '') + '" data-bt-pm="sell">سناریوی فروش</button></div>';
+   140→  var pmList = '<ul class="bt-list red">' + trPreMortem({
+   141→    side: BT.pmSide, structure4h: d.structure4h, tfScore: d.tfF.score, newsMin: d.mins,
+   142→    div: d.div.level, regime: d.regime.type, rsi: d.rsi
+   143→  }).map(function (f) { return '<li>' + f + '</li>'; }).join('') + '</ul>' +
+   144→    '<p class="bt-note">شواهد موافق و مخالف با هم نمایش داده می‌شوند؛ ابزار صرفاً نظر اولیه شما را تأیید نمی‌کند.</p>';
+   145→
+   146→  /* ریسک تجمیعی */
+   147→  var poss = btGet(BT_KEYS.positions, []);
+   148→  var posHTML = '', totalRisk = 0;
+   149→  for (i = 0; i < poss.length; i++) {
+   150→    var pp = poss[i];
+   151→    totalRisk += pp.riskUsd;
+   152→    posHTML += '<div class="bt-pos"><b>' + pp.sym + '</b><span class="' + (pp.side === 'buy' ? 'g' : 'r') + '">' + (pp.side === 'buy' ? 'خرید' : 'فروش') + '</span><span dir="ltr">' + pp.lots + ' lot</span><span dir="ltr">$' + pp.riskUsd + '</span><button type="button" data-bt-posdel="' + pp.id + '" aria-label="حذف پوزیشن">' + icon('x', 11) + '</button></div>';
+   153→  }
+   154→  var bal = Number((document.getElementById('bt_balance') || {}).value || 0);
+   155→  var totPct = bal > 0 ? Math.round(totalRisk / bal * 10000) / 100 : null;
+   156→  var posSec = poss.length === 0
+   157→    ? '<p class="bt-note">پوزیشنی ثبت نشده است. پوزیشن‌های باز خود را اضافه کنید تا مواجهه کلی با دلار بررسی شود.</p>'
+   158→    : posHTML + '<p class="bt-note">ریسک تجمیعی: <b dir="ltr">$' + Math.round(totalRisk * 100) / 100 + '</b>' + (totPct !== null ? ' (' + btPct(totPct) + ' موجودی)' : '') + (totPct !== null && totPct > 5 ? ' — بالاتر از سقف معمول ۵٪؛ هم‌جهت‌بودن پوزیشن‌ها در برابر دلار را بررسی کنید.' : '') + '</p>';
+   159→  posSec += '<div class="bt-pos-add">' +
+   160→    '<select id="bt_psym"><option>XAUUSD</option><option>DJI</option><option>EURUSD</option><option>BTCUSDT</option></select>' +
+   161→    '<select id="bt_pside"><option value="buy">خرید</option><option value="sell">فروش</option></select>' +
+   162→    '<input id="bt_plots" inputmode="decimal" dir="ltr" placeholder="لات">' +
+   163→    '<input id="bt_prisk" inputmode="decimal" dir="ltr" placeholder="ریسک $">' +
+   164→    '<button type="button" data-bt-posadd aria-label="افزودن پوزیشن">+</button></div>' +
+   165→    '<p class="bt-note">چند نماد متفاوت می‌توانند هم‌زمان تحت‌تأثیر یک عامل مشترک (دلار) باشند؛ همبستگی ثابت فرض نمی‌شود.</p>';
+   166→
+   167→  var zf = BT.zf || {};
+   168→  return lockHTML +
+   169→    btSec('تولیدکننده خودکار پلن معامله', 'crosshair',
+   170→      '<div class="bt-form2">' +
+   171→      '<label>جهت<select id="bt_side"><option value="buy"' + (zf.side === 'buy' ? ' selected' : '') + '>خرید (Buy)</option><option value="sell"' + (zf.side === 'sell' ? ' selected' : '') + '>فروش (Sell)</option></select></label>' +
+   172→      '<label>نقطه ورود<input id="bt_entry" inputmode="decimal" dir="ltr" placeholder="' + (d.price ? Math.round(d.price * 100) / 100 : '4200') + '" value="' + (zf.entry || '') + '"></label>' +
+   173→      '<label>موجودی حساب ($)<input id="bt_balance" inputmode="decimal" dir="ltr" placeholder="1000" value="1000"></label>' +
+   174→      '<label>ریسک (٪)<input id="bt_risk" inputmode="decimal" dir="ltr" placeholder="1" value="1"></label>' +
+   175→      '<label>نسبت R/R<select id="bt_rr"><option value="2">۱ به ۲</option><option value="3">۱ به ۳</option></select></label>' +
+   176→      '<label>مبنای حد ضرر<select id="bt_slmode"><option value="atr">ATR × ۱.۵ (خودکار)</option><option value="swing">آخرین سوئینگ</option></select></label>' +
+   177→      '</div>' +
+   178→      '<button type="button" class="bt-gen" data-bt-gen' + (lock.locked ? ' disabled' : '') + '>ساخت پلن</button>' + result, 'var(--violet)') +
+   179→    zonesSec(d) +
+   180→    btSec('چک‌لیست پیش از معامله', 'check', chk + readyNote, 'var(--emerald)') +
+   181→    btSec('اگر این معامله شکست بخورد، محتمل‌ترین دلیل چیست؟', 'alert', pmBtns + pmList, 'var(--red)') +
+   182→    btSec('ریسک تجمیعی پوزیشن‌ها', 'alert', posSec, 'var(--amber)');
+   183→}
+   184→
+   185→/* ---------- تب اخبار و سناریو ---------- */
+   186→function btNewsHTML() {
+   187→  var d = BT.data;
+   188→  var ev = d.nextHigh;
+   189→  var cal = ev
+   190→    ? '<div class="bt-ev"><div class="bt-ev-t"><b>' + (ev.titleFa || ev.title) + '</b><span class="bt-chip bad">اهمیت بالا</span></div>' +
+   191→      '<p class="bt-note"><b style="color:var(--amber)">ارز: ' + currencyFa(ev.country) + '</b> — ' + (ev.dateISO ? faTime(new Date(ev.dateISO)) + ' تهران' : 'زمان نامشخص') + ' — پیش‌بینی: <span dir="ltr">' + (ev.forecast || '—') + '</span> · قبلی: <span dir="ltr">' + (ev.previous || '—') + '</span></p>' +
+   192→      (ev.country !== 'USD' ? '<p class="bt-note" style="border:1px solid rgba(56,189,248,.3);background:rgba(56,189,248,.08);border-radius:8px;padding:6px 8px;font-size:9.5px">این خبر مربوط به دلار آمریکا نیست، اما داده قوی اقتصادهای اصلی از مسیر شاخص دلار و حس ریسک بر طلا و داو اثر می‌گذارد؛ به همین دلیل در تقویم نمایش داده می‌شود.</p>' : '') +
+   193→      '<p class="bt-cd">' + (d.mins !== null ? (d.mins >= 60 ? faDigits(Math.floor(d.mins / 60)) + ' ساعت و ' : '') + faDigits(Math.round(d.mins % 60)) + ' دقیقه باقی‌مانده' : '—') + '</p>' +
+   194→      (d.mins !== null && d.mins < 240 ? '<div class="bt-warn">هشدار: خبر مهم نزدیک است — نوسان، اسپرد و لغزش ممکن است به‌طور موقت چند برابر شود. این هشدار دستور ورود/خروج نیست.</div>' : '') +
+   195→      '</div>'
+   196→    : '<p class="bt-note">در فید این هفته خبری با اهمیت «بالا» از اقتصادهای اصلی (آمریکا، اروپا، انگلیس، ژاپن، کانادا، استرالیا، نیوزیلند) ثبت نشده است. تقویم ForexFactory فقط هفته جاری را پوشش می‌دهد؛ خبرهای «متوسط» هفته در اپ اخبار دیده می‌شوند.</p>' +
+   197→      '<p class="bt-note">توجه: در فایل مستقل، فید خبری همان اسنپ‌شات لحظه تولید فایل است و بروزرسانی زنده ندارد.</p>';
+   198→  cal += '<p class="bt-src">منبع: ForexFactory (USD کامل + ارزهای اصلی High/Medium) — مناسبت‌ها و زمان‌های بدون تاریخ، حدس زده نمی‌شوند.</p>';
+   199→
+   200→  var sc = '';
+   201→  if (d.scenarios.length) {
+   202→    if (d.conflict) sc += '<div class="bt-warn red">⚠ هشدار ریسک: ' + d.conflict + '</div>';
+   203→    for (var i = 0; i < d.scenarios.length; i++) {
+   204→      var s = d.scenarios[i];
+   205→      sc += '<div class="bt-sc"><p class="t">' + s.title + '</p><p>' + s.trigger + '.</p>' +
+   206→        '<p class="b">طلا: ' + (s.xauDir || '—') + (s.djiDir ? ' · داوجونز: ' + s.djiDir : '') + '</p>' +
+   207→        '<p class="m">' + s.confirm + '</p><p class="m">' + s.invalidate + '</p><p class="m">' + s.limits + '</p></div>';
+   208→    }
+   209→  }
+   210→
+   211→  var hist;
+   212→  if (d.history.available) {
+   213→    hist = '<p class="bt-note">در ' + faDigits(d.history.n) + ' نمونه مشابه از همین عنوان خبر در ۳۰ روز اخیر، میانگین واکنش دو روزه طلا <b dir="ltr">' + (d.history.avg > 0 ? '+' : '') + d.history.avg + '٪</b> بوده است (در ' + faDigits(d.history.up) + '٪ موارد مثبت).</p>' +
+   214→      '<p class="bt-note">روش: تغییر درصدی بسته‌شدن دو روز کاری در برابر روز خبر — فیوچرز GC=F. تاریخچه تضمین واکنش آینده نیست و عدم‌قطعیت نمونه کم بالاست.</p>';
+   215→  } else {
+   216→    hist = '<p class="bt-note">' + d.history.reason + ' (نمونه‌های قابل‌اتصال: ' + faDigits(d.history.n || 0) + ')</p>';
+   217→  }
+   218→
+   219→  return btSec('تقویم رویدادها — آمادگی پیش از خبر', 'flame', cal, 'var(--amber)') +
+   220→    (d.scenarios.length ? btSec('شبیه‌ساز واکنش به خبر — دو سناریوی مشروط', 'sparkles', sc, 'var(--violet)') : '') +
+   221→    btSec('مقایسه با واکنش‌های تاریخی خبر', 'calDays', hist, 'var(--sky)');
+   222→}
+   223→
+   224→/* ---------- تب ژورنال ---------- */
+   225→function btJournalHTML() {
+   226→  var entries = btGet(BT_KEYS.journal, []);
+   227→  var lock = trLock(btGet(BT_KEYS.lastloss, null));
+   228→  var todayKey = todayKeyInTehran();
+   229→  var lossesToday = 0, i;
+   230→  for (i = 0; i < entries.length; i++)
+   231→    if (entries[i].result === 'loss' && entries[i].atISO && dateKeyInTehran(new Date(entries[i].atISO)) === todayKey) lossesToday++;
+   232→  var rest = trRest(lossesToday);
+   233→
+   234→  var h = '';
+   235→  if (lock.locked) h += '<div class="bt-warn red">احتمالاً در حالت Revenge Trading هستید — یک نفس عمیق بکشید. پیشنهاد معامله تا ' + faDigits(lock.minutesLeft) + ' دقیقه دیگر قفل است.</div>';
+   236→  if (rest.suggest) h += '<div class="bt-warn">' + rest.message + '</div>';
+   237→
+   238→  h += btSec('ثبت فرض‌ها — پیش از معامله', 'book',
+   239→    '<div class="bt-form2">' +
+   240→    '<label>جهت<select id="bt_jside"><option value="buy">خرید</option><option value="sell">فروش</option></select></label>' +
+   241→    '<label>ورود (اختیاری)<input id="bt_jentry" inputmode="decimal" dir="ltr"></label>' +
+   242→    '</div>' +
+   243→    '<label class="bt-lbl">دلیل ورود (اجباری)<textarea id="bt_jreason" rows="2" placeholder="مثال: بازگشت از حمایت با کندل پوششی در ۱ ساعته"></textarea></label>' +
+   244→    '<label class="bt-lbl">سناریوی انتخاب‌شده<input id="bt_jscen" placeholder="سناریوی اول / دوم یا توضیح خودتان"></label>' +
+   245→    '<label class="bt-lbl">شرط ابطال (اجباری)<textarea id="bt_jinval" rows="2" placeholder="مثال: بسته‌شدن کندل زیر 4185"></textarea></label>' +
+   246→    '<label class="bt-lbl">انتظار شما از معامله<input id="bt_jexp" placeholder="مثال: رسیدن به TP با RR=۲"></label>' +
+   247→    '<button type="button" class="bt-gen green" data-bt-jsave>ثبت در ژورنال</button>' +
+   248→    '<p class="bt-note" id="bt_jsave-msg">بدون دلیل و شرط ابطال، ثبت انجام نمی‌شود — تحلیل ناقص حدس زده نمی‌شود.</p>', 'var(--emerald)');
+   249→
+   250→  var list = '';
+   251→  if (!entries.length) {
+   252→    list = '<p class="bt-note">هنوز معامله‌ای ثبت نشده است. کیفیت تصمیم جدا از سود/زیان ارزیابی می‌شود.</p>';
+   253→  } else {
+   254→    var dqFa = { good: 'تصمیم خوب + نتیجه مثبت', neutral: 'تصمیم سالم', lucky: 'نتیجه مثبت با فرآیند ناسالم', 'bad-execution': 'اجرای ناسالم' };
+   255→    for (i = 0; i < Math.min(10, entries.length); i++) {
+   256→      var e = entries[i];
+   257→      var dq = e.review && e.result ? trDQ(e.review, e.result) : null;
+   258→      var body = '<div class="bt-jt"><b>' + (e.side === 'buy' ? 'خرید' : 'فروش') + (e.entry ? ' @ ' + e.entry : '') + '</b><span>' + faTime(new Date(e.atISO)) + '</span></div>' +
+   259→        '<p class="bt-note">دلیل: ' + e.reason + '</p><p class="bt-note">ابطال: ' + e.invalidation + '</p>' +
+   260→        (dq ? '<p class="bt-note sky">ارزیابی: ' + dqFa[dq.grade] + ' — ' + dq.note + '</p>' : '');
+   261→      if (!e.result) {
+   262→        body += '<div class="bt-jres"><span>نتیجه:</span>' +
+   263→          '<button type="button" class="cchip g" data-bt-res="win" data-bt-id="' + e.id + '">سود</button>' +
+   264→          '<button type="button" class="cchip r" data-bt-res="loss" data-bt-id="' + e.id + '">ضرر</button>' +
+   265→          '<button type="button" class="cchip" data-bt-res="be" data-bt-id="' + e.id + '">سربه‌سر</button></div>';
+   266→      } else {
+   267→        body += '<div class="bt-jres"><span class="bt-chip ' + (e.result === 'win' ? 'ok' : e.result === 'loss' ? 'bad' : '') + '">' + (e.result === 'win' ? 'سود' : e.result === 'loss' ? 'ضرر' : 'سربه‌سر') + '</span>';
+   268→        if (e.review) {
+   269→          var rvs = [['followedPlan', 'طبق برنامه'], ['riskRespected', 'ریسک رعایت شد'], ['slMovedBadly', 'SL بد جابه‌جا شد'], ['assumptionViolated', 'فرض نقض شد']];
+   270→          for (var j = 0; j < rvs.length; j++)
+   271→            body += '<button type="button" class="bt-mini' + (e.review[rvs[j][0]] ? ' on' : '') + '" data-bt-rv="' + rvs[j][0] + '" data-bt-id="' + e.id + '">' + rvs[j][1] + '</button>';
+   272→        }
+   273→        body += '</div>';
+   274→      }
+   275→      list += '<div class="bt-jitem">' + body + '</div>';
+   276→    }
+   277→  }
+   278→  h += btSec('معاملات ثبت‌شده', 'book', list + '<p class="bt-note">نتیجه یک معامله به‌تنهایی اثبات خوب یا بد بودن روش شما نیست؛ ژورنال فقط روی همین دستگاه ذخیره می‌شود.</p>', 'var(--sky)');
+   279→  return h;
+   280→}
+   281→
+   282→/* ---------- نواحی ورود مبتنی بر ساختار (در تب پلن) ---------- */
+   283→function zonesSec(d) {
+   284→  var ez = d.entryZones;
+   285→  if (!ez) return '';
+   286→  if (!ez.zones.length) {
+   287→    return btSec('نواحی ورود پیشنهادی بر اساس ساختار (الگوریتمی)', 'target', '<p class="bt-note">' + ez.note + '</p>', 'var(--sky)');
+   288→  }
+   289→  var h = '<p class="bt-note">ساختار ۴ساعته: ' + ez.trendFa + ' — ' + ez.note + '</p>';
+   290→  for (var i = 0; i < ez.zones.length; i++) {
+   291→    var z = ez.zones[i];
+   292→    h += '<div class="zone-card ' + z.side + '">' +
+   293→      '<div class="zt"><b class="' + (z.side === 'buy' ? 'g' : 'r') + '">' + (z.side === 'buy' ? 'ناحیه خرید' : 'ناحیه فروش') + '</b>' +
+   294→      '<span class="bt-chip ' + (z.activeNow ? 'ok' : '') + '">' + (z.activeNow ? 'ناحیه فعال (قیمت داخل آن است)' : 'ناحیه انتظار پولبک') + '</span></div>' +
+   295→      '<div class="zg"><span>ناحیه ورود: <b dir="ltr">' + z.zoneLo + ' – ' + z.zoneHi + '</b></span>' +
+   296→      '<span>حد ضرر: <b class="r" dir="ltr">' + z.sl + '</b></span>' +
+   297→      '<span>هدف ۱ (RR۲): <b class="g" dir="ltr">' + z.tp1 + '</b></span>' +
+   298→      '<span>هدف ۲ (RR۳): <b class="g" dir="ltr">' + z.tp2 + '</b></span></div>' +
+   299→      '<p class="m">' + z.basis + '</p><p class="m amber">' + z.invalidate + '</p>' +
+   300→      '<button type="button" class="bt-gen small" data-bt-zoneuse="' + z.side + '" data-bt-entry="' + (Math.round(((z.zoneLo + z.zoneHi) / 2) * 100) / 100) + '">انتقال به فرم پلن</button>' +
+   301→      '</div>';
+   302→  }
+   303→  h += '<p class="bt-note">نواحی آموزشی و مبتنی بر سوئینگ/ATR هستند — سیگنال قطعی نیستند؛ تأیید کندل داخل ناحیه شرط اجراست و محاسبه حجم جداگانه در فرم پلن انجام می‌شود.</p>';
+   304→  return btSec('نواحی ورود پیشنهادی بر اساس ساختار (الگوریتمی)', 'target', h, 'var(--sky)');
+   305→}
+   306→
+   307→/* ---------- تب عوامل کمّی ---------- */
+   308→function btFactorsHTML() {
+   309→  if (BT.fqBusy) {
+   310→    return '<div class="bt-state"><span class="spin">' + icon('refresh', 20) + '</span>در حال برآورد رگرسیون‌های تاریخی…<span class="s">بازده نماد و عوامل در افق‌های ۱/۵/۲۰ روزه — دریافت ۴ سری ۲ساله، کمی طول می‌کشد</span></div>';
+   311→  }
+   312→  if (BT.fqErr && !BT.fq) {
+   313→    return '<div class="bt-state"><span style="color:var(--red)">' + icon('wifi', 22) + '</span>' + BT.fqErr +
+   314→      '<button type="button" class="btn" data-bt-fq-reload>' + icon('refresh', 13) + 'تلاش مجدد</button></div>';
+   315→  }
+   316→  var fq = BT.fq;
+   317→  if (!fq) return '<div class="bt-state">داده عوامل آماده نشده است.</div>';
+   318→  var score = btFqLocalScore(fq);
+   319→  var scoreLabel = score === null ? 'بدون امتیاز معتبر' : score > 15 ? 'فشار صعودی' : score < -15 ? 'فشار نزولی' : 'فشار خنثی/متعادل';
+   320→  var scoreCls = score === null ? '' : score > 15 ? 'ok' : score < -15 ? 'bad' : 'mid';
+   321→  var sumW = btFqSumValidW(fq);
+   322→  var w = btFqWeights();
+   323→
+   324→  var rows = '';
+   325→  for (var i = 0; i < fq.rows.length; i++) {
+   326→    var r = fq.rows[i];
+   327→    var bc = function (b) { return b ? (b.beta >= 0 ? '+' : '') + faDigits(b.beta) + '<span class="t">t=' + faDigits(b.t) + '</span>' : '—'; };
+   328→    rows += '<tr>' +
+   329→      '<td class="fa"><b>' + r.nameFa + '</b><span dir="ltr">Yahoo: ' + r.sourceYahoo + '</span><span>وزن ' + faNum(w[r.id] !== undefined ? w[r.id] : r.w) + '</span></td>' +
+   330→      '<td dir="ltr">' + btNum(r.current) + '</td>' +
+   331→      '<td dir="ltr">' + (r.change5 === null ? '—' : (r.change5 > 0 ? '+' : '') + faDigits(r.change5) + ' ' + r.unitFa) + '</td>' +
+   332→      '<td dir="ltr">' + (r.z === null ? '—' : (r.z > 0 ? '+' : '') + faDigits(r.z)) + '</td>' +
+   333→      '<td dir="ltr">' + bc(r.beta.h1) + '</td><td dir="ltr">' + bc(r.beta.h5) + '</td><td dir="ltr">' + bc(r.beta.h20) + '</td>' +
+   334→      '<td dir="ltr"><b>' + (r.pressure === null ? 'نامشخص' : (r.pressure > 0 ? '+' : '') + faDigits(r.pressure)) + '</b></td>' +
+   335→      '<td dir="ltr">' + (r.reliability === null ? '—' : faDigits(r.reliability)) + '</td>' +
+   336→      '<td class="' + (r.effect === 'supportive' ? 'g' : r.effect === 'restrictive' ? 'r' : r.effect === 'conflict' ? 'a' : '') + '">' + r.effectFa + '</td>' +
+   337→      '</tr>';
+   338→  }
+   339→  var interps = '';
+   340→  for (i = 0; i < fq.rows.length; i++) {
+   341→    if (fq.rows[i].interpFa) interps += '<p class="bt-note boxed">' + fq.rows[i].interpFa + '</p>';
+   342→    else if (fq.rows[i].unreliableReason) interps += '<p class="bt-note warn">⚠ ' + fq.rows[i].nameFa + ': ' + fq.rows[i].unreliableReason + ' — Pressure محاسبه نشد و عدد حدس زده نشد.</p>';
+   343→  }
+   344→  var skips = '';
+   345→  if (fq.skipped.length) {
+   346→    skips = '<div class="bt-warn">عوامل کنارگذاشته‌شده از امتیاز (وزن بقیه بازتنظیم شد — مجموع وزن مؤثر: ' + faDigits(sumW) + '): <ul>' +
+   347→      fq.skipped.map(function (s) { return '<li>• ' + s.nameFa + ': ' + s.reason + '</li>'; }).join('') + '</ul></div>';
+   348→  }
+   349→  var wInputs = '';
+   350→  for (i = 0; i < fq.rows.length; i++) {
+   351→    var rw = fq.rows[i];
+   352→    wInputs += '<label class="bt-fw-row"><span>' + rw.nameFa + '</span><input type="number" min="0" max="1" step="0.05" dir="ltr" data-bt-fw="' + rw.id + '" value="' + (w[rw.id] !== undefined ? w[rw.id] : rw.w) + '" aria-label="وزن ' + rw.nameFa + '"></label>';
+   353→  }
+   354→  var notes = '<ul class="bt-list">' + fq.notes.map(function (n) { return '<li>' + n + '</li>'; }).join('') + '</ul>';
+   355→  return btSec('شاخص فشار مدل — Composite', 'sparkles',
+   356→    '<div class="bt-score-row"><div class="bt-score ' + scoreCls + '"><b dir="ltr">' + (score === null ? '—' : (score > 0 ? '+' : '') + faDigits(score)) + '</b><span>−۱۰۰ تا +۱۰۰</span></div>' +
+   357→    '<div class="bt-score-txt"><p class="bt-score-v">' + scoreLabel + '</p>' +
+   358→    '<p class="bt-note">مثبت = فشار تاریخی مدل به سمت رشد نماد · منفی = فشار به سمت افت · نزدیک صفر = فشار خالص کم یا عوامل متضاد. این «شاخص فشار مدل» است — احتمال صعود، بازده مورد انتظار یا تضمین حرکت نیست.</p></div></div>' + skips, 'var(--violet)') +
+   359→    btSec('جدول کمّی عوامل — رابطه تاریخی/آماری، نه علّی', 'activity',
+   360→      '<div class="fq-scroll"><table class="mini-tbl fq"><thead><tr><th>عامل</th><th>مقدار جاری</th><th>تغییر ۵روزه</th><th>Z</th><th>β افق ۱ر</th><th>β افق ۵ر</th><th>β افق ۲۰ر</th><th>Pressure</th><th>قابلیت اتکا</th><th>اثر فعلی</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+   361→      interps + '<p class="bt-src">نمونه: ' + faDigits(fq.sampleBars || 0) + ' کندل روزانه ۲ساله · محاسبه محلی روی همین دستگاه — آخرین محاسبه: ' + faTime(new Date(fq.generatedAtISO)) + '</p>', 'var(--sky)') +
+   362→    btSec('تنظیمات وزن عوامل (۰ تا ۱)', 'crosshair',
+   363→      wInputs +
+   364→      '<p class="bt-note">وزن‌ها در امتیاز تجمیعی همان بالا اعمال می‌شوند. اگر داده عاملی موجود نباشد از امتیاز کنار گذاشته می‌شود و وزن عوامل باقی‌مانده شفاف بازتنظیم می‌شود (مجموع وزن مؤثر فعلی: ' + faDigits(sumW) + ').</p>', 'var(--violet)') +
+   365→    btSec('روش و محدودیت‌ها', 'alert', notes + '<p class="bt-note bold">این جدول کمّی‌سازی شفاف رابطه تاریخی عوامل با نماد است؛ برای تصمیم معامله به تنهایی کافی نیست و توصیه خرید/فروش محسوب نمی‌شود.</p>', 'var(--amber)');
+   366→}
+   367→
+   368→/* ---------- رندر اصلی اپ ---------- */
+   369→function renderTraderApp(soft) {
+   370→  if (!soft) { BT.tab = btGet('bt_tab_v1', 'view'); }
+   371→  var inner = btHead() + btSymChips() + btTabBar();
+   372→
+   373→  /* نوار واگرایی همیشه فعال */
+   374→  if (BT.data) {
+   375→    var dv = BT.data.div;
+   376→    var dot = dv.color === 'green' ? '🟢' : dv.color === 'amber' ? '🟡' : dv.color === 'red' ? '🔴' : '⚪';
+   377→    inner += '<div class="bt-divbar ' + dv.color + '"><span class="e">' + dot + '</span><div class="t"><b>' + dv.text + '</b><span>' + dv.reason + '</span></div></div>';
+   378→  }
+   379→  if (BT.nudge) inner += '<div class="bt-warn">⚠ ' + BT.nudge + '</div>';
+   380→  if (BT.data && BT.data.degraded) inner += '<div class="bt-warn">حالت کاهش‌یافته: دریافت داده زنده Yahoo ناموفق بود — فقط اسنپ‌شات فایل نمایش داده می‌شود؛ عوامل وابسته به داده زنده با برچسب «داده ناکافی» علامت خورده‌اند. با دکمه بروزرسانی دوباره تلاش کنید.</div>';
+   381→  /* هشدار جدی رنج فشرده / رنج — همیشه بالای همه تب‌ها */
+   382→  if (BT.data && BT.data.rangeWarning && BT.data.rangeWarning.active) {
+   383→    var rwv = BT.data.rangeWarning;
+   384→    inner += '<div class="bt-rangewarn' + (rwv.severity === 'tight' ? ' red' : '') + '">' +
+   385→      '<b>' + (rwv.severity === 'tight' ? 'هشدار جدی: رنج فشرده' : 'هشدار: بازار رنج است') + '</b>' +
+   386→      '<p>' + rwv.message + '</p>' +
+   387→      (rwv.severity === 'tight' ? '<ul>' + rwv.advice.map(function (a) { return '<li>' + a + '</li>'; }).join('') + '</ul>' : '') +
+   388→      '<span class="m">سنجه‌ها: صدک ATR ' + (rwv.metrics.atrPctile === null ? '—' : faDigits(rwv.metrics.atrPctile)) + ' · نسبت کارایی ' + (rwv.metrics.er === null ? '—' : faDigits(rwv.metrics.er)) + ' · ارتفاع محدوده ' + (rwv.metrics.boxPctOfAtr === null ? '—' : faDigits(rwv.metrics.boxPctOfAtr)) + ' برابر ATR</span></div>';
+   389→  }
+   390→
+   391→  if (BT.busy) {
+   392→    inner += '<div class="bt-state"><span class="spin">' + icon('refresh', 20) + '</span>در حال دریافت سری روزانه و محاسبه وضعیت بازار…<span class="s">ساختار، DXY، US10Y، اخبار و امتیاز اطمینان</span></div>';
+   393→  } else if (BT.err && !BT.data) {
+   394→    inner += '<div class="bt-state"><span style="color:var(--red)">' + icon('wifi', 22) + '</span>' + BT.err +
+   395→      '<button type="button" class="btn" data-bt-refresh>' + icon('refresh', 13) + 'تلاش مجدد</button></div>';
+   396→  } else if (BT.data) {
+   397→    if (BT.tab === 'view') inner += btViewHTML();
+   398→    else if (BT.tab === 'plan') inner += btPlanHTML();
+   399→    else if (BT.tab === 'factors') inner += btFactorsHTML();
+   400→    else if (BT.tab === 'news') inner += btNewsHTML();
+   401→    else inner += btJournalHTML();
+   402→    inner += '<p class="bt-foot">منبع: ' + (BT.data.degraded ? 'اسنپ‌شات فایل (داده زنده در دسترس نبود)' : 'سری روزانه Yahoo Finance (پروکسی عمومی) · ساختار و اخبار: اسنپ‌شات فایل') + ' — آخرین محاسبه: ' + faTime(new Date()) +
+   403→      '<br>هیچ خروجی این بخش توصیه قطعی خرید/فروش یا اجرای خودکار سفارش نیست.</p>';
+   404→  }
+   405→  appScroll.innerHTML = '<div class="bt-wrap">' + inner + '</div>';
+   406→  btBind();
+   407→  /* بارگذاری اولیه — فقط وقتی هیچ داده یا وضعیتی وجود ندارد */
+   408→  if (!BT.data && !BT.busy && !BT.err) btLoadData(false);
+   409→  /* بارگذاری تنبل عوامل کمّی هنگام باز شدن تب */
+   410→  if (BT.tab === 'factors' && BT.data && !BT.fq && !BT.fqBusy && !BT.fqErr) btLoadFactors(false);
+   411→}
+   412→function btBind() {
+   413→  var rf = appScroll.querySelector('[data-bt-refresh]');
+   414→  if (rf) rf.addEventListener('click', function () {
+   415→    var log = btGet(BT_KEYS.refresh, []);
+   416→    log.push(Date.now());
+   417→    btSet(BT_KEYS.refresh, log);
+   418→    var n = trRefreshNudge(log);
+   419→    BT.nudge = n.warn ? n.message : '';
+   420→    btLoadData(true);
+   421→  });
+   422→  var fqr = appScroll.querySelector('[data-bt-fq-reload]');
+   423→  if (fqr) fqr.addEventListener('click', function () { btLoadFactors(true); });
+   424→  var fws = appScroll.querySelectorAll('[data-bt-fw]');
+   425→  for (var wi = 0; wi < fws.length; wi++) {
+   426→    (function (b) {
+   427→      b.addEventListener('change', function () {
+   428→        btFqSetWeight(b.dataset.btFw, Number(b.value));
+   429→        renderTraderApp(true);
+   430→      });
+   431→    })(fws[wi]);
+   432→  }
+   433→  var zus = appScroll.querySelectorAll('[data-bt-zoneuse]');
+   434→  for (var zi = 0; zi < zus.length; zi++) {
+   435→    (function (b) {
+   436→      b.addEventListener('click', function () {
+   437→        BT.zf = { side: b.dataset.btZoneuse, entry: b.dataset.btEntry };
+   438→        renderTraderApp(true);
+   439→      });
+   440→    })(zus[zi]);
+   441→  }
+   442→  var syms = appScroll.querySelectorAll('[data-bt-sym]');
+   443→  for (var i = 0; i < syms.length; i++) {
+   444→    (function (b) {
+   445→      b.addEventListener('click', function () {
+   446→        if (BT.sym === b.dataset.btSym) return;
+   447→        BT.sym = b.dataset.btSym; BT.data = null; BT.plan = null; BT.changes = []; BT.pmSide = null; BT.fq = null; BT.fqErr = null; BT.zf = null;
+   448→        btLoadData(true);
+   449→      });
+   450→    })(syms[i]);
+   451→  }
+   452→  var tabs = appScroll.querySelectorAll('[data-bt-tab]');
+   453→  for (i = 0; i < tabs.length; i++) {
+   454→    (function (b) {
+   455→      b.addEventListener('click', function () {
+   456→        BT.tab = b.dataset.btTab;
+   457→        btSet('bt_tab_v1', BT.tab);
+   458→        renderTraderApp(true);
+   459→      });
+   460→    })(tabs[i]);
+   461→  }
+   462→  var gen = appScroll.querySelector('[data-bt-gen]');
+   463→  if (gen) gen.addEventListener('click', function () {
+   464→    var d = BT.data;
+   465→    var side = appScroll.querySelector('#bt_side').value;
+   466→    var entry = Number((appScroll.querySelector('#bt_entry').value || '').replace(/[^\d.]/g, ''));
+   467→    var balance = Number((appScroll.querySelector('#bt_balance').value || '').replace(/[^\d.]/g, ''));
+   468→    var riskPct = Number((appScroll.querySelector('#bt_risk').value || '').replace(/[^\d.]/g, ''));
+   469→    var rr = Number(appScroll.querySelector('#bt_rr').value);
+   470→    var slMode = appScroll.querySelector('#bt_slmode').value;
+   471→    var atrAbs = d.price && d.atr !== null ? d.atr / 100 * d.price : null;
+   472→    BT.plan = trPlan({
+   473→      side: side, entry: entry, balance: balance, riskPct: riskPct, rr: rr, slMode: slMode,
+   474→      swingLevel: side === 'buy' ? d.ll : d.hh, atr: atrAbs, contractSize: d.conf.contractSize,
+   475→      symbolLabel: d.conf.label
+   476→    });
+   477→    BT.copied = false;
+   478→    renderTraderApp(true);
+   479→  });
+   480→  var cp = appScroll.querySelector('[data-bt-copy]');
+   481→  if (cp) cp.addEventListener('click', function () {
+   482→    if (!BT.plan || !BT.plan.copyText) return;
+   483→    try {
+   484→      if (navigator.clipboard) navigator.clipboard.writeText(BT.plan.copyText);
+   485→      else {
+   486→        var ta = document.createElement('textarea');
+   487→        ta.value = BT.plan.copyText;
+   488→        document.body.appendChild(ta);
+   489→        ta.select();
+   490→        document.execCommand('copy');
+   491→        ta.remove();
+   492→      }
+   493→    } catch (e) {}
+   494→  });
+   495→  var chks = appScroll.querySelectorAll('[data-bt-chk]');
+   496→  for (i = 0; i < chks.length; i++) {
+   497→    (function (b) {
+   498→      b.addEventListener('change', function () { BT.checks[b.dataset.btChk] = b.checked; });
+   499→    })(chks[i]);
+   500→  }
+   501→  var pms = appScroll.querySelectorAll('[data-bt-pm]');
+   502→  for (i = 0; i < pms.length; i++) {
+   503→    (function (b) {
+   504→      b.addEventListener('click', function () {
+   505→        BT.pmSide = BT.pmSide === b.dataset.btPm ? null : b.dataset.btPm;
+   506→        renderTraderApp(true);
+   507→      });
+   508→    })(pms[i]);
+   509→  }
+   510→  var pAdd = appScroll.querySelector('[data-bt-posadd]');
+   511→  if (pAdd) pAdd.addEventListener('click', function () {
+   512→    var lots = Number((appScroll.querySelector('#bt_plots').value || '').replace(/[^\d.]/g, ''));
+   513→    var risk = Number((appScroll.querySelector('#bt_prisk').value || '').replace(/[^\d.]/g, ''));
+   514→    if (!(lots > 0) || !(risk > 0)) return;
+   515→    var poss = btGet(BT_KEYS.positions, []);
+   516→    poss.push({ id: String(Date.now()), sym: appScroll.querySelector('#bt_psym').value, side: appScroll.querySelector('#bt_pside').value, lots: lots, riskUsd: risk });
+   517→    btSet(BT_KEYS.positions, poss);
+   518→    renderTraderApp(true);
+   519→  });
+   520→  var dels = appScroll.querySelectorAll('[data-bt-posdel]');
+   521→  for (i = 0; i < dels.length; i++) {
+   522→    (function (b) {
+   523→      b.addEventListener('click', function () {
+   524→        var poss = btGet(BT_KEYS.positions, []).filter(function (p) { return p.id !== b.dataset.btPosdel; });
+   525→        btSet(BT_KEYS.positions, poss);
+   526→        renderTraderApp(true);
+   527→      });
+   528→    })(dels[i]);
+   529→  }
+   530→  var js = appScroll.querySelector('[data-bt-jsave]');
+   531→  if (js) js.addEventListener('click', function () {
+   532→    var reason = (appScroll.querySelector('#bt_jreason').value || '').trim();
+   533→    var inval = (appScroll.querySelector('#bt_jinval').value || '').trim();
+   534→    var msgEl = appScroll.querySelector('#bt_jsave-msg');
+   535→    if (!reason || !inval) {
+   536→      if (msgEl) { msgEl.textContent = 'تحلیل ناقص — دلیل ورود و شرط ابطال اجباری‌اند؛ اطلاعات حدس زده نمی‌شود.'; msgEl.style.color = 'var(--amber)'; }
+   537→      return;
+   538→    }
+   539→    var entries = btGet(BT_KEYS.journal, []);
+   540→    entries.unshift({
+   541→      id: String(Date.now()), atISO: new Date().toISOString(),
+   542→      reason: reason, scenario: (appScroll.querySelector('#bt_jscen').value || '').trim(),
+   543→      invalidation: inval, expectation: (appScroll.querySelector('#bt_jexp').value || '').trim(),
+   544→      side: appScroll.querySelector('#bt_jside').value, entry: (appScroll.querySelector('#bt_jentry').value || '').trim(),
+   545→      result: null, review: null
+   546→    });
+   547→    btSet(BT_KEYS.journal, entries);
+   548→    if (msgEl) { msgEl.textContent = 'ثبت شد.'; msgEl.style.color = 'var(--emerald)'; }
+   549→    renderTraderApp(true);
+   550→  });
+   551→  var ress = appScroll.querySelectorAll('[data-bt-res]');
+   552→  for (i = 0; i < ress.length; i++) {
+   553→    (function (b) {
+   554→      b.addEventListener('click', function () {
+   555→        var entries = btGet(BT_KEYS.journal, []);
+   556→        for (var k = 0; k < entries.length; k++) {
+   557→          if (entries[k].id !== b.dataset.btId) continue;
+   558→          entries[k].result = b.dataset.btRes;
+   559→          if (b.dataset.btRes === 'loss' && !entries[k].review)
+   560→            entries[k].review = { followedPlan: true, riskRespected: true, slMovedBadly: false, assumptionViolated: false };
+   561→        }
+   562→        btSet(BT_KEYS.journal, entries);
+   563→        if (b.dataset.btRes === 'loss') {
+   564→          btSet(BT_KEYS.lastloss, new Date().toISOString());
+   565→          try { if (navigator.vibrate) navigator.vibrate(40); } catch (e) {}
+   566→        }
+   567→        renderTraderApp(true);
+   568→      });
+   569→    })(ress[i]);
+   570→  }
+   571→  var rvs = appScroll.querySelectorAll('[data-bt-rv]');
+   572→  for (i = 0; i < rvs.length; i++) {
+   573→    (function (b) {
+   574→      b.addEventListener('click', function () {
+   575→        var entries = btGet(BT_KEYS.journal, []);
+   576→        for (var k = 0; k < entries.length; k++) {
+   577→          if (entries[k].id === b.dataset.btId && entries[k].review) entries[k].review[b.dataset.btRv] = !entries[k].review[b.dataset.btRv];
+   578→        }
+   579→        btSet(BT_KEYS.journal, entries);
+   580→        renderTraderApp(true);
+   581→      });
+   582→    })(rvs[i]);
+   583→  }
+   584→}
+   585→

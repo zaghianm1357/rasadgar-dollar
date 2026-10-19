@@ -49,8 +49,8 @@ const TF_LABEL: Record<MSTimeframe, string> = {
   "1mo": "ماهانه",
 };
 
-/** تایم‌فریم‌های مجاز برای ساختار (همان‌های جدول) */
-const STRUCTURE_TFS: MSTimeframe[] = ["15m", "1h", "4h", "1d", "1wk", "1mo"];
+/** تایم‌فریم‌های مجاز برای ساختار — ۵ دقیقه هم توسط کاربر قابل انتخاب است (داده در API موجود است) */
+const STRUCTURE_TFS: MSTimeframe[] = ["5m", "15m", "1h", "4h", "1d", "1wk", "1mo"];
 /** تایم‌فریم‌های مجاز برای ورود (کوچک‌تر یا مساوی ساختار اعمال می‌شود) */
 const ENTRY_TFS: MSTimeframe[] = ["5m", "15m", "1h", "4h"];
 

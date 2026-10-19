@@ -607,6 +607,39 @@ table.fq td.a{color:var(--amber);font-weight:800}
   .wiggling-icon,.wpulse,.banner.blink{animation:none}
   .banner.blink{border-color:rgba(251,191,36,.6);background:rgba(251,191,36,.08);box-shadow:none}
 }
+
+/* ---------- اپ سیگنال اسکلپ + باکس پیشنهاد اسکلپ ---------- */
+.g-scalp{background-image:linear-gradient(135deg,#f43f5e,#9f1239)}
+.ai-here{opacity:.85;cursor:default}
+.sc-head{display:flex;align-items:center;gap:7px;flex-wrap:wrap;color:var(--amber-l);font-size:12.5px;font-weight:800;margin-bottom:6px}
+.sc-head .sc-sub{font-size:9px;font-weight:600;color:var(--mutedfg)}
+.sc-sels{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0 8px}
+.sc-chips{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:4px}
+.sc-sig{border-radius:12px;padding:10px 11px;border:1px solid}
+.sc-sig.b{border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.08)}
+.sc-sig.s{border-color:rgba(244,63,94,.4);background:rgba(244,63,94,.08)}
+.sc-sig-top{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap}
+.sc-sig.b .sc-sig-top b{color:var(--emerald);display:inline-flex;align-items:center;gap:5px;font-size:13px}
+.sc-sig.s .sc-sig-top b{color:var(--rose);display:inline-flex;align-items:center;gap:5px;font-size:13px}
+.sc-wait{border-radius:12px;padding:10px 11px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03)}
+.sc-wait .sc-sig-top b{color:var(--fg);display:inline-flex;align-items:center;gap:5px;font-size:12.5px}
+.sc-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;margin-top:7px;font-size:10.5px;font-weight:700;color:var(--mutedfg)}
+.sc-grid b{color:var(--fg);font-weight:800}
+.sc-grid b.r{color:var(--rose)} .sc-grid b.g{color:var(--emerald)} .sc-grid b.a{color:var(--amber)}
+.sc-sig .m,.sc-wait .m{margin:5px 0 0;font-size:9.5px;line-height:16px;color:var(--mutedfg)}
+.sc-sig .m.amber,.sc-wait .m.amber,.sc-lv .m.amber{color:var(--amber)}
+.sc-chips .chip{margin:0}
+.sc-lv{border:1px solid rgba(255,255,255,.1);border-radius:12px;background:rgba(255,255,255,.02);padding:9px 10px;margin-top:8px}
+.sc-lv .t{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;color:var(--sky);margin:0 0 4px}
+.sc-lv .z{margin:2px 0 0;font-size:9.5px;font-weight:700}
+.sc-lv .z.r{color:rgba(251,113,133,.9)} .sc-lv .z.g{color:rgba(52,211,153,.9)}
+.sc-div{margin:8px 0 0;font-size:9.5px;line-height:16px;color:var(--zinc);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px 9px;background:rgba(255,255,255,.02)}
+.sc-hist{border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:8px 10px;margin-top:8px}
+.sc-hist .t{font-size:10px;font-weight:800;color:var(--fg);margin:0 0 4px}
+.sc-hrow{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:9px;color:var(--mutedfg);padding:2px 0;border-bottom:1px dashed rgba(255,255,255,.05)}
+.sc-hrow:last-child{border-bottom:0}
+.sc-hrow .g{color:var(--emerald);font-weight:800} .sc-hrow .r{color:var(--rose);font-weight:800}
+.sc-foot{margin:8px 0 0;font-size:8.5px;line-height:14px;color:rgba(160,170,180,.7);text-align:center}
 </style>
 </head>
 <body>
@@ -694,7 +727,7 @@ table.fq td.a{color:var(--amber);font-weight:800}
   </div>
 </div>
 
-<script type="application/json" id="sd-snapshot">{"generatedAt":"2026-10-19T08:26:56.180Z","news":{"feedStatus":"live","lastFetchISO":"2026-10-19T08:26:56.078Z","digest":"امروز بازارها با انتظار انتشار شاخص‌های تورمی آمریکا در ساعت ۱۶:۰۰ تهران مواجه‌اند که روند نرخ دلار را تعیین خواهند کرد. هرگونه انحراف داده‌ها از پیش‌بینی‌ها می‌تواند نوسانات شدیدی را در جفت‌ارزها و طلا ایجاد کند. تمرکز اصلی بر شاخص‌های کلیدی مانند CPI میانه و اصلاح‌شده است که تصویر روشن‌تری از فشارهای تورمی ارائه می‌دهند. معامله‌گران باید آماده واکنش سریع به نتایج باشند چون احتمالاً حرکات قیمتی شدیدی را شاهد خواهیم بود.","translatedNow":0,"pendingTranslation":0,"events":[{"id":"691cce25d4b0f92f092971a5246befcf","title":"CPI m/m","titleFa":"شاخص قیمت مصرف‌کننده ماهانه (CPI)","country":"CAD","dateISO":"2026-10-19T12:30:00.000Z","allDay":false,"impact":"High","forecast":"0.2%","previous":"-0.1%","actual":null,"direction":"mixed","explanationFa":"این شاخص نرخ تورم کانادا را اندازه می‌گیرد و برای ارزش دلار کانادا مهم است. تأثیر اصلی بر دلار کانادا است، اما با توجه به ماهیت تورمی، می‌تواند بر دلار آمریکا نیز اگذاشته شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.75,"xauUp":0.25,"djiUp":0.25,"cmp":"above"}},{"id":"770cefe021623ab201e8c39cacf95d8a","title":"Median CPI y/y","titleFa":"شاخص قیمت مصرف‌کننده میانه سالانه (Median CPI)","country":"CAD","dateISO":"2026-10-19T12:30:00.000Z","allDay":false,"impact":"High","forecast":"2.0%","previous":"2.0%","actual":null,"direction":"mixed","explanationFa":"این شاخص یک معیار کلیدی برای اندازه‌گیری تورم پایه در کانادا محسوب می‌شود و به بانک مرکزی کانادا در تصمیم‌گیری‌های سیاستی کمک می‌کند. تأثیر اصلی بر دلار کانادا است، اما با توجه به ماهیت تورمی، می‌تواند بر دلار آمریکا نیز اگذاشته شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.5,"xauUp":0.5,"djiUp":0.5,"cmp":"equal"}},{"id":"f5ca417ad9b16797289fac1d93b0c4d2","title":"Trimmed CPI y/y","titleFa":"شاخص قیمت مصرف‌کننده اصلاح‌شده سالانه (Trimmed CPI)","country":"CAD","dateISO":"2026-10-19T12:30:00.000Z","allDay":false,"impact":"High","forecast":"1.9%","previous":"1.9%","actual":null,"direction":"mixed","explanationFa":"این شاخص تورم را بدون لحاظ کردن بیشترین و کمترین تغییرات قیمت اندازه می‌گیرد و به بانک مرکزی کانادا دیدی بهتر از روند تورمی می‌دهد. تأثیر اصلی بر دلار کانادا است، اما با توجه به ماهیت تورمی، می‌تواند بر دلار آمریکا نیز اگذاشته شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.5,"xauUp":0.5,"djiUp":0.5,"cmp":"equal"}},{"id":"7170c18f6119138239a23648423bbfc6","title":"Common CPI y/y","titleFa":"شاخص قیمت مصرف‌کننده مشترک سالانه (Common CPI)","country":"CAD","dateISO":"2026-10-19T12:30:00.000Z","allDay":false,"impact":"Medium","forecast":"2.6%","previous":"2.6%","actual":null,"direction":"mixed","explanationFa":"این شاخص تورم را در بخش‌های پرتکرار اقتصاد کانادا اندازه می‌گیرد و برای بانک مرکزی مهم است. تأثیر اصلی بر دلار کانادا است، اما با توجه به ماهیت تورمی، می‌تواند بر دلار آمریکا نیز اگذاشته شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.5,"xauUp":0.5,"djiUp":0.5,"cmp":"equal"}},{"id":"27b50af31c045dbef79627a53c4a050c","title":"NAHB Housing Market Index","titleFa":"شاخص بازار مسکن انجمن ملی سازندگان مسکن (NAHB)","country":"USD","dateISO":"2026-10-19T14:00:00.000Z","allDay":false,"impact":"Low","forecast":"31","previous":"32","actual":null,"direction":"neutral","explanationFa":"این شاخص سطح اطمینان سازندگان مسکن را اندازه می‌گیرد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.35,"xauUp":0.5,"djiUp":0.5,"cmp":"below"}},{"id":"342eb0f9fa60fec98a455a496be48ca6","title":"Average Earnings Index 3m/y","titleFa":"شاخص میانگین دستمزد ۳ ماهه (Average Earnings Index 3m/y)","country":"GBP","dateISO":"2026-10-20T06:00:00.000Z","allDay":false,"impact":"Medium","forecast":"3.8%","previous":"3.9%","actual":null,"direction":"bullish","explanationFa":"این شاخص رشد دستمزدهای بریتانیا را اندازه می‌گیرد و یک شاخص کلیدی برای تورم و سیاست پولی بانک مرکزی انگلیس است. اگر این عدد بالاتر از پیش‌بینی ۳.۸٪ باشد، پوند تقویت شده و دلار تضعیف می‌شود و برعکس.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.35,"xauUp":0.65,"djiUp":0.35,"cmp":"below"}},{"id":"f53e60bae4affe8b395e0f89c584de3d","title":"ADP Weekly Employment Change","titleFa":"تغییرات اشتغال هفتگی ADP","country":"USD","dateISO":"2026-10-20T12:15:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":"24.8K","actual":null,"direction":"neutral","explanationFa":"این گزارش تعداد شغل‌های ایجاد شده در بخش خصوصی آمریکا را نشان می‌دهد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"abd33da87d5253c7f623b8dd8873d29d","title":"Building Permits","titleFa":"مجوزهای ساخت‌وساز","country":"USD","dateISO":"2026-10-20T12:30:00.000Z","allDay":false,"impact":"Low","forecast":"1.39M","previous":"1.39M","actual":null,"direction":"neutral","explanationFa":"این شاخص تعداد مجوزهای ساخت‌وساز صادر شده را اندازه می‌گیرد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.5,"xauUp":0.5,"djiUp":0.5,"cmp":"equal"}},{"id":"e6f1987facd645a0d58cedbd7abedd2b","title":"Housing Starts","titleFa":"شروع ساخت‌وساز مسکن","country":"USD","dateISO":"2026-10-20T12:30:00.000Z","allDay":false,"impact":"Low","forecast":"1.30M","previous":"1.28M","actual":null,"direction":"neutral","explanationFa":"این شاخص تعداد واحدهای مسکونی جدیدی که ساخت‌وساز آنها شروع شده را نشان می‌دهد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.6,"xauUp":0.5,"djiUp":0.5,"cmp":"above"}},{"id":"d264cbd1fbd3acd0ab24ec5a4a930c19","title":"Pending Home Sales m/m","titleFa":"شاخص فروش مسکن معوق ماهانه (Pending Home Sales m/m)","country":"USD","dateISO":"2026-10-20T14:00:00.000Z","allDay":false,"impact":"Low","forecast":"-0.4%","previous":"0.3%","actual":null,"direction":"neutral","explanationFa":"این شاخص میزان فروش‌های مسکن بسته‌شده ولی هنوز به طور نهایی ثبت‌نشده را اندازه می‌گیرد که یک شاخص پیشرو برای بازار مسکن است. به‌دلیل اهمیت کم، تأثیر قابل توجهی بر ارزش دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.25,"xauUp":0.5,"djiUp":0.5,"cmp":"below"}},{"id":"e493fc0378a829784e1e8ba78b6e7984","title":"API Weekly Statistical Bulletin","titleFa":"بولتن آمار هفتگی انجمن نفت آمریکا (API)","country":"USD","dateISO":"2026-10-20T20:30:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":null,"actual":null,"direction":"neutral","explanationFa":"این گزارش آمار هفتگی ذخایر نفت خام آمریکا را نشان می‌دهد که بر قیمت نفت تأثیر دارد، اما تأثیر مستقیمی بر دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"598aa25b00349ad3dd89f80a492182d9","title":"CPI y/y","titleFa":"شاخص قیمت مصرف‌کننده سالانه (CPI)","country":"GBP","dateISO":"2026-10-21T06:00:00.000Z","allDay":false,"impact":"High","forecast":"3.4%","previous":"3.1%","actual":null,"direction":"bearish","explanationFa":"این شاخص نرخ تورم بریتانیا را نشان می‌دهد و بانک انگلیس را تحت تأثیر قرار می‌دهد. اگر این عدد بالاتر از پیش‌بینی باشد، پوند تقویت شده و از دلار فاصله می‌گیرد. اگر پایین‌تر باشد، پوند تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.75,"xauUp":0.25,"djiUp":0.25,"cmp":"above"}},{"id":"09a3805974c3ab7e73e029e47c27ea9a","title":"BOE Gov Bailey Speaks","titleFa":"سخنرانی مدیر بانک مرکزی انگلیس (BOE Gov Bailey Speaks)","country":"GBP","dateISO":"2026-10-21T13:00:00.000Z","allDay":false,"impact":"Medium","forecast":null,"previous":null,"actual":null,"direction":"mixed","explanationFa":"اظهارات مدیر بانک مرکزی انگلیس می‌تواند در مورد سیاست پولی و اقتصاد کشور باشد. تأثیر آن بر پوند و دلار بستگی به محتوای سخنرانی دارد و معمولاً دووجهی است.","xauAbove":"mixed","xauBelow":"mixed","djiAbove":"mixed","djiBelow":"mixed","outlook":null},{"id":"c302cd4bd85fb9a0adaed66886a96e0a","title":"Crude Oil Inventories","titleFa":"موجودی نفت خام","country":"USD","dateISO":"2026-10-21T14:30:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":"-8.6M","actual":null,"direction":"neutral","explanationFa":"این گزارش تغییرات هفتگی ذخایر نفت خام در ایالات متحده را اندازه‌گیری می‌کند که بر قیمت نفت تأثیر مستقیم دارد، اما تأثیر مستقیمی بر دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"ceb28c00c6cddf8cb212b8719af5fb2e","title":"CPI q/q","titleFa":"شاخص قیمت مصرف‌کننده فصلی (CPI)","country":"NZD","dateISO":"2026-10-21T21:45:00.000Z","allDay":false,"impact":"High","forecast":"0.8%","previous":"1.5%","actual":null,"direction":"bullish","explanationFa":"این شاخص تورم را در یک بازه زمانی سه ماهه در نیوزیلند اندازه‌گیری می‌کند. اگر این عدد بالاتر از پیش‌بینی باشد، دلار نیوزیلند تقویت می‌شود و اگر پایین‌تر باشد، تضعیف خواهد شد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.25,"xauUp":0.75,"djiUp":0.75,"cmp":"below"}},{"id":"228c11804005350814520e97836683d2","title":"Unemployment Claims","titleFa":"تعداد درخواست‌های بیکاری (Unemployment Claims)","country":"USD","dateISO":"2026-10-22T12:30:00.000Z","allDay":false,"impact":"Medium","forecast":"200K","previous":"199K","actual":null,"direction":"bullish","explanationFa":"این شاخص تعداد افراد جدیدی که برای دریافت مزایای بیکاری ثبت‌نام کرده‌اند را نشان می‌دهد. افزایش درخواست‌های بیکاری نشانه ضعف بازار کار آمریکا است. اگر این number بالاتر از پیش‌بینی ۲۰۰K باشد، دلار تضعیف و طلا تقویت می‌شود و برعکس.","xauAbove":"bullish","xauBelow":"bearish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.6,"xauUp":0.6,"djiUp":0.4,"cmp":"above"}},{"id":"cd0de7fceafa1ca4a0d0db7bbf770c13","title":"CB Leading Index m/m","titleFa":"شاخص پیشرو کانادا ماهانه","country":"USD","dateISO":"2026-10-22T14:00:00.000Z","allDay":false,"impact":"Low","forecast":"-0.2%","previous":"-0.1%","actual":null,"direction":"neutral","explanationFa":"این شاخص ترکیبی از داده‌های اقتصادی است که جهت فعالیت اقتصادی آینده را پیش‌بینی می‌کند. به‌دلیل اهمیت کم، تأثیر قابل توجهی بر ارزش دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.25,"xauUp":0.5,"djiUp":0.5,"cmp":"below"}},{"id":"fc42d4fbb3bf1f3fac0f93248cf614a8","title":"Natural Gas Storage","titleFa":"ذخایر گاز طبیعی","country":"USD","dateISO":"2026-10-22T14:30:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":"67B","actual":null,"direction":"neutral","explanationFa":"این گزارش تغییرات هفتگی ذخایر گاز طبیعی در ایالات متحده را نشان می‌دهد که بر قیمت گاز تأثیر دارد، اما تأثیر مستقیمی بر دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"67cb596711fed36540a320996db416e6","title":"Retail Sales m/m","titleFa":"فروش‌های خرده‌فروشی ماهانه (Retail Sales m/m)","country":"GBP","dateISO":"2026-10-23T06:00:00.000Z","allDay":false,"impact":"Medium","forecast":"-0.2%","previous":"0.5%","actual":null,"direction":"bearish","explanationFa":"این شاخص حجم فروش خرده‌فروشی در بریتانیا را اندازه می‌گیرد و یک معیار کلیدی از قدرت مصرف‌کننده است. اگر این number بالاتر از پیش‌بینی -۰.۲٪ باشد (یعنی کاهش کمتر از انتظار یا رشد)، پوند تقویت شده و دلار تضعیف می‌شود و برعکس.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.25,"xauUp":0.75,"djiUp":0.25,"cmp":"below"}},{"id":"6a86ccb5b836a0c145908f58ffdb78c1","title":"French Flash Manufacturing PMI","titleFa":"شاخص مدیران خرید بخش تولید فرانسه (Flash Manufacturing PMI)","country":"EUR","dateISO":"2026-10-23T07:15:00.000Z","allDay":false,"impact":"Medium","forecast":"50.6","previous":"50.3","actual":null,"direction":"bearish","explanationFa":"این شاخص سلامت بخش تولیدی فرانسه را نشان می‌دهد. اگر این عدد بالاتر از پیش‌بینی باشد، یورو تقویت می‌شود و اگر پایین‌تر باشد، یورو تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.6,"xauUp":0.4,"djiUp":0.6,"cmp":"above"}},{"id":"e0871f9e09aa6d15ba3df0387786de48","title":"French Flash Services PMI","titleFa":"شاخص مدیران خرید بخش خدمات فرانسه (Flash Services PMI)","country":"EUR","dateISO":"2026-10-23T07:15:00.000Z","allDay":false,"impact":"Medium","forecast":"50.8","previous":"51.4","actual":null,"direction":"bearish","explanationFa":"این شاخص سلامت بخش خدمات فرانسه را نشان می‌دهد. اگر این عدد بالاتر از پیش‌بینی باشد، یورو تقویت می‌شود و اگر پایین‌تر باشد، یورو تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.4,"xauUp":0.6,"djiUp":0.4,"cmp":"below"}},{"id":"9f8b59ac7e981f043bbd7eccb42c0119","title":"German Flash Manufacturing PMI","titleFa":"شاخص مدیران خرید بخش تولید آلمان (Flash Manufacturing PMI)","country":"EUR","dateISO":"2026-10-23T07:30:00.000Z","allDay":false,"impact":"Medium","forecast":"53.5","previous":"53.8","actual":null,"direction":"bearish","explanationFa":"این شاخص سلامت بخش تولیدی آلمان را اندازه می‌گیرد و به‌دلیل اهمیت اقتصاد آلمان در اروپا، بر ارزش یورو و به‌تبع آن بر دلار تأثیرگذار است. اگر این عدد بالاتر از پیش‌بینی ۵۳.۵ باشد، یورو تقویت شده و دلار تضعیف می‌شود و برعکس.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.4,"xauUp":0.6,"djiUp":0.4,"cmp":"below"}},{"id":"06680e4b5e68b4512ca134482cbcd3ab","title":"German Flash Services PMI","titleFa":"شاخص مدیران خرید بخش خدمات آلمان (Flash Services PMI)","country":"EUR","dateISO":"2026-10-23T07:30:00.000Z","allDay":false,"impact":"Medium","forecast":"52.6","previous":"52.9","actual":null,"direction":"bearish","explanationFa":"این شاخص سلامت بخش خدمات آلمان را نشان می‌دهد و به‌دلیل اهمیت این بخش، بر ارزش یورو و دلار تأثیر دارد. اگر این عدد بالاتر از پیش‌بینی ۵۲.۶ باشد، یورو تقویت و دلار تضعیف می‌شود و برعکس.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.4,"xauUp":0.6,"djiUp":0.4,"cmp":"below"}},{"id":"63f547d337dd97c83dbaf92fe7660217","title":"Flash Manufacturing PMI","titleFa":"شاخص مدیران خرید بخش تولید بریتانیا (Flash Manufacturing PMI)","country":"GBP","dateISO":"2026-10-23T08:30:00.000Z","allDay":false,"impact":"Medium","forecast":"51.8","previous":"52.0","actual":null,"direction":"bearish","explanationFa":"این شاخص سلامت بخش تولیدی بریتانیا را نشان می‌دهد و بر ارزش پوند و دلار تأثیر می‌گذارد. اگر این number بالاتر از پیش‌بینی ۵۱.۸ باشد، پوند تقویت شده و دلار تضعیف می‌شود و برعکس.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.4,"xauUp":0.6,"djiUp":0.4,"cmp":"below"}},{"id":"1e888eae2aec09bf526ef059acd46449","title":"Flash Services PMI","titleFa":"شاخص مدیران خرید بخش خدمات بریتانیا (Flash Services PMI)","country":"GBP","dateISO":"2026-10-23T08:30:00.000Z","allDay":false,"impact":"Medium","forecast":"51.8","previous":"51.7","actual":null,"direction":"bullish","explanationFa":"این شاخص سلامت بخش خدمات بریتانیا را اندازه می‌گیرد و بخش بزرگی از اقتصاد این کشور را تشکیل می‌دهد. اگر این number بالاتر از پیش‌بینی ۵۱.۸ باشد، پوند تقویت شده و دلار تضعیف می‌شود و برعکس.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.6,"xauUp":0.4,"djiUp":0.6,"cmp":"above"}},{"id":"73e014aed2585ef8d8da205ca3f67ccc","title":"Flash Manufacturing PMI","titleFa":"شاخص مدیران خرید بخش تولیدی لحظه‌ای (PMI)","country":"USD","dateISO":"2026-10-23T13:45:00.000Z","allDay":false,"impact":"Medium","forecast":"55.5","previous":"57.0","actual":null,"direction":"mixed","explanationFa":"این شاخص سلامت بخش تولیدی آمریکا را اندازه می‌گیرد. عدد بالاتر از ۵۰ نشان‌دهنده رشد است. اگر این عدد بالاتر از پیش‌بینی باشد نرخ دلار افزایش می‌یابد و اگر پایین‌تر باشد نرخ دلار کاهش می‌یابد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.35,"xauUp":0.65,"djiUp":0.35,"cmp":"below"}},{"id":"ed9c086026080c57e41b19c482d18ea6","title":"Flash Services PMI","titleFa":"شاخص مدیران خرید بخش خدمات لحظه‌ای (PMI)","country":"USD","dateISO":"2026-10-23T13:45:00.000Z","allDay":false,"impact":"Medium","forecast":"58.0","previous":"58.7","actual":null,"direction":"mixed","explanationFa":"این شاخص سلامت بخش خدمات بزرگ اقتصاد آمریکا را اندازه می‌گیرد. عدد بالاتر از ۵۰ نشان‌دهنده رشد است. اگر این عدد بالاتر از پیش‌بینی باشد نرخ دلار افزایش می‌یابد و اگر پایین‌تر باشد نرخ دلار کاهش می‌یابد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.4,"xauUp":0.6,"djiUp":0.4,"cmp":"below"}},{"id":"7f07df6bc1ffc6db54646c811e4670e9","title":"Revised UoM Consumer Sentiment","titleFa":"نظرگاه مصرف‌کننده دانشگاه میشیگان (اصلاح‌شده)","country":"USD","dateISO":"2026-10-23T14:00:00.000Z","allDay":false,"impact":"Medium","forecast":"46.3","previous":"46.3","actual":null,"direction":"mixed","explanationFa":"این شاخص سطح اطمینان و خرج کردن مصرف‌کنندگان را اندازه می‌گیرد. اگر این عدد بالاتر از پیش‌بینی باشد نرخ دلار افزایش می‌یابد و اگر پایین‌تر باشد نرخ دلار کاهش می‌یابد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.5,"xauUp":0.5,"djiUp":0.5,"cmp":"equal"}},{"id":"a1aa5e015e62996cf2f4140baa2edeaf","title":"Revised UoM Inflation Expectations","titleFa":"تورم مورد انتظار مصرف‌کننده دانشگاه میشیگان (اصلاح‌شده)","country":"USD","dateISO":"2026-10-23T14:00:00.000Z","allDay":false,"impact":"Medium","forecast":null,"previous":"4.7%","actual":null,"direction":"mixed","explanationFa":"این شاخص انتظارات مصرف‌کنندگان از تورم آینده را نشان می‌دهد. انتظارات تورمی بالاتر معمولاً برای دلار منفی است.","xauAbove":"bullish","xauBelow":"bearish","djiAbove":"bearish","djiBelow":"bullish","outlook":null}]},"market":{"status":"cached","updatedAtISO":"2026-10-19T08:13:11.687Z","xau":{"key":"xau","price":4196.9,"prevClose":4181.10009765625,"changePct":0.3778886411403162,"rows":[{"tf":"5m","trend":"neutral","strength":0,"ma":"neutral","swing":"neutral","bars":874},{"tf":"15m","trend":"bullish","strength":50,"ma":"neutral","swing":"bullish","bars":294},{"tf":"1h","trend":"bullish","strength":100,"ma":"bullish","swing":"bullish","bars":1483},{"tf":"4h","trend":"neutral","strength":0,"ma":"neutral","swing":"neutral","bars":399},{"tf":"1d","trend":"bearish","strength":100,"ma":"bearish","swing":"bearish","bars":251},{"tf":"1wk","trend":"bearish","strength":50,"ma":"neutral","swing":"bearish","bars":262},{"tf":"1mo","trend":"bullish","strength":100,"ma":"bullish","swing":"bullish","bars":104}],"okCount":7},"dji":{"key":"dji","price":52002.41,"prevClose":52177.69140625,"changePct":-0.33593170093570063,"rows":[{"tf":"5m","trend":"bearish","strength":50,"ma":"neutral","swing":"bearish","bars":391},{"tf":"15m","trend":"bearish","strength":100,"ma":"bearish","swing":"bearish","bars":131},{"tf":"1h","trend":"bullish","strength":100,"ma":"bullish","swing":"bullish","bars":456},{"tf":"4h","trend":"neutral","strength":0,"ma":"neutral","swing":"neutral","bars":131},{"tf":"1d","trend":"bearish","strength":100,"ma":"bearish","swing":"bearish","bars":251},{"tf":"1wk","trend":"bullish","strength":100,"ma":"bullish","swing":"bullish","bars":262},{"tf":"1mo","trend":"bullish","strength":100,"ma":"bullish","swing":"bullish","bars":121}],"okCount":7},"changes":[{"symbol":"xau","tf":"4h","from":"bullish","to":"neutral","atISO":"2026-10-19T08:13:11.687Z"},{"symbol":"xau","tf":"4h","from":"neutral","to":"bullish","atISO":"2026-10-19T07:19:36.397Z"},{"symbol":"xau","tf":"15m","from":"neutral","to":"bullish","atISO":"2026-10-19T07:04:31.915Z"},{"symbol":"xau","tf":"15m","from":"bullish","to":"neutral","atISO":"2026-10-19T06:42:21.915Z"},{"symbol":"xau","tf":"4h","from":"bullish","to":"neutral","atISO":"2026-10-19T05:22:38.125Z"},{"symbol":"xau","tf":"4h","from":"neutral","to":"bullish","atISO":"2026-10-19T05:07:37.479Z"},{"symbol":"xau","tf":"15m","from":"bearish","to":"bullish","atISO":"2026-10-19T04:32:41.769Z"}]},"source":"live"}</script>
+<script type="application/json" id="sd-snapshot">{"generatedAt":"2026-10-19T09:40:06.665Z","news":{"feedStatus":"cached","lastFetchISO":"2026-10-19T09:39:43.863Z","digest":"امروز بازارها با انتظار انتشار شاخص‌های تورمی آمریکا در ساعت ۱۶:۰۰ تهران مواجه‌اند که روند نرخ دلار را تعیین خواهند کرد. هرگونه انحراف داده‌ها از پیش‌بینی‌ها می‌تواند نوسانات شدیدی را در جفت‌ارزها و طلا ایجاد کند. تمرکز اصلی بر شاخص‌های کلیدی مانند CPI میانه و اصلاح‌شده است که تصویر روشن‌تری از فشارهای تورمی ارائه می‌دهند. معامله‌گران باید آماده واکنش سریع به نتایج باشند چون احتمالاً حرکات قیمتی شدیدی را شاهد خواهیم بود.","translatedNow":0,"pendingTranslation":0,"events":[{"id":"691cce25d4b0f92f092971a5246befcf","title":"CPI m/m","titleFa":"شاخص قیمت مصرف‌کننده ماهانه (CPI)","country":"CAD","dateISO":"2026-10-19T12:30:00.000Z","allDay":false,"impact":"High","forecast":"0.2%","previous":"-0.1%","actual":null,"direction":"mixed","explanationFa":"این شاخص نرخ تورم کانادا را اندازه می‌گیرد و برای ارزش دلار کانادا مهم است. تأثیر اصلی بر دلار کانادا است، اما با توجه به ماهیت تورمی، می‌تواند بر دلار آمریکا نیز اگذاشته شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.75,"xauUp":0.25,"djiUp":0.25,"cmp":"above"}},{"id":"770cefe021623ab201e8c39cacf95d8a","title":"Median CPI y/y","titleFa":"شاخص قیمت مصرف‌کننده میانه سالانه (Median CPI)","country":"CAD","dateISO":"2026-10-19T12:30:00.000Z","allDay":false,"impact":"High","forecast":"2.0%","previous":"2.0%","actual":null,"direction":"mixed","explanationFa":"این شاخص یک معیار کلیدی برای اندازه‌گیری تورم پایه در کانادا محسوب می‌شود و به بانک مرکزی کانادا در تصمیم‌گیری‌های سیاستی کمک می‌کند. تأثیر اصلی بر دلار کانادا است، اما با توجه به ماهیت تورمی، می‌تواند بر دلار آمریکا نیز اگذاشته شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.5,"xauUp":0.5,"djiUp":0.5,"cmp":"equal"}},{"id":"f5ca417ad9b16797289fac1d93b0c4d2","title":"Trimmed CPI y/y","titleFa":"شاخص قیمت مصرف‌کننده اصلاح‌شده سالانه (Trimmed CPI)","country":"CAD","dateISO":"2026-10-19T12:30:00.000Z","allDay":false,"impact":"High","forecast":"1.9%","previous":"1.9%","actual":null,"direction":"mixed","explanationFa":"این شاخص تورم را بدون لحاظ کردن بیشترین و کمترین تغییرات قیمت اندازه می‌گیرد و به بانک مرکزی کانادا دیدی بهتر از روند تورمی می‌دهد. تأثیر اصلی بر دلار کانادا است، اما با توجه به ماهیت تورمی، می‌تواند بر دلار آمریکا نیز اگذاشته شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.5,"xauUp":0.5,"djiUp":0.5,"cmp":"equal"}},{"id":"7170c18f6119138239a23648423bbfc6","title":"Common CPI y/y","titleFa":"شاخص قیمت مصرف‌کننده مشترک سالانه (Common CPI)","country":"CAD","dateISO":"2026-10-19T12:30:00.000Z","allDay":false,"impact":"Medium","forecast":"2.6%","previous":"2.6%","actual":null,"direction":"mixed","explanationFa":"این شاخص تورم را در بخش‌های پرتکرار اقتصاد کانادا اندازه می‌گیرد و برای بانک مرکزی مهم است. تأثیر اصلی بر دلار کانادا است، اما با توجه به ماهیت تورمی، می‌تواند بر دلار آمریکا نیز اگذاشته شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.5,"xauUp":0.5,"djiUp":0.5,"cmp":"equal"}},{"id":"27b50af31c045dbef79627a53c4a050c","title":"NAHB Housing Market Index","titleFa":"شاخص بازار مسکن انجمن ملی سازندگان مسکن (NAHB)","country":"USD","dateISO":"2026-10-19T14:00:00.000Z","allDay":false,"impact":"Low","forecast":"31","previous":"32","actual":null,"direction":"neutral","explanationFa":"این شاخص سطح اطمینان سازندگان مسکن را اندازه می‌گیرد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.35,"xauUp":0.5,"djiUp":0.5,"cmp":"below"}},{"id":"342eb0f9fa60fec98a455a496be48ca6","title":"Average Earnings Index 3m/y","titleFa":"شاخص میانگین دستمزد ۳ ماهه (Average Earnings Index 3m/y)","country":"GBP","dateISO":"2026-10-20T06:00:00.000Z","allDay":false,"impact":"Medium","forecast":"3.8%","previous":"3.9%","actual":null,"direction":"bullish","explanationFa":"این شاخص رشد دستمزدهای بریتانیا را اندازه می‌گیرد و یک شاخص کلیدی برای تورم و سیاست پولی بانک مرکزی انگلیس است. اگر این عدد بالاتر از پیش‌بینی ۳.۸٪ باشد، پوند تقویت شده و دلار تضعیف می‌شود و برعکس.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.35,"xauUp":0.65,"djiUp":0.35,"cmp":"below"}},{"id":"f53e60bae4affe8b395e0f89c584de3d","title":"ADP Weekly Employment Change","titleFa":"تغییرات اشتغال هفتگی ADP","country":"USD","dateISO":"2026-10-20T12:15:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":"24.8K","actual":null,"direction":"neutral","explanationFa":"این گزارش تعداد شغل‌های ایجاد شده در بخش خصوصی آمریکا را نشان می‌دهد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"abd33da87d5253c7f623b8dd8873d29d","title":"Building Permits","titleFa":"مجوزهای ساخت‌وساز","country":"USD","dateISO":"2026-10-20T12:30:00.000Z","allDay":false,"impact":"Low","forecast":"1.39M","previous":"1.39M","actual":null,"direction":"neutral","explanationFa":"این شاخص تعداد مجوزهای ساخت‌وساز صادر شده را اندازه می‌گیرد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.5,"xauUp":0.5,"djiUp":0.5,"cmp":"equal"}},{"id":"e6f1987facd645a0d58cedbd7abedd2b","title":"Housing Starts","titleFa":"شروع ساخت‌وساز مسکن","country":"USD","dateISO":"2026-10-20T12:30:00.000Z","allDay":false,"impact":"Low","forecast":"1.30M","previous":"1.28M","actual":null,"direction":"neutral","explanationFa":"این شاخص تعداد واحدهای مسکونی جدیدی که ساخت‌وساز آنها شروع شده را نشان می‌دهد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.6,"xauUp":0.5,"djiUp":0.5,"cmp":"above"}},{"id":"d264cbd1fbd3acd0ab24ec5a4a930c19","title":"Pending Home Sales m/m","titleFa":"شاخص فروش مسکن معوق ماهانه (Pending Home Sales m/m)","country":"USD","dateISO":"2026-10-20T14:00:00.000Z","allDay":false,"impact":"Low","forecast":"-0.4%","previous":"0.3%","actual":null,"direction":"neutral","explanationFa":"این شاخص میزان فروش‌های مسکن بسته‌شده ولی هنوز به طور نهایی ثبت‌نشده را اندازه می‌گیرد که یک شاخص پیشرو برای بازار مسکن است. به‌دلیل اهمیت کم، تأثیر قابل توجهی بر ارزش دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.25,"xauUp":0.5,"djiUp":0.5,"cmp":"below"}},{"id":"e493fc0378a829784e1e8ba78b6e7984","title":"API Weekly Statistical Bulletin","titleFa":"بولتن آمار هفتگی انجمن نفت آمریکا (API)","country":"USD","dateISO":"2026-10-20T20:30:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":null,"actual":null,"direction":"neutral","explanationFa":"این گزارش آمار هفتگی ذخایر نفت خام آمریکا را نشان می‌دهد که بر قیمت نفت تأثیر دارد، اما تأثیر مستقیمی بر دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"598aa25b00349ad3dd89f80a492182d9","title":"CPI y/y","titleFa":"شاخص قیمت مصرف‌کننده سالانه (CPI)","country":"GBP","dateISO":"2026-10-21T06:00:00.000Z","allDay":false,"impact":"High","forecast":"3.4%","previous":"3.1%","actual":null,"direction":"bearish","explanationFa":"این شاخص نرخ تورم بریتانیا را نشان می‌دهد و بانک انگلیس را تحت تأثیر قرار می‌دهد. اگر این عدد بالاتر از پیش‌بینی باشد، پوند تقویت شده و از دلار فاصله می‌گیرد. اگر پایین‌تر باشد، پوند تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.75,"xauUp":0.25,"djiUp":0.25,"cmp":"above"}},{"id":"09a3805974c3ab7e73e029e47c27ea9a","title":"BOE Gov Bailey Speaks","titleFa":"سخنرانی مدیر بانک مرکزی انگلیس (BOE Gov Bailey Speaks)","country":"GBP","dateISO":"2026-10-21T13:00:00.000Z","allDay":false,"impact":"Medium","forecast":null,"previous":null,"actual":null,"direction":"mixed","explanationFa":"اظهارات مدیر بانک مرکزی انگلیس می‌تواند در مورد سیاست پولی و اقتصاد کشور باشد. تأثیر آن بر پوند و دلار بستگی به محتوای سخنرانی دارد و معمولاً دووجهی است.","xauAbove":"mixed","xauBelow":"mixed","djiAbove":"mixed","djiBelow":"mixed","outlook":null},{"id":"c302cd4bd85fb9a0adaed66886a96e0a","title":"Crude Oil Inventories","titleFa":"موجودی نفت خام","country":"USD","dateISO":"2026-10-21T14:30:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":"-8.6M","actual":null,"direction":"neutral","explanationFa":"این گزارش تغییرات هفتگی ذخایر نفت خام در ایالات متحده را اندازه‌گیری می‌کند که بر قیمت نفت تأثیر مستقیم دارد، اما تأثیر مستقیمی بر دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"ceb28c00c6cddf8cb212b8719af5fb2e","title":"CPI q/q","titleFa":"شاخص قیمت مصرف‌کننده فصلی (CPI)","country":"NZD","dateISO":"2026-10-21T21:45:00.000Z","allDay":false,"impact":"High","forecast":"0.8%","previous":"1.5%","actual":null,"direction":"bullish","explanationFa":"این شاخص تورم را در یک بازه زمانی سه ماهه در نیوزیلند اندازه‌گیری می‌کند. اگر این عدد بالاتر از پیش‌بینی باشد، دلار نیوزیلند تقویت می‌شود و اگر پایین‌تر باشد، تضعیف خواهد شد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.25,"xauUp":0.75,"djiUp":0.75,"cmp":"below"}},{"id":"228c11804005350814520e97836683d2","title":"Unemployment Claims","titleFa":"تعداد درخواست‌های بیکاری (Unemployment Claims)","country":"USD","dateISO":"2026-10-22T12:30:00.000Z","allDay":false,"impact":"Medium","forecast":"200K","previous":"199K","actual":null,"direction":"bullish","explanationFa":"این شاخص تعداد افراد جدیدی که برای دریافت مزایای بیکاری ثبت‌نام کرده‌اند را نشان می‌دهد. افزایش درخواست‌های بیکاری نشانه ضعف بازار کار آمریکا است. اگر این number بالاتر از پیش‌بینی ۲۰۰K باشد، دلار تضعیف و طلا تقویت می‌شود و برعکس.","xauAbove":"bullish","xauBelow":"bearish","djiAbove":"bearish","djiBelow":"bullish","outlook":{"pAbove":0.6,"xauUp":0.6,"djiUp":0.4,"cmp":"above"}},{"id":"cd0de7fceafa1ca4a0d0db7bbf770c13","title":"CB Leading Index m/m","titleFa":"شاخص پیشرو کانادا ماهانه","country":"USD","dateISO":"2026-10-22T14:00:00.000Z","allDay":false,"impact":"Low","forecast":"-0.2%","previous":"-0.1%","actual":null,"direction":"neutral","explanationFa":"این شاخص ترکیبی از داده‌های اقتصادی است که جهت فعالیت اقتصادی آینده را پیش‌بینی می‌کند. به‌دلیل اهمیت کم، تأثیر قابل توجهی بر ارزش دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":{"pAbove":0.25,"xauUp":0.5,"djiUp":0.5,"cmp":"below"}},{"id":"fc42d4fbb3bf1f3fac0f93248cf614a8","title":"Natural Gas Storage","titleFa":"ذخایر گاز طبیعی","country":"USD","dateISO":"2026-10-22T14:30:00.000Z","allDay":false,"impact":"Low","forecast":null,"previous":"67B","actual":null,"direction":"neutral","explanationFa":"این گزارش تغییرات هفتگی ذخایر گاز طبیعی در ایالات متحده را نشان می‌دهد که بر قیمت گاز تأثیر دارد، اما تأثیر مستقیمی بر دلار ندارد.","xauAbove":"neutral","xauBelow":"neutral","djiAbove":"neutral","djiBelow":"neutral","outlook":null},{"id":"67cb596711fed36540a320996db416e6","title":"Retail Sales m/m","titleFa":"فروش‌های خرده‌فروشی ماهانه (Retail Sales m/m)","country":"GBP","dateISO":"2026-10-23T06:00:00.000Z","allDay":false,"impact":"Medium","forecast":"-0.2%","previous":"0.5%","actual":null,"direction":"bearish","explanationFa":"این شاخص حجم فروش خرده‌فروشی در بریتانیا را اندازه می‌گیرد و یک معیار کلیدی از قدرت مصرف‌کننده است. اگر این number بالاتر از پیش‌بینی -۰.۲٪ باشد (یعنی کاهش کمتر از انتظار یا رشد)، پوند تقویت شده و دلار تضعیف می‌شود و برعکس.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.25,"xauUp":0.75,"djiUp":0.25,"cmp":"below"}},{"id":"6a86ccb5b836a0c145908f58ffdb78c1","title":"French Flash Manufacturing PMI","titleFa":"شاخص مدیران خرید بخش تولید فرانسه (Flash Manufacturing PMI)","country":"EUR","dateISO":"2026-10-23T07:15:00.000Z","allDay":false,"impact":"Medium","forecast":"50.6","previous":"50.3","actual":null,"direction":"bearish","explanationFa":"این شاخص سلامت بخش تولیدی فرانسه را نشان می‌دهد. اگر این عدد بالاتر از پیش‌بینی باشد، یورو تقویت می‌شود و اگر پایین‌تر باشد، یورو تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.6,"xauUp":0.4,"djiUp":0.6,"cmp":"above"}},{"id":"e0871f9e09aa6d15ba3df0387786de48","title":"French Flash Services PMI","titleFa":"شاخص مدیران خرید بخش خدمات فرانسه (Flash Services PMI)","country":"EUR","dateISO":"2026-10-23T07:15:00.000Z","allDay":false,"impact":"Medium","forecast":"50.8","previous":"51.4","actual":null,"direction":"bearish","explanationFa":"این شاخص سلامت بخش خدمات فرانسه را نشان می‌دهد. اگر این عدد بالاتر از پیش‌بینی باشد، یورو تقویت می‌شود و اگر پایین‌تر باشد، یورو تضعیف می‌شود.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.4,"xauUp":0.6,"djiUp":0.4,"cmp":"below"}},{"id":"9f8b59ac7e981f043bbd7eccb42c0119","title":"German Flash Manufacturing PMI","titleFa":"شاخص مدیران خرید بخش تولید آلمان (Flash Manufacturing PMI)","country":"EUR","dateISO":"2026-10-23T07:30:00.000Z","allDay":false,"impact":"Medium","forecast":"53.5","previous":"53.8","actual":null,"direction":"bearish","explanationFa":"این شاخص سلامت بخش تولیدی آلمان را اندازه می‌گیرد و به‌دلیل اهمیت اقتصاد آلمان در اروپا، بر ارزش یورو و به‌تبع آن بر دلار تأثیرگذار است. اگر این عدد بالاتر از پیش‌بینی ۵۳.۵ باشد، یورو تقویت شده و دلار تضعیف می‌شود و برعکس.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.4,"xauUp":0.6,"djiUp":0.4,"cmp":"below"}},{"id":"06680e4b5e68b4512ca134482cbcd3ab","title":"German Flash Services PMI","titleFa":"شاخص مدیران خرید بخش خدمات آلمان (Flash Services PMI)","country":"EUR","dateISO":"2026-10-23T07:30:00.000Z","allDay":false,"impact":"Medium","forecast":"52.6","previous":"52.9","actual":null,"direction":"bearish","explanationFa":"این شاخص سلامت بخش خدمات آلمان را نشان می‌دهد و به‌دلیل اهمیت این بخش، بر ارزش یورو و دلار تأثیر دارد. اگر این عدد بالاتر از پیش‌بینی ۵۲.۶ باشد، یورو تقویت و دلار تضعیف می‌شود و برعکس.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.4,"xauUp":0.6,"djiUp":0.4,"cmp":"below"}},{"id":"63f547d337dd97c83dbaf92fe7660217","title":"Flash Manufacturing PMI","titleFa":"شاخص مدیران خرید بخش تولید بریتانیا (Flash Manufacturing PMI)","country":"GBP","dateISO":"2026-10-23T08:30:00.000Z","allDay":false,"impact":"Medium","forecast":"51.8","previous":"52.0","actual":null,"direction":"bearish","explanationFa":"این شاخص سلامت بخش تولیدی بریتانیا را نشان می‌دهد و بر ارزش پوند و دلار تأثیر می‌گذارد. اگر این number بالاتر از پیش‌بینی ۵۱.۸ باشد، پوند تقویت شده و دلار تضعیف می‌شود و برعکس.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.4,"xauUp":0.6,"djiUp":0.4,"cmp":"below"}},{"id":"1e888eae2aec09bf526ef059acd46449","title":"Flash Services PMI","titleFa":"شاخص مدیران خرید بخش خدمات بریتانیا (Flash Services PMI)","country":"GBP","dateISO":"2026-10-23T08:30:00.000Z","allDay":false,"impact":"Medium","forecast":"51.8","previous":"51.7","actual":null,"direction":"bullish","explanationFa":"این شاخص سلامت بخش خدمات بریتانیا را اندازه می‌گیرد و بخش بزرگی از اقتصاد این کشور را تشکیل می‌دهد. اگر این number بالاتر از پیش‌بینی ۵۱.۸ باشد، پوند تقویت شده و دلار تضعیف می‌شود و برعکس.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.6,"xauUp":0.4,"djiUp":0.6,"cmp":"above"}},{"id":"73e014aed2585ef8d8da205ca3f67ccc","title":"Flash Manufacturing PMI","titleFa":"شاخص مدیران خرید بخش تولیدی لحظه‌ای (PMI)","country":"USD","dateISO":"2026-10-23T13:45:00.000Z","allDay":false,"impact":"Medium","forecast":"55.5","previous":"57.0","actual":null,"direction":"mixed","explanationFa":"این شاخص سلامت بخش تولیدی آمریکا را اندازه می‌گیرد. عدد بالاتر از ۵۰ نشان‌دهنده رشد است. اگر این عدد بالاتر از پیش‌بینی باشد نرخ دلار افزایش می‌یابد و اگر پایین‌تر باشد نرخ دلار کاهش می‌یابد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.35,"xauUp":0.65,"djiUp":0.35,"cmp":"below"}},{"id":"ed9c086026080c57e41b19c482d18ea6","title":"Flash Services PMI","titleFa":"شاخص مدیران خرید بخش خدمات لحظه‌ای (PMI)","country":"USD","dateISO":"2026-10-23T13:45:00.000Z","allDay":false,"impact":"Medium","forecast":"58.0","previous":"58.7","actual":null,"direction":"mixed","explanationFa":"این شاخص سلامت بخش خدمات بزرگ اقتصاد آمریکا را اندازه می‌گیرد. عدد بالاتر از ۵۰ نشان‌دهنده رشد است. اگر این عدد بالاتر از پیش‌بینی باشد نرخ دلار افزایش می‌یابد و اگر پایین‌تر باشد نرخ دلار کاهش می‌یابد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.4,"xauUp":0.6,"djiUp":0.4,"cmp":"below"}},{"id":"7f07df6bc1ffc6db54646c811e4670e9","title":"Revised UoM Consumer Sentiment","titleFa":"نظرگاه مصرف‌کننده دانشگاه میشیگان (اصلاح‌شده)","country":"USD","dateISO":"2026-10-23T14:00:00.000Z","allDay":false,"impact":"Medium","forecast":"46.3","previous":"46.3","actual":null,"direction":"mixed","explanationFa":"این شاخص سطح اطمینان و خرج کردن مصرف‌کنندگان را اندازه می‌گیرد. اگر این عدد بالاتر از پیش‌بینی باشد نرخ دلار افزایش می‌یابد و اگر پایین‌تر باشد نرخ دلار کاهش می‌یابد.","xauAbove":"bearish","xauBelow":"bullish","djiAbove":"bullish","djiBelow":"bearish","outlook":{"pAbove":0.5,"xauUp":0.5,"djiUp":0.5,"cmp":"equal"}},{"id":"a1aa5e015e62996cf2f4140baa2edeaf","title":"Revised UoM Inflation Expectations","titleFa":"تورم مورد انتظار مصرف‌کننده دانشگاه میشیگان (اصلاح‌شده)","country":"USD","dateISO":"2026-10-23T14:00:00.000Z","allDay":false,"impact":"Medium","forecast":null,"previous":"4.7%","actual":null,"direction":"mixed","explanationFa":"این شاخص انتظارات مصرف‌کنندگان از تورم آینده را نشان می‌دهد. انتظارات تورمی بالاتر معمولاً برای دلار منفی است.","xauAbove":"bullish","xauBelow":"bearish","djiAbove":"bearish","djiBelow":"bullish","outlook":null}]},"market":{"status":"cached","updatedAtISO":"2026-10-19T09:34:44.261Z","xau":{"key":"xau","price":4189.9,"prevClose":4181.10009765625,"changePct":0.21046858812785882,"rows":[{"tf":"5m","trend":"bearish","strength":100,"ma":"bearish","swing":"bearish","bars":890},{"tf":"15m","trend":"neutral","strength":0,"ma":"bearish","swing":"bullish","bars":299},{"tf":"1h","trend":"bullish","strength":100,"ma":"bullish","swing":"bullish","bars":1484},{"tf":"4h","trend":"neutral","strength":0,"ma":"neutral","swing":"neutral","bars":399},{"tf":"1d","trend":"bearish","strength":100,"ma":"bearish","swing":"bearish","bars":251},{"tf":"1wk","trend":"bearish","strength":50,"ma":"neutral","swing":"bearish","bars":262},{"tf":"1mo","trend":"bullish","strength":100,"ma":"bullish","swing":"bullish","bars":104}],"okCount":7},"dji":{"key":"dji","price":52002.41,"prevClose":52177.69140625,"changePct":-0.33593170093570063,"rows":[{"tf":"5m","trend":"bearish","strength":50,"ma":"neutral","swing":"bearish","bars":391},{"tf":"15m","trend":"bearish","strength":100,"ma":"bearish","swing":"bearish","bars":131},{"tf":"1h","trend":"bullish","strength":100,"ma":"bullish","swing":"bullish","bars":456},{"tf":"4h","trend":"neutral","strength":0,"ma":"neutral","swing":"neutral","bars":131},{"tf":"1d","trend":"bearish","strength":100,"ma":"bearish","swing":"bearish","bars":251},{"tf":"1wk","trend":"bullish","strength":100,"ma":"bullish","swing":"bullish","bars":262},{"tf":"1mo","trend":"bullish","strength":100,"ma":"bullish","swing":"bullish","bars":121}],"okCount":7},"changes":[{"symbol":"xau","tf":"15m","from":"bullish","to":"neutral","atISO":"2026-10-19T09:34:44.261Z"},{"symbol":"xau","tf":"4h","from":"bullish","to":"neutral","atISO":"2026-10-19T08:13:11.687Z"},{"symbol":"xau","tf":"4h","from":"neutral","to":"bullish","atISO":"2026-10-19T07:19:36.397Z"},{"symbol":"xau","tf":"15m","from":"neutral","to":"bullish","atISO":"2026-10-19T07:04:31.915Z"},{"symbol":"xau","tf":"15m","from":"bullish","to":"neutral","atISO":"2026-10-19T06:42:21.915Z"},{"symbol":"xau","tf":"4h","from":"bullish","to":"neutral","atISO":"2026-10-19T05:22:38.125Z"},{"symbol":"xau","tf":"4h","from":"neutral","to":"bullish","atISO":"2026-10-19T05:07:37.479Z"},{"symbol":"xau","tf":"15m","from":"bearish","to":"bullish","atISO":"2026-10-19T04:32:41.769Z"}]},"source":"live"}</script>
 <script>(function(){
 'use strict';
 /* ================= رصدگر دلار — نسخه فایل مستقل =================
@@ -729,7 +762,7 @@ function saveSettings() { lsSet(SETTINGS_KEY, JSON.stringify(settings)); }
 var GRID_KEY = 'sd_grid_order_v1';
 var HINT_KEY = 'sd_hint_v1';
 var DISMISS_KEY = 'sd_banner_dismiss_v1';
-var DEFAULT_ORDER = ['news', 'structure', 'suggestion', 'chart', 'trader', 'about'];
+var DEFAULT_ORDER = ['news', 'structure', 'suggestion', 'scalp', 'chart', 'trader', 'about'];
 
 /* ---------- توابع تاریخ تهران ---------- */
 var TEHRAN = 'Asia/Tehran';
@@ -764,6 +797,7 @@ var IC = {
   newspaper: '<path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/>',
   activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
   crosshair: '<circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/>',
+  zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
   target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
   info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
@@ -886,6 +920,7 @@ var APPS = {
   news: { label: 'اخبار دلار', cls: 'g-news', ic: 'newspaper' },
   structure: { label: 'ساختار بازار', cls: 'g-structure', ic: 'activity' },
   suggestion: { label: 'پیشنهاد معامله', cls: 'g-suggestion', ic: 'crosshair' },
+  scalp: { label: 'سیگنال اسکلپ اونس', cls: 'g-scalp', ic: 'zap' },
   chart: { label: 'چارت تریدینگ‌ویو', cls: 'g-chart', ic: 'candles' },
   trader: { label: 'دستیار معامله‌گر', cls: 'g-trader', ic: 'briefcase' },
   about: { label: 'درباره', cls: 'g-about', ic: 'info' }
@@ -1949,6 +1984,11 @@ function renderNewsApp() {
 
 /* ---------- پیشنهاد معامله ---------- */
 var SUG = { st: '1h', en: '5m' };
+/* تایم‌فریم‌های ساختار قابل انتخاب توسط کاربر — ۵ دقیقه هم اضافه شد (داده در اسنپ‌شات موجود است) */
+var SUG_ST_TFS = ['5m', '15m', '1h', '4h', '1d', '1wk', '1mo'];
+function sugStOptions() {
+  return SUG_ST_TFS.map(function (tf) { return '<option value="' + tf + '"' + (SUG.st === tf ? ' selected' : '') + '>' + TF_LONG[tf] + '</option>'; }).join('');
+}
 function validEntries(st) {
   return ['5m', '15m', '1h', '4h'].filter(function (tf) { return TF_MINUTES[tf] <= TF_MINUTES[st]; });
 }
@@ -1991,7 +2031,7 @@ function sugCardHTML(name, mono, symKey) {
 }
 function sugBoxHTML() {
   var enTf = effectiveEntry();
-  var stOpts = TF_ORDER.map(function (tf) { return '<option value="' + tf + '"' + (SUG.st === tf ? ' selected' : '') + '>' + TF_LONG[tf] + '</option>'; }).join('');
+  var stOpts = sugStOptions();
   var enOpts = validEntries(SUG.st).map(function (tf) { return '<option value="' + tf + '"' + (enTf === tf ? ' selected' : '') + '>' + TF_LONG[tf] + '</option>'; }).join('');
   return '<div class="sug">' +
     '<div class="sug-head">' + icon('crosshair', 16) + '<span class="sug-t">پیشنهاد معامله</span><span class="sug-s">ترکیب تایم‌فریم ساختار و تایم‌فریم ورود</span></div>' +
@@ -2080,9 +2120,11 @@ function renderStructureApp() {
 function renderSuggestionApp() {
   appScroll.innerHTML = '<div class="app-pad">' +
     '<div class="sug-slot">' + sugBoxHTML() + '</div>' +
-    '<p class="ms-note">این اپ همان منطق پیشنهاد معامله داخل اپ «ساختار بازار» است — ترکیب جهت تایم‌فریم ساختار و تایم‌فریم ورود. داده‌ها اسنپ‌شات لحظه تولید فایل‌اند؛ پیشنهاد معامله سیگنال معاملاتی نیست.</p>' +
+    '<div data-sc-slot>' + scContentHTML(false, null) + '</div>' +
+    '<p class="ms-note">بخش اول: ترکیب جهت تایم‌فریم ساختار و تایم‌فریم ورود (هر دو قابل انتخاب توسط شما). بخش دوم «پیشنهاد اسکلپ»: پورت اندیکاتور SBW + اوردر بلاک + ستاپ ۴ساعته + واگرایی روی کندل‌های زنده Yahoo — نماد و تایم‌فریم دلخواه را انتخاب کنید. داده بخش اول اسنپ‌شات لحظه تولید فایل است؛ پیشنهاد معامله سیگنال معاملاتی نیست.</p>' +
     '</div>';
   bindSug();
+  renderScalpBox(false);
 }
 
 /* ---------- اپ چارت TradingView ---------- */
@@ -2203,7 +2245,15 @@ function chartEnsureAuto() {
   });
 }
 
-/* ---------- تحلیل هوشمند محلی (الگوریتمی — کندل‌های همان نماد/تایم‌فریم از Yahoo) ---------- */
+/* ---------- تحلیل هوشمند (تب دستیار معامله‌گر — مستقل از چارت) ---------- */
+var AI_KEY_STORE = 'sd_ai_v1';
+var S_AI = { sym: 'OANDA:XAUUSD', tf: '15' };
+function aiApply(sym, tf) {
+  if (CHART_YAHOO[sym]) S_AI.sym = sym;
+  if (CHART_ITV[tf]) S_AI.tf = tf;
+  lsSet(AI_KEY_STORE, JSON.stringify(S_AI));
+  aiSyncStale();
+}
 var CHART_YAHOO = {
   'OANDA:XAUUSD': { y: 'GC=F', name: 'طلا — XAUUSD' },
   'OANDA:XAGUSD': { y: 'SI=F', name: 'نقره — XAGUSD' },
@@ -2217,12 +2267,16 @@ var CHART_ITV = {
   '240': { i: '1h', r: '6mo', label: '۴ ساعته', lb: 3, agg: 4, atr: [0.3, 0.8] },
   'D': { i: '1d', r: '1y', label: 'روزانه', lb: 2, atr: [0.7, 1.6] }
 };
+try {
+  var _aiS = JSON.parse(lsGet(AI_KEY_STORE) || 'null');
+  if (_aiS && CHART_YAHOO[_aiS.sym] && CHART_ITV[_aiS.tf]) S_AI = { sym: _aiS.sym, tf: _aiS.tf };
+} catch (e) {}
 var AI_TTL = 15 * 60 * 1000;
 var AI_CACHE = {};
 var AI_BUSY = false;
 var AI_STATE = { key: null, text: '', at: null };
-function aiKey() { return S_CHART.sym + '@' + S_CHART.tf; }
-function aiTfLabel() { var c = CHART_ITV[S_CHART.tf]; return c ? c.label : S_CHART.tf; }
+function aiKey() { return S_AI.sym + '@' + S_AI.tf; }
+function aiTfLabel() { var c = CHART_ITV[S_AI.tf]; return c ? c.label : S_AI.tf; }
 function aiPx(v) {
   var d = v >= 10 ? 2 : 4;
   return faDigits(Number(v).toLocaleString('en-US', { maximumFractionDigits: d })).replace(/,/g, '٬');
@@ -2386,8 +2440,8 @@ function aiSyncHeader() {
   var p = document.getElementById('ai_panel');
   if (!p) return;
   var t = p.querySelector('.ai-head .t');
-  var cfg = CHART_YAHOO[S_CHART.sym];
-  if (t) t.textContent = 'تحلیل هوش مصنوعی — ' + (cfg ? cfg.name : S_CHART.sym) + ' · ' + aiTfLabel();
+  var cfg = CHART_YAHOO[S_AI.sym];
+  if (t) t.textContent = 'تحلیل هوشمند — ' + (cfg ? cfg.name : S_AI.sym) + ' · ' + aiTfLabel();
 }
 function aiRenderLoading() {
   var b = aiBody();
@@ -2430,8 +2484,8 @@ function runAi(force) {
     aiRenderText();
     return;
   }
-  var cfg = CHART_YAHOO[S_CHART.sym];
-  var itv = CHART_ITV[S_CHART.tf];
+  var cfg = CHART_YAHOO[S_AI.sym];
+  var itv = CHART_ITV[S_AI.tf];
   if (!cfg || !itv) { aiRenderError('این نماد در موتور تحلیل پشتیبانی نمی‌شود.'); return; }
   AI_BUSY = true;
   setAiBusy(true);
@@ -2467,38 +2521,16 @@ function renderChartApp() {
     '<div class="chart-chips no-scrollbar" data-chart-syms>' + chartChipRowHTML(CHART_SYMS, 'sym') + '</div>' +
     '<div class="chart-tfrow">' +
       '<div class="chart-chips no-scrollbar" data-chart-tfs>' + chartChipRowHTML(CHART_TFS, 'tf') + '</div>' +
-      '<button type="button" class="cchip ai-btn" id="ai_btn" title="تحلیل الگوریتمی همان نماد و تایم‌فریم انتخابی">' + icon('sparkles', 12) + 'تحلیل هوشمند</button>' +
       '<button type="button" class="cchip tv-login" id="tv_login_btn" title="ویجت داخلی لاگین ندارد — با حساب خودتان در سایت اصلی وارد شوید">' + icon('ext', 12) + 'ورود به حساب</button>' +
+      '<span class="cchip ai-here" title="تحلیل هوشمند به دستیار معامله‌گر منتقل شد">' + icon('sparkles', 12) + 'تحلیل هوشمند → دستیار</span>' +
     '</div>' +
     '<div id="tv_chart"><div class="tv-state tv-loading">در حال بارگذاری چارت TradingView…</div></div>' +
-    '<div id="ai_panel" hidden>' +
-      '<div class="ai-head"><span style="display:inline-flex;flex:none">' + icon('sparkles', 13) + '</span><span class="t">تحلیل هوش مصنوعی</span><span class="at" id="ai_at"></span>' +
-      '<button type="button" class="ai-rf" data-ai-refresh title="بروزرسانی تحلیل">' + icon('refresh', 11) + '</button>' +
-      '<button type="button" class="ai-x" data-ai-close aria-label="بستن تحلیل">' + icon('x', 12) + '</button></div>' +
-      '<div class="ai-body"><div class="ai-state">برای شروع، دکمه «تحلیل هوشمند» را بزنید</div></div>' +
-      '<p class="ai-foot">موتور تحلیل: الگوریتم محلی (EMA/RSI/ATR/سوئینگ) روی کندل‌های Yahoo Finance — صرفاً اطلاع‌رسانی است و توصیه معاملاتی نیست.</p>' +
-    '</div>' +
-    '<p class="chart-note">رسم‌ها و اندیکاتورهای داخل ویجت ذخیره نمی‌شوند — برای ذخیره با حساب خودتان از دکمه «ورود به حساب» استفاده کنید. «تحلیل هوشمند» کندل‌های همان نماد و تایم‌فریم را از Yahoo Finance می‌گیرد (نیازمند اینترنت)؛ در نسخه وب ابزار، همین بخش با هوش مصنوعی مولد ارائه می‌شود.</p>' +
+    '<p class="chart-note">رسم‌ها و اندیکاتورهای داخل ویجت ذخیره نمی‌شوند — برای ذخیره با حساب خودتان از دکمه «ورود به حساب» استفاده کنید. «تحلیل هوشمند» به تب تحلیل هوشمند دستیار معامله‌گر منتقل شده است (نماد و تایم‌فریم دلخواه خودتان را آنجا انتخاب کنید).</p>' +
     '</div>';
   bindChartChips();
   var lb = appScroll.querySelector('#tv_login_btn');
   if (lb) lb.addEventListener('click', function () {
     try { window.open('https://www.tradingview.com/chart/?symbol=' + encodeURIComponent(S_CHART.sym), '_blank', 'noopener'); } catch (e) {}
-  });
-  var ab = appScroll.querySelector('#ai_btn');
-  if (ab) ab.addEventListener('click', function () {
-    var p = document.getElementById('ai_panel');
-    if (!p) return;
-    p.hidden = false;
-    aiSyncHeader();
-    runAi(false);
-  });
-  var rf = appScroll.querySelector('[data-ai-refresh]');
-  if (rf) rf.addEventListener('click', function () { runAi(true); });
-  var xc = appScroll.querySelector('[data-ai-close]');
-  if (xc) xc.addEventListener('click', function () {
-    var p = document.getElementById('ai_panel');
-    if (p) p.hidden = true;
   });
   chartEnsureAuto();
 }
@@ -2524,7 +2556,8 @@ function renderAboutApp() {
     '<li>• اخبار اقتصادی USD: ForexFactory با ترجمه و تحلیل تأثیر هوش مصنوعی (در لحظه تولید فایل).</li>' +
     '<li>• قیمت طلا (فیوچرز COMEX — همبستگی نزدیک به XAUUSD) و داو جونز: Yahoo Finance — بروزرسانی زنده اختیاری.</li>' +
     '<li>• ساختار بازار: ترکیب EMA۲۰/۵۰ و سقف/کف‌های سوئینگ در ۶ تایم‌فریم + تایم‌فریم ورود ۵ دقیقه.</li>' +
-    '<li>• چارت تریدینگ‌ویو + «تحلیل هوشمند» + دستیار معامله‌گر (BIG TRADER): امتیاز اطمینان، پلن معامله، سناریوی خبری، واگرایی DXY و ژورنال رفتاری.</li>' +
+    '<li>• چارت تریدینگ‌ویو + دستیار معامله‌گر (BIG TRADER): امتیاز اطمینان، ماشین‌حساب حجم/حد ضرر و حد سود، تحلیل هوشمند، سناریوی خبری و عوامل کمّی.</li>' +
+    '<li>• پیشنهاد اسکلپ و سیگنال اسکلپ اونس: پورت اندیکاتور SBW + اوردر بلاک FVG + ستاپ ۴ساعته + واگرایی روی کندل‌های زنده Yahoo Finance.</li>' +
     '</ul></section>' +
     '<section class="about-sec"><div class="about-h"><span style="color:var(--violet)">' + icon('sliders', 16) + '</span><h2 class="about-t">این فایل</h2></div>' +
     '<p class="about-p">تولید: ' + faDateLong(gen) + ' — ' + faTime(gen) + ' تهران. این فایل را می‌توانید با ایمیل یا پیام‌رسان برای خودتان یا دیگران بفرستید و روی هر گوشی با مرورگر باز کنید. انتخاب‌ها (ترتیب آیکون‌ها، فیلترها) در همان دستگاه ذخیره می‌شود.</p></section>' +
@@ -2538,6 +2571,7 @@ function renderApp(id, keep) {
   if (id === 'news') renderNewsApp();
   else if (id === 'structure') renderStructureApp();
   else if (id === 'suggestion') renderSuggestionApp();
+  else if (id === 'scalp') renderScalpApp();
   else if (id === 'chart') renderChartApp();
   else if (id === 'trader') renderTraderApp();
   else renderAboutApp();
@@ -2840,7 +2874,7 @@ var BT_SYMS = {
 };
 var BT_TF_FA = { '15m': '۱۵ دقیقه', '1h': '۱ ساعته', '4h': '۴ ساعته', '1d': 'روزانه' };
 var BT_TREND_FA = { bullish: 'صعودی', bearish: 'نزولی', neutral: 'خنثی' };
-var BT_TABS = [['view', 'نمای بازار'], ['plan', 'پلن و ریسک'], ['factors', 'عوامل'], ['news', 'اخبار'], ['journal', 'ژورنال']];
+var BT_TABS = [['view', 'نمای بازار'], ['ai', 'تحلیل هوشمند'], ['factors', 'عوامل'], ['news', 'اخبار']];
 
 /* ---------- وضعیت اپ ---------- */
 var BT = { tab: 'view', sym: 'xau', data: null, busy: false, err: null, changes: [], nudge: '', pmSide: null, checks: {}, plan: null, copied: false, fq: null, fqBusy: false, fqErr: null };
@@ -3480,7 +3514,7 @@ function btDot(t) {
   return '<span class="tdot ' + cls + '">' + icon(t === 'bullish' ? 'trendUp' : t === 'bearish' ? 'trendDown' : 'moveH', 10) + (t ? BT_TREND_FA[t] : '—') + '</span>';
 }
 
-/* ---------- تب نمای بازار ---------- */
+/* ---------- تب نمای بازار (بدون شناسنامه نماد + ماشین‌حساب حجم/حد ضرر و حد سود) ---------- */
 function btViewHTML() {
   var d = BT.data;
   var scoreCls = d.verdict === 'strong' ? 'ok' : d.verdict === 'moderate' ? 'mid' : 'bad';
@@ -3503,12 +3537,6 @@ function btViewHTML() {
     var row = btRowOf(BT.sym, tfs[i]);
     tbl += '<tr><td>' + BT_TF_FA[tfs[i]] + '</td><td>' + btDot(row && row.trend) + '</td><td>' + (row && row.trend ? faDigits(row.strength) + '٪' : '—') + '</td></tr>';
   }
-  var specs = '';
-  for (i = 0; i < d.conf.specs.length; i++) {
-    var s = d.conf.specs[i];
-    specs += '<div class="bt-spec"><span class="k">' + s[0] + '</span><span class="v">' + s[1] + (s[2] ? '<em title="این مقدار به کارگزاری شما بستگی دارد">نیازمند تأیید</em>' : '') + '</span></div>';
-  }
-  var specsNote = '<p class="bt-note" style="border:1px solid rgba(251,191,36,.3);background:rgba(251,191,36,.06);border-radius:8px;padding:6px 8px">چرا «نیازمند تأیید»؟ اندازه قرارداد، ارزش پیپ، اسپرد، ساعات معامله و حداقل حجم به کارگزاری و نوع حساب شما بستگی دارد؛ ابزار مقادیر معمول بازار را نشان می‌دهد و از حدس زدن مشخصات حساب شما خودداری می‌کند. پیش از محاسبه حجم و ریسک، این مقادیر را با پنل کارگزاری خود تطبیق دهید.</p>';
   var changes = BT.changes.length
     ? '<ul class="bt-list">' + BT.changes.map(function (c) { return '<li>' + c + '</li>'; }).join('') + '</ul>'
     : '<p class="bt-note">تغییر قابل‌توجهی نسبت به بازدید قبلی شما ثبت نشده است (یا این اولین بازدید است).</p>';
@@ -3529,17 +3557,13 @@ function btViewHTML() {
       '<div class="bt-cell"><p>همبستگی با DXY</p><b dir="ltr">' + (d.corr === null ? '—' : faDigits(Math.round(d.corr * 100) / 100)) + '</b><span>۳۰ بازده روزانه</span></div>' +
       '</div>' +
       '<p class="bt-note">' + (d.conf.inv ? 'رابطه معمول این نماد با دلار معکوس است؛ ' : 'جهت رابطه این نماد با دلار ثابت فرض نمی‌شود؛ ') + 'حرکت هم‌زمان دلیل علّی نیست و DXY فقط یکی از عوامل زمینه‌ای است.</p>', 'var(--amber)') +
-    btSec('شناسنامه نماد — ' + d.conf.name, 'briefcase', specs + specsNote, 'var(--amber)') +
-    btSec('چه چیزی از آخرین بازدید تغییر کرده؟', 'refresh', changes + '<p class="bt-note">فقط تغییر واقعی داده‌ها نمایش داده می‌شود؛ هشدار، دستور ورود یا خروج نیست.</p>', 'var(--violet)');
+    btSec('چه چیزی از آخرین بازدید تغییر کرده؟', 'refresh', changes + '<p class="bt-note">فقط تغییر واقعی داده‌ها نمایش داده می‌شود؛ هشدار، دستور ورود یا خروج نیست.</p>', 'var(--violet)') +
+    btCalcHTML();
 }
 
-/* ---------- تب پلن و ریسک ---------- */
-function btPlanHTML() {
+/* ---------- ماشین‌حساب پیپ/حجم و حد ضرر و حد سود (انتهای نمای بازار) ---------- */
+function btCalcHTML() {
   var d = BT.data;
-  var lock = trLock(btGet(BT_KEYS.lastloss, null));
-  var lockHTML = lock.locked
-    ? '<div class="bt-warn red">احتمالاً در حالت Revenge Trading هستید — یک نفس عمیق بکشید. پیشنهاد معامله تا ' + faDigits(lock.minutesLeft) + ' دقیقه قفل است.</div>'
-    : '';
   var p = BT.plan;
   var result = '';
   if (p && p.ok) {
@@ -3551,78 +3575,45 @@ function btPlanHTML() {
       '<span>حجم: <b class="a" dir="ltr">' + p.lots + '</b> لات</span><span>ریسک: <b dir="ltr">$' + p.riskAmount + '</b></span>' +
       '<span>زیان در SL: <b class="r" dir="ltr">$' + p.lossAtSL + '</b></span><span>سود در TP: <b class="g" dir="ltr">$' + p.profitAtTP + '</b></span>' +
       '</div>' +
-      '<div class="bt-copy"><code dir="ltr">' + p.copyText + '</code><button type="button" class="ai-rf" data-bt-copy aria-label="کپی خلاصه پلن">' + icon('copy', 11) + '</button></div>' + warns + '</div>';
+      '<div class="bt-copy"><code dir="ltr">' + p.copyText + '</code><button type="button" class="ai-rf" data-bt-copy aria-label="کپی خلاصه محاسبه">' + icon('copy', 11) + '</button></div>' + warns + '</div>';
   } else if (p && !p.ok) {
     result = '<p class="bt-warn red">' + p.error + '</p>';
   }
-  /* چک‌لیست */
-  var auto = [
-    ['خبر مهم نزدیک است؟', d.mins !== null && d.mins < 240],
-    ['تایم‌فریم‌ها ' + d.summary + ' هستند؟', d.summary === 'هم‌جهت'],
-    ['حرکت DXY با سناریو سازگار است؟', d.div.level === 'normal'],
-    ['داده‌های لازم موجود هستند؟', true]
-  ];
-  var chk = '';
-  for (i = 0; i < auto.length; i++)
-    chk += '<div class="bt-chk-row"><span>' + auto[i][0] + '</span><span class="bt-chip ' + (auto[i][1] ? 'ok' : 'bad') + '">' + (auto[i][1] ? 'بله' : 'خیر') + '</span></div>';
-  var manuals = [['reason', 'دلیل معامله روشن و ثبت شده است؟'], ['sl', 'حد ضرر یا شرط ابطال مشخص است؟'], ['cap', 'ریسک معامله با سقف ریسک من سازگار است؟']];
-  var done = 0;
-  for (i = 0; i < manuals.length; i++) {
-    var on = !!BT.checks[manuals[i][0]];
-    if (on) done++;
-    chk += '<label class="bt-chk-row man"><span>' + manuals[i][1] + '</span><input type="checkbox" data-bt-chk="' + manuals[i][0] + '"' + (on ? ' checked' : '') + '></label>';
-  }
-  var readyNote = done === manuals.length
-    ? '<p class="bt-note ok">چک‌لیست کامل شد — اجرای برنامه همچنان بر عهده خودتان است.</p>'
-    : '<p class="bt-note warn">وضعیت: تحلیل ناقص — موارد دستی را تکمیل کنید؛ اطلاعات حدس زده نمی‌شود.</p>';
-
-  /* پیش‌مرگ */
-  var pmBtns = '<div class="bt-pm-btns">' +
-    '<button type="button" class="cchip' + (BT.pmSide === 'buy' ? ' on' : '') + '" data-bt-pm="buy">سناریوی خرید</button>' +
-    '<button type="button" class="cchip' + (BT.pmSide === 'sell' ? ' on' : '') + '" data-bt-pm="sell">سناریوی فروش</button></div>';
-  var pmList = '<ul class="bt-list red">' + trPreMortem({
-    side: BT.pmSide, structure4h: d.structure4h, tfScore: d.tfF.score, newsMin: d.mins,
-    div: d.div.level, regime: d.regime.type, rsi: d.rsi
-  }).map(function (f) { return '<li>' + f + '</li>'; }).join('') + '</ul>' +
-    '<p class="bt-note">شواهد موافق و مخالف با هم نمایش داده می‌شوند؛ ابزار صرفاً نظر اولیه شما را تأیید نمی‌کند.</p>';
-
-  /* ریسک تجمیعی */
-  var poss = btGet(BT_KEYS.positions, []);
-  var posHTML = '', totalRisk = 0;
-  for (i = 0; i < poss.length; i++) {
-    var pp = poss[i];
-    totalRisk += pp.riskUsd;
-    posHTML += '<div class="bt-pos"><b>' + pp.sym + '</b><span class="' + (pp.side === 'buy' ? 'g' : 'r') + '">' + (pp.side === 'buy' ? 'خرید' : 'فروش') + '</span><span dir="ltr">' + pp.lots + ' lot</span><span dir="ltr">$' + pp.riskUsd + '</span><button type="button" data-bt-posdel="' + pp.id + '" aria-label="حذف پوزیشن">' + icon('x', 11) + '</button></div>';
-  }
-  var bal = Number((document.getElementById('bt_balance') || {}).value || 0);
-  var totPct = bal > 0 ? Math.round(totalRisk / bal * 10000) / 100 : null;
-  var posSec = poss.length === 0
-    ? '<p class="bt-note">پوزیشنی ثبت نشده است. پوزیشن‌های باز خود را اضافه کنید تا مواجهه کلی با دلار بررسی شود.</p>'
-    : posHTML + '<p class="bt-note">ریسک تجمیعی: <b dir="ltr">$' + Math.round(totalRisk * 100) / 100 + '</b>' + (totPct !== null ? ' (' + btPct(totPct) + ' موجودی)' : '') + (totPct !== null && totPct > 5 ? ' — بالاتر از سقف معمول ۵٪؛ هم‌جهت‌بودن پوزیشن‌ها در برابر دلار را بررسی کنید.' : '') + '</p>';
-  posSec += '<div class="bt-pos-add">' +
-    '<select id="bt_psym"><option>XAUUSD</option><option>DJI</option><option>EURUSD</option><option>BTCUSDT</option></select>' +
-    '<select id="bt_pside"><option value="buy">خرید</option><option value="sell">فروش</option></select>' +
-    '<input id="bt_plots" inputmode="decimal" dir="ltr" placeholder="لات">' +
-    '<input id="bt_prisk" inputmode="decimal" dir="ltr" placeholder="ریسک $">' +
-    '<button type="button" data-bt-posadd aria-label="افزودن پوزیشن">+</button></div>' +
-    '<p class="bt-note">چند نماد متفاوت می‌توانند هم‌زمان تحت‌تأثیر یک عامل مشترک (دلار) باشند؛ همبستگی ثابت فرض نمی‌شود.</p>';
-
   var zf = BT.zf || {};
-  return lockHTML +
-    btSec('تولیدکننده خودکار پلن معامله', 'crosshair',
-      '<div class="bt-form2">' +
-      '<label>جهت<select id="bt_side"><option value="buy"' + (zf.side === 'buy' ? ' selected' : '') + '>خرید (Buy)</option><option value="sell"' + (zf.side === 'sell' ? ' selected' : '') + '>فروش (Sell)</option></select></label>' +
-      '<label>نقطه ورود<input id="bt_entry" inputmode="decimal" dir="ltr" placeholder="' + (d.price ? Math.round(d.price * 100) / 100 : '4200') + '" value="' + (zf.entry || '') + '"></label>' +
-      '<label>موجودی حساب ($)<input id="bt_balance" inputmode="decimal" dir="ltr" placeholder="1000" value="1000"></label>' +
-      '<label>ریسک (٪)<input id="bt_risk" inputmode="decimal" dir="ltr" placeholder="1" value="1"></label>' +
-      '<label>نسبت R/R<select id="bt_rr"><option value="2">۱ به ۲</option><option value="3">۱ به ۳</option></select></label>' +
-      '<label>مبنای حد ضرر<select id="bt_slmode"><option value="atr">ATR × ۱.۵ (خودکار)</option><option value="swing">آخرین سوئینگ</option></select></label>' +
-      '</div>' +
-      '<button type="button" class="bt-gen" data-bt-gen' + (lock.locked ? ' disabled' : '') + '>ساخت پلن</button>' + result, 'var(--violet)') +
-    zonesSec(d) +
-    btSec('چک‌لیست پیش از معامله', 'check', chk + readyNote, 'var(--emerald)') +
-    btSec('اگر این معامله شکست بخورد، محتمل‌ترین دلیل چیست؟', 'alert', pmBtns + pmList, 'var(--red)') +
-    btSec('ریسک تجمیعی پوزیشن‌ها', 'alert', posSec, 'var(--amber)');
+  return btSec('ماشین‌حساب پیپ/حجم و حد ضرر و حد سود', 'crosshair',
+    '<div class="bt-form2">' +
+    '<label>جهت<select id="bt_side"><option value="buy"' + (zf.side === 'buy' ? ' selected' : '') + '>خرید (Buy)</option><option value="sell"' + (zf.side === 'sell' ? ' selected' : '') + '>فروش (Sell)</option></select></label>' +
+    '<label>نقطه ورود<input id="bt_entry" inputmode="decimal" dir="ltr" placeholder="' + (d.price ? Math.round(d.price * 100) / 100 : '4200') + '" value="' + (zf.entry || '') + '"></label>' +
+    '<label>موجودی حساب ($)<input id="bt_balance" inputmode="decimal" dir="ltr" placeholder="1000" value="1000"></label>' +
+    '<label>ریسک (٪)<input id="bt_risk" inputmode="decimal" dir="ltr" placeholder="1" value="1"></label>' +
+    '<label>نسبت R/R<select id="bt_rr"><option value="2">۱ به ۲</option><option value="3">۱ به ۳</option></select></label>' +
+    '<label>مبنای حد ضرر<select id="bt_slmode"><option value="atr">ATR × ۱.۵ (خودکار)</option><option value="swing">آخرین سوئینگ</option></select></label>' +
+    '</div>' +
+    '<button type="button" class="bt-gen" data-bt-gen>محاسبه حد ضرر، حد سود و حجم</button>' + result +
+    '<p class="bt-note">اندازه قرارداد و ارزش پیپ به کارگزاری شما بستگی دارد؛ مقادیر را با پنل کارگزاری تطبیق دهید. این ماشین‌حساب تضمین نتیجه یا توصیه معامله نیست.</p>', 'var(--violet)');
+}
+
+/* ---------- تب تحلیل هوشمند (منتقل‌شده از پنجره تریدینگ‌ویو) ---------- */
+function btAiHTML() {
+  var symBody = '';
+  Object.keys(CHART_YAHOO).forEach(function (k) {
+    symBody += '<button type="button" class="cchip' + (S_AI.sym === k ? ' on' : '') + '" data-bt-ai-sym="' + k + '">' + CHART_YAHOO[k].name + '</button>';
+  });
+  var tfBody = '';
+  Object.keys(CHART_ITV).forEach(function (k) {
+    tfBody += '<button type="button" class="cchip' + (S_AI.tf === k ? ' on' : '') + '" data-bt-ai-tf="' + k + '">' + CHART_ITV[k].label + '</button>';
+  });
+  return btSec('تحلیل هوشمند — نماد و تایم‌فریم دلخواه شما', 'sparkles',
+    '<p class="bt-note">این بخش از پنجره تریدینگ‌ویو به دستیار معامله‌گر منتقل شده است؛ نماد و تایم‌فریم را انتخاب و «اجرای تحلیل» را بزنید. موتور: الگوریتم محلی (EMA/RSI/ATR/سوئینگ) روی کندل‌های Yahoo Finance.</p>' +
+    '<div class="sc-chips" data-bt-ai-syms>' + symBody + '</div>' +
+    '<div class="sc-chips" data-bt-ai-tfs>' + tfBody + '</div>' +
+    '<div class="sc-chips"><button type="button" class="cchip ai-btn on" data-bt-ai-run>' + icon('sparkles', 12) + 'اجرای تحلیل</button></div>', 'var(--violet)') +
+    '<div id="ai_panel" hidden>' +
+    '<div class="ai-head"><span style="display:inline-flex;flex:none">' + icon('sparkles', 13) + '</span><span class="t">تحلیل هوشمند</span><span class="at" id="ai_at"></span>' +
+    '<button type="button" class="ai-rf" data-ai-refresh title="بروزرسانی تحلیل">' + icon('refresh', 11) + '</button></div>' +
+    '<div class="ai-body"><div class="ai-state">برای شروع، دکمه «اجرای تحلیل» را بزنید.</div></div>' +
+    '<p class="ai-foot">تحلیل صرفاً اطلاع‌رسانی است و توصیه معاملاتی محسوب نمی‌شود — منبع داده: Yahoo Finance.</p>' +
+    '</div>';
 }
 
 /* ---------- تب اخبار و سناریو ---------- */
@@ -3662,89 +3653,6 @@ function btNewsHTML() {
   return btSec('تقویم رویدادها — آمادگی پیش از خبر', 'flame', cal, 'var(--amber)') +
     (d.scenarios.length ? btSec('شبیه‌ساز واکنش به خبر — دو سناریوی مشروط', 'sparkles', sc, 'var(--violet)') : '') +
     btSec('مقایسه با واکنش‌های تاریخی خبر', 'calDays', hist, 'var(--sky)');
-}
-
-/* ---------- تب ژورنال ---------- */
-function btJournalHTML() {
-  var entries = btGet(BT_KEYS.journal, []);
-  var lock = trLock(btGet(BT_KEYS.lastloss, null));
-  var todayKey = todayKeyInTehran();
-  var lossesToday = 0, i;
-  for (i = 0; i < entries.length; i++)
-    if (entries[i].result === 'loss' && entries[i].atISO && dateKeyInTehran(new Date(entries[i].atISO)) === todayKey) lossesToday++;
-  var rest = trRest(lossesToday);
-
-  var h = '';
-  if (lock.locked) h += '<div class="bt-warn red">احتمالاً در حالت Revenge Trading هستید — یک نفس عمیق بکشید. پیشنهاد معامله تا ' + faDigits(lock.minutesLeft) + ' دقیقه دیگر قفل است.</div>';
-  if (rest.suggest) h += '<div class="bt-warn">' + rest.message + '</div>';
-
-  h += btSec('ثبت فرض‌ها — پیش از معامله', 'book',
-    '<div class="bt-form2">' +
-    '<label>جهت<select id="bt_jside"><option value="buy">خرید</option><option value="sell">فروش</option></select></label>' +
-    '<label>ورود (اختیاری)<input id="bt_jentry" inputmode="decimal" dir="ltr"></label>' +
-    '</div>' +
-    '<label class="bt-lbl">دلیل ورود (اجباری)<textarea id="bt_jreason" rows="2" placeholder="مثال: بازگشت از حمایت با کندل پوششی در ۱ ساعته"></textarea></label>' +
-    '<label class="bt-lbl">سناریوی انتخاب‌شده<input id="bt_jscen" placeholder="سناریوی اول / دوم یا توضیح خودتان"></label>' +
-    '<label class="bt-lbl">شرط ابطال (اجباری)<textarea id="bt_jinval" rows="2" placeholder="مثال: بسته‌شدن کندل زیر 4185"></textarea></label>' +
-    '<label class="bt-lbl">انتظار شما از معامله<input id="bt_jexp" placeholder="مثال: رسیدن به TP با RR=۲"></label>' +
-    '<button type="button" class="bt-gen green" data-bt-jsave>ثبت در ژورنال</button>' +
-    '<p class="bt-note" id="bt_jsave-msg">بدون دلیل و شرط ابطال، ثبت انجام نمی‌شود — تحلیل ناقص حدس زده نمی‌شود.</p>', 'var(--emerald)');
-
-  var list = '';
-  if (!entries.length) {
-    list = '<p class="bt-note">هنوز معامله‌ای ثبت نشده است. کیفیت تصمیم جدا از سود/زیان ارزیابی می‌شود.</p>';
-  } else {
-    var dqFa = { good: 'تصمیم خوب + نتیجه مثبت', neutral: 'تصمیم سالم', lucky: 'نتیجه مثبت با فرآیند ناسالم', 'bad-execution': 'اجرای ناسالم' };
-    for (i = 0; i < Math.min(10, entries.length); i++) {
-      var e = entries[i];
-      var dq = e.review && e.result ? trDQ(e.review, e.result) : null;
-      var body = '<div class="bt-jt"><b>' + (e.side === 'buy' ? 'خرید' : 'فروش') + (e.entry ? ' @ ' + e.entry : '') + '</b><span>' + faTime(new Date(e.atISO)) + '</span></div>' +
-        '<p class="bt-note">دلیل: ' + e.reason + '</p><p class="bt-note">ابطال: ' + e.invalidation + '</p>' +
-        (dq ? '<p class="bt-note sky">ارزیابی: ' + dqFa[dq.grade] + ' — ' + dq.note + '</p>' : '');
-      if (!e.result) {
-        body += '<div class="bt-jres"><span>نتیجه:</span>' +
-          '<button type="button" class="cchip g" data-bt-res="win" data-bt-id="' + e.id + '">سود</button>' +
-          '<button type="button" class="cchip r" data-bt-res="loss" data-bt-id="' + e.id + '">ضرر</button>' +
-          '<button type="button" class="cchip" data-bt-res="be" data-bt-id="' + e.id + '">سربه‌سر</button></div>';
-      } else {
-        body += '<div class="bt-jres"><span class="bt-chip ' + (e.result === 'win' ? 'ok' : e.result === 'loss' ? 'bad' : '') + '">' + (e.result === 'win' ? 'سود' : e.result === 'loss' ? 'ضرر' : 'سربه‌سر') + '</span>';
-        if (e.review) {
-          var rvs = [['followedPlan', 'طبق برنامه'], ['riskRespected', 'ریسک رعایت شد'], ['slMovedBadly', 'SL بد جابه‌جا شد'], ['assumptionViolated', 'فرض نقض شد']];
-          for (var j = 0; j < rvs.length; j++)
-            body += '<button type="button" class="bt-mini' + (e.review[rvs[j][0]] ? ' on' : '') + '" data-bt-rv="' + rvs[j][0] + '" data-bt-id="' + e.id + '">' + rvs[j][1] + '</button>';
-        }
-        body += '</div>';
-      }
-      list += '<div class="bt-jitem">' + body + '</div>';
-    }
-  }
-  h += btSec('معاملات ثبت‌شده', 'book', list + '<p class="bt-note">نتیجه یک معامله به‌تنهایی اثبات خوب یا بد بودن روش شما نیست؛ ژورنال فقط روی همین دستگاه ذخیره می‌شود.</p>', 'var(--sky)');
-  return h;
-}
-
-/* ---------- نواحی ورود مبتنی بر ساختار (در تب پلن) ---------- */
-function zonesSec(d) {
-  var ez = d.entryZones;
-  if (!ez) return '';
-  if (!ez.zones.length) {
-    return btSec('نواحی ورود پیشنهادی بر اساس ساختار (الگوریتمی)', 'target', '<p class="bt-note">' + ez.note + '</p>', 'var(--sky)');
-  }
-  var h = '<p class="bt-note">ساختار ۴ساعته: ' + ez.trendFa + ' — ' + ez.note + '</p>';
-  for (var i = 0; i < ez.zones.length; i++) {
-    var z = ez.zones[i];
-    h += '<div class="zone-card ' + z.side + '">' +
-      '<div class="zt"><b class="' + (z.side === 'buy' ? 'g' : 'r') + '">' + (z.side === 'buy' ? 'ناحیه خرید' : 'ناحیه فروش') + '</b>' +
-      '<span class="bt-chip ' + (z.activeNow ? 'ok' : '') + '">' + (z.activeNow ? 'ناحیه فعال (قیمت داخل آن است)' : 'ناحیه انتظار پولبک') + '</span></div>' +
-      '<div class="zg"><span>ناحیه ورود: <b dir="ltr">' + z.zoneLo + ' – ' + z.zoneHi + '</b></span>' +
-      '<span>حد ضرر: <b class="r" dir="ltr">' + z.sl + '</b></span>' +
-      '<span>هدف ۱ (RR۲): <b class="g" dir="ltr">' + z.tp1 + '</b></span>' +
-      '<span>هدف ۲ (RR۳): <b class="g" dir="ltr">' + z.tp2 + '</b></span></div>' +
-      '<p class="m">' + z.basis + '</p><p class="m amber">' + z.invalidate + '</p>' +
-      '<button type="button" class="bt-gen small" data-bt-zoneuse="' + z.side + '" data-bt-entry="' + (Math.round(((z.zoneLo + z.zoneHi) / 2) * 100) / 100) + '">انتقال به فرم پلن</button>' +
-      '</div>';
-  }
-  h += '<p class="bt-note">نواحی آموزشی و مبتنی بر سوئینگ/ATR هستند — سیگنال قطعی نیستند؛ تأیید کندل داخل ناحیه شرط اجراست و محاسبه حجم جداگانه در فرم پلن انجام می‌شود.</p>';
-  return btSec('نواحی ورود پیشنهادی بر اساس ساختار (الگوریتمی)', 'target', h, 'var(--sky)');
 }
 
 /* ---------- تب عوامل کمّی ---------- */
@@ -3811,6 +3719,7 @@ function btFactorsHTML() {
 /* ---------- رندر اصلی اپ ---------- */
 function renderTraderApp(soft) {
   if (!soft) { BT.tab = btGet('bt_tab_v1', 'view'); }
+  if (BT.tab === 'plan' || BT.tab === 'journal') BT.tab = 'view'; /* تب‌های حذف‌شده → نمای بازار */
   var inner = btHead() + btSymChips() + btTabBar();
 
   /* نوار واگرایی همیشه فعال */
@@ -3837,11 +3746,10 @@ function renderTraderApp(soft) {
     inner += '<div class="bt-state"><span style="color:var(--red)">' + icon('wifi', 22) + '</span>' + BT.err +
       '<button type="button" class="btn" data-bt-refresh>' + icon('refresh', 13) + 'تلاش مجدد</button></div>';
   } else if (BT.data) {
-    if (BT.tab === 'view') inner += btViewHTML();
-    else if (BT.tab === 'plan') inner += btPlanHTML();
+    if (BT.tab === 'ai') inner += btAiHTML();
     else if (BT.tab === 'factors') inner += btFactorsHTML();
     else if (BT.tab === 'news') inner += btNewsHTML();
-    else inner += btJournalHTML();
+    else inner += btViewHTML();
     inner += '<p class="bt-foot">منبع: ' + (BT.data.degraded ? 'اسنپ‌شات فایل (داده زنده در دسترس نبود)' : 'سری روزانه Yahoo Finance (پروکسی عمومی) · ساختار و اخبار: اسنپ‌شات فایل') + ' — آخرین محاسبه: ' + faTime(new Date()) +
       '<br>هیچ خروجی این بخش توصیه قطعی خرید/فروش یا اجرای خودکار سفارش نیست.</p>';
   }
@@ -3873,21 +3781,12 @@ function btBind() {
       });
     })(fws[wi]);
   }
-  var zus = appScroll.querySelectorAll('[data-bt-zoneuse]');
-  for (var zi = 0; zi < zus.length; zi++) {
-    (function (b) {
-      b.addEventListener('click', function () {
-        BT.zf = { side: b.dataset.btZoneuse, entry: b.dataset.btEntry };
-        renderTraderApp(true);
-      });
-    })(zus[zi]);
-  }
   var syms = appScroll.querySelectorAll('[data-bt-sym]');
   for (var i = 0; i < syms.length; i++) {
     (function (b) {
       b.addEventListener('click', function () {
         if (BT.sym === b.dataset.btSym) return;
-        BT.sym = b.dataset.btSym; BT.data = null; BT.plan = null; BT.changes = []; BT.pmSide = null; BT.fq = null; BT.fqErr = null; BT.zf = null;
+        BT.sym = b.dataset.btSym; BT.data = null; BT.plan = null; BT.changes = []; BT.fq = null; BT.fqErr = null; BT.zf = null;
         btLoadData(true);
       });
     })(syms[i]);
@@ -3902,6 +3801,7 @@ function btBind() {
       });
     })(tabs[i]);
   }
+  /* ماشین‌حساب حجم/حد ضرر و حد سود */
   var gen = appScroll.querySelector('[data-bt-gen]');
   if (gen) gen.addEventListener('click', function () {
     var d = BT.data;
@@ -3914,7 +3814,7 @@ function btBind() {
     var atrAbs = d.price && d.atr !== null ? d.atr / 100 * d.price : null;
     BT.plan = trPlan({
       side: side, entry: entry, balance: balance, riskPct: riskPct, rr: rr, slMode: slMode,
-      swingLevel: side === 'buy' ? d.ll : d.hh, atr: atrAbs, contractSize: d.conf.contractSize,
+      swingLevel: side === 'buy' ? d.ll : d.hh, atr: atrAbs, contractSize: d.conf.contract,
       symbolLabel: d.conf.label
     });
     BT.copied = false;
@@ -3935,95 +3835,669 @@ function btBind() {
       }
     } catch (e) {}
   });
-  var chks = appScroll.querySelectorAll('[data-bt-chk]');
-  for (i = 0; i < chks.length; i++) {
+  /* تب تحلیل هوشمند */
+  var aiSyms = appScroll.querySelectorAll('[data-bt-ai-sym]');
+  for (i = 0; i < aiSyms.length; i++) {
     (function (b) {
-      b.addEventListener('change', function () { BT.checks[b.dataset.btChk] = b.checked; });
-    })(chks[i]);
+      b.addEventListener('click', function () { aiApply(b.dataset.btAiSym, S_AI.tf); renderTraderApp(true); });
+    })(aiSyms[i]);
   }
-  var pms = appScroll.querySelectorAll('[data-bt-pm]');
-  for (i = 0; i < pms.length; i++) {
+  var aiTfs = appScroll.querySelectorAll('[data-bt-ai-tf]');
+  for (i = 0; i < aiTfs.length; i++) {
     (function (b) {
-      b.addEventListener('click', function () {
-        BT.pmSide = BT.pmSide === b.dataset.btPm ? null : b.dataset.btPm;
-        renderTraderApp(true);
-      });
-    })(pms[i]);
+      b.addEventListener('click', function () { aiApply(S_AI.sym, b.dataset.btAiTf); renderTraderApp(true); });
+    })(aiTfs[i]);
   }
-  var pAdd = appScroll.querySelector('[data-bt-posadd]');
-  if (pAdd) pAdd.addEventListener('click', function () {
-    var lots = Number((appScroll.querySelector('#bt_plots').value || '').replace(/[^\d.]/g, ''));
-    var risk = Number((appScroll.querySelector('#bt_prisk').value || '').replace(/[^\d.]/g, ''));
-    if (!(lots > 0) || !(risk > 0)) return;
-    var poss = btGet(BT_KEYS.positions, []);
-    poss.push({ id: String(Date.now()), sym: appScroll.querySelector('#bt_psym').value, side: appScroll.querySelector('#bt_pside').value, lots: lots, riskUsd: risk });
-    btSet(BT_KEYS.positions, poss);
-    renderTraderApp(true);
+  var aiRun = appScroll.querySelector('[data-bt-ai-run]');
+  if (aiRun) aiRun.addEventListener('click', function () {
+    var p = document.getElementById('ai_panel');
+    if (p) p.hidden = false;
+    aiSyncHeader();
+    runAi(false);
   });
-  var dels = appScroll.querySelectorAll('[data-bt-posdel]');
-  for (i = 0; i < dels.length; i++) {
-    (function (b) {
-      b.addEventListener('click', function () {
-        var poss = btGet(BT_KEYS.positions, []).filter(function (p) { return p.id !== b.dataset.btPosdel; });
-        btSet(BT_KEYS.positions, poss);
-        renderTraderApp(true);
-      });
-    })(dels[i]);
+  var aiRf = appScroll.querySelector('[data-ai-refresh]');
+  if (aiRf) aiRf.addEventListener('click', function () { runAi(true); });
+}
+
+/* ================= موتور اسکلپ (نسخه مستقل) =================
+ * پورت JS اندیکاتور کاربر «SBW + OB xATR + 4H Setup + Div»:
+ * موج شکست سوئینگ (نرمال ATR) + اوردر بلاک با فیلتر FVG + ستاپ ۴ساعته
+ * (برخورد ← شکست ساختار ← ریتست ← الگوی کندلی) + واگرایی ۵ابزاری.
+ * منبع داده: کندل‌های Yahoo Finance از پروکسی عمومی — خروجی اطلاع‌رسانی است.
+ * ================================================================ */
+
+var SCALP_SYMS = {
+  xau: { y: 'GC=F', label: 'طلا (اونس) — XAUUSD', mono: 'XAUUSD · GC=F' },
+  xag: { y: 'SI=F', label: 'نقره — XAGUSD', mono: 'XAGUSD · SI=F' },
+  eurusd: { y: 'EURUSD=X', label: 'یورو/دلار — EURUSD', mono: 'EURUSD' },
+  dji: { y: '^DJI', label: 'داوجونز — DJI', mono: 'DJI · ^DJI' },
+  btc: { y: 'BTC-USD', label: 'بیت‌کوین — BTC', mono: 'BTCUSDT · BTC-USD' }
+};
+var SCALP_TFS = {
+  '1m': { i: '1m', r: '2d', label: '۱ دقیقه' },
+  '5m': { i: '5m', r: '5d', label: '۵ دقیقه' },
+  '15m': { i: '15m', r: '1mo', label: '۱۵ دقیقه' }
+};
+var SCALP_KEY = 'sd_scalp_v1';
+var SCALP_FRESH = 3; /* سیگنال تا ۳ کندل بسته‌شدهٔ آخر «تازه» است */
+
+var S_SCALP = { sym: 'xau', tf: '5m' };
+try {
+  var _sc = JSON.parse(lsGet(SCALP_KEY) || 'null');
+  if (_sc && SCALP_SYMS[_sc.sym] && SCALP_TFS[_sc.tf]) S_SCALP = { sym: _sc.sym, tf: _sc.tf };
+} catch (e) {}
+function scSave() { lsSet(SCALP_KEY, JSON.stringify(S_SCALP)); }
+
+var SCALP_CACHE = {}; /* key → { at, payload } */
+var SCALP_BUSY = false;
+
+/* ---------- ابزارهای سری ---------- */
+function scAtr(bars, len) {
+  var out = [], i;
+  for (i = 0; i < bars.length; i++) out.push(NaN);
+  if (bars.length < len + 1) return out;
+  var trs = [bars[0].h - bars[0].l];
+  for (i = 1; i < bars.length; i++)
+    trs.push(Math.max(bars[i].h - bars[i].l, Math.abs(bars[i].h - bars[i - 1].c), Math.abs(bars[i].l - bars[i - 1].c)));
+  var a = 0;
+  for (i = 0; i < len; i++) a += trs[i];
+  out[len] = a / len;
+  for (i = len + 1; i < bars.length; i++) { a = (a * (len - 1) + trs[i]) / len; out[i] = a; }
+  return out;
+}
+function scRma(v, len) {
+  var out = [], sum = 0, prev = NaN, i;
+  for (i = 0; i < v.length; i++) {
+    if (i < len) { sum += v[i]; if (i === len - 1) { prev = sum / len; out.push(prev); } else out.push(NaN); }
+    else { prev = (prev * (len - 1) + v[i]) / len; out.push(prev); }
   }
-  var js = appScroll.querySelector('[data-bt-jsave]');
-  if (js) js.addEventListener('click', function () {
-    var reason = (appScroll.querySelector('#bt_jreason').value || '').trim();
-    var inval = (appScroll.querySelector('#bt_jinval').value || '').trim();
-    var msgEl = appScroll.querySelector('#bt_jsave-msg');
-    if (!reason || !inval) {
-      if (msgEl) { msgEl.textContent = 'تحلیل ناقص — دلیل ورود و شرط ابطال اجباری‌اند؛ اطلاعات حدس زده نمی‌شود.'; msgEl.style.color = 'var(--amber)'; }
-      return;
+  return out;
+}
+function scRsi(c, len) {
+  len = len || 14;
+  var ch = [0], i;
+  for (i = 1; i < c.length; i++) ch.push(c[i] - c[i - 1]);
+  var g = ch.map(function (d) { return d > 0 ? d : 0; });
+  var l = ch.map(function (d) { return d < 0 ? -d : 0; });
+  var ag = scRma(g, len), al = scRma(l, len), out = [];
+  for (i = 0; i < c.length; i++) {
+    if (isNaN(ag[i]) || isNaN(al[i])) { out.push(NaN); continue; }
+    out.push(al[i] === 0 ? (ag[i] === 0 ? 50 : 100) : 100 - 100 / (1 + ag[i] / al[i]));
+  }
+  return out;
+}
+function scMacdHist(c) {
+  function ema(len) {
+    var k = 2 / (len + 1), e = c[0], out = [], i;
+    for (i = 0; i < c.length; i++) { e = i === 0 ? c[0] : c[i] * k + e * (1 - k); out.push(e); }
+    return out;
+  }
+  var f = ema(12), s = ema(26), line = [], i;
+  for (i = 0; i < c.length; i++) line.push(f[i] - s[i]);
+  var k = 2 / 10, se = line[0], hist = [];
+  for (i = 0; i < line.length; i++) { se = i === 0 ? line[0] : line[i] * k + se * (1 - k); hist.push(line[i] - se); }
+  return hist;
+}
+function scStoch(bars, len) {
+  len = len || 14;
+  var out = [], i, j;
+  for (i = 0; i < bars.length; i++) out.push(NaN);
+  for (i = len - 1; i < bars.length; i++) {
+    var hh = -Infinity, ll = Infinity;
+    for (j = i - len + 1; j <= i; j++) { if (bars[j].h > hh) hh = bars[j].h; if (bars[j].l < ll) ll = bars[j].l; }
+    out[i] = hh === ll ? 50 : ((bars[i].c - ll) / (hh - ll)) * 100;
+  }
+  return out;
+}
+function scCci(bars, len) {
+  len = len || 20;
+  var tp = bars.map(function (b) { return (b.h + b.l + b.c) / 3; }), out = [], i, j;
+  for (i = 0; i < bars.length; i++) out.push(NaN);
+  for (i = len - 1; i < bars.length; i++) {
+    var mean = 0;
+    for (j = i - len + 1; j <= i; j++) mean += tp[j];
+    mean /= len;
+    var dev = 0;
+    for (j = i - len + 1; j <= i; j++) dev += Math.abs(tp[j] - mean);
+    dev /= len;
+    out[i] = dev === 0 ? 0 : (tp[i] - mean) / (0.015 * dev);
+  }
+  return out;
+}
+function scMfi(bars, len) {
+  len = len || 14;
+  var tp = bars.map(function (b) { return (b.h + b.l + b.c) / 3; }), out = [], i, j;
+  for (i = 0; i < bars.length; i++) out.push(NaN);
+  for (i = len; i < bars.length; i++) {
+    var pos = 0, neg = 0;
+    for (j = i - len + 1; j <= i; j++) {
+      var flow = tp[j] * bars[j].c;
+      if (tp[j] > tp[j - 1]) pos += flow; else if (tp[j] < tp[j - 1]) neg += flow;
     }
-    var entries = btGet(BT_KEYS.journal, []);
-    entries.unshift({
-      id: String(Date.now()), atISO: new Date().toISOString(),
-      reason: reason, scenario: (appScroll.querySelector('#bt_jscen').value || '').trim(),
-      invalidation: inval, expectation: (appScroll.querySelector('#bt_jexp').value || '').trim(),
-      side: appScroll.querySelector('#bt_jside').value, entry: (appScroll.querySelector('#bt_jentry').value || '').trim(),
-      result: null, review: null
-    });
-    btSet(BT_KEYS.journal, entries);
-    if (msgEl) { msgEl.textContent = 'ثبت شد.'; msgEl.style.color = 'var(--emerald)'; }
-    renderTraderApp(true);
+    out[i] = neg === 0 ? 100 : pos === 0 ? 0 : 100 - 100 / (1 + pos / neg);
+  }
+  return out;
+}
+function scPivots(high, low, L, R) {
+  var hs = [], ls = [], i, k, okH, okL;
+  for (i = L; i < high.length - R; i++) {
+    okH = true; okL = true;
+    for (k = 1; k <= L; k++) { if (high[i - k] >= high[i]) okH = false; if (low[i - k] <= low[i]) okL = false; }
+    for (k = 1; k <= R; k++) { if (high[i + k] >= high[i]) okH = false; if (low[i + k] <= low[i]) okL = false; }
+    if (okH) hs.push({ idx: i, price: high[i] });
+    if (okL) ls.push({ idx: i, price: low[i] });
+  }
+  return { hs: hs, ls: ls };
+}
+function scPx(v, d) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  d = d === undefined ? 2 : d;
+  return faDigits(Number(v).toLocaleString('en-US', { maximumFractionDigits: d })).replace(/,/g, '٬');
+}
+
+/* ---------- موتور اصلی اسکلپ ---------- */
+function scalpRun(bars, h4bars) {
+  var SWING = 5, PIVOT = 3, RETR = 23, ATRL = 14, OBLOOK = 20, MAXZ = 12;
+  var DOJI = 10, KEYBAR = 70, KEYATR = 1, H4 = 14400;
+  var n = bars.length, i, k;
+  var high = bars.map(function (b) { return b.h; }), low = bars.map(function (b) { return b.l; });
+  var close = bars.map(function (b) { return b.c; }), open = bars.map(function (b) { return b.o; });
+  var atr = scAtr(bars, ATRL);
+  var notes = [];
+
+  /* نقشه ۴ساعته */
+  var h4map = {};
+  if (h4bars && h4bars.length >= 2) {
+    for (i = 0; i < h4bars.length; i++) {
+      var bk = Math.floor(h4bars[i].t / H4);
+      if (!h4map[bk]) h4map[bk] = { h: h4bars[i].h, l: h4bars[i].l };
+      else { h4map[bk].h = Math.max(h4map[bk].h, h4bars[i].h); h4map[bk].l = Math.min(h4map[bk].l, h4bars[i].l); }
+    }
+  }
+  var h4count = Object.keys(h4map).length;
+  var h4Ready = h4count >= 2;
+  if (!h4Ready) notes.push('دادهٔ کندل‌های ۴ساعته کافی نبود؛ ستاپ ۴ساعته محاسبه نشد و فقط موج/OB/واگرایی فعال‌اند.');
+
+  var pivDiv = scPivots(high, low, 5, 5);
+  var pivSt = scPivots(high, low, PIVOT, PIVOT);
+  var stHiPtr = 0, stLoPtr = 0, lastPivotLow = null, lastPivotHigh = null;
+  var swPtr = 0, slPtr = 0, swingHigh = null, swingLow = null, hiBroken = false, loBroken = false;
+
+  function Wave() { return null; }
+  var bear = null, bull = null;
+
+  var supply = [], demand = [];
+  function ov(arr, t, b) {
+    for (var j = 0; j < arr.length; j++) if (arr[j].live && arr[j].top > b && t > arr[j].bot) return true;
+    return false;
+  }
+
+  var curBucket = null, sellArmed = false, buyArmed = false, sellWaiting = false, buyWaiting = false;
+  var sellZone = null, buyZone = null, h4HighNow = null, h4LowNow = null;
+
+  var rsi = scRsi(close, 14), macdH = scMacdHist(close), stoch = scStoch(bars, 14), cci = scCci(bars, 20), mfi = scMfi(bars, 14);
+  var signals = [], lastDiv = null, lastBullIdx = null, lastBearIdx = null;
+
+  function votesAt(idx, prev, dir) {
+    var pairs = [[rsi[idx], rsi[prev]], [macdH[idx], macdH[prev]], [stoch[idx], stoch[prev]], [cci[idx], cci[prev]], [mfi[idx], mfi[prev]]];
+    var v = 0;
+    for (var j = 0; j < pairs.length; j++) {
+      var a = pairs[j][0], b = pairs[j][1];
+      if (isNaN(a) || isNaN(b)) continue;
+      if ((dir === 'bull' && a > b) || (dir === 'bear' && a < b) || (dir === 'hBull' && a < b) || (dir === 'hBear' && a > b)) v++;
+    }
+    return v;
+  }
+
+  for (i = 0; i < n; i++) {
+    var bar = bars[i], atrVal = atr[i];
+
+    /* پیوت‌های سوئینگ */
+    while (swPtr < pivDiv.hs.length && pivDiv.hs[swPtr].idx + SWING <= i) { swingHigh = pivDiv.hs[swPtr].price; hiBroken = false; swPtr++; }
+    while (slPtr < pivDiv.ls.length && pivDiv.ls[slPtr].idx + SWING <= i) { swingLow = pivDiv.ls[slPtr].price; loBroken = false; slPtr++; }
+    /* پیوت‌های شکست ساختار */
+    while (stHiPtr < pivSt.hs.length && pivSt.hs[stHiPtr].idx + PIVOT <= i) { lastPivotHigh = pivSt.hs[stHiPtr].price; stHiPtr++; }
+    while (stLoPtr < pivSt.ls.length && pivSt.ls[stLoPtr].idx + PIVOT <= i) { lastPivotLow = pivSt.ls[stLoPtr].price; stLoPtr++; }
+
+    /* نگهداری زون‌ها (لمس/تخفیف) */
+    var tapSell = null, tapBuy = null;
+    for (k = 0; k < supply.length; k++) {
+      var zs = supply[k];
+      if (!zs.live) continue;
+      if (zs.tappedIdx === null && bar.h >= zs.bot) { zs.tappedIdx = i; tapSell = zs; }
+      if (close[i] >= zs.bot) { zs.live = false; zs.fadedIdx = i; }
+    }
+    for (k = 0; k < demand.length; k++) {
+      var zd = demand[k];
+      if (!zd.live) continue;
+      if (zd.tappedIdx === null && bar.l <= zd.top) { zd.tappedIdx = i; tapBuy = zd; }
+      if (close[i] <= zd.top) { zd.live = false; zd.fadedIdx = i; }
+    }
+    if (tapSell) signals.push({ side: 'sell', kind: 'ob-tap', idx: i, t: bar.t, price: bar.c, zoneLo: tapSell.bot, zoneHi: tapSell.top, ob: true, pat: 'برخورد اول قیمت به زون فروش (OB)' });
+    if (tapBuy) signals.push({ side: 'buy', kind: 'ob-tap', idx: i, t: bar.t, price: bar.c, zoneLo: tapBuy.bot, zoneHi: tapBuy.top, ob: true, pat: 'برخورد اول قیمت به زون خرید (OB)' });
+
+    /* موج شکست */
+    var loBreakAny = false, hiBreakAny = false;
+    if (swingLow !== null && !isNaN(atrVal) && atrVal > 0) {
+      if (loBroken && close[i] > swingLow) loBroken = false;
+      if (close[i] < swingLow) {
+        if (!loBroken) { loBreakAny = true; if (!bear) bear = { active: true, brk: swingLow, atrBrk: atrVal, ext: bar.l, st: i }; }
+        loBroken = true;
+      }
+    }
+    if (swingHigh !== null && !isNaN(atrVal) && atrVal > 0) {
+      if (hiBroken && close[i] < swingHigh) hiBroken = false;
+      if (close[i] > swingHigh) {
+        if (!hiBroken) { hiBreakAny = true; if (!bull) bull = { active: true, brk: swingHigh, atrBrk: atrVal, ext: bar.h, st: i }; }
+        hiBroken = true;
+      }
+    }
+    if (bear && bear.active) {
+      if (bar.l < bear.ext) bear.ext = bar.l;
+      if (i > bear.st) { var rngB = bear.brk - bear.ext; if (close[i] > bear.ext + rngB * (RETR / 100)) bear = null; }
+    }
+    if (bull && bull.active) {
+      if (bar.h > bull.ext) bull.ext = bar.h;
+      if (i > bull.st) { var rngU = bull.ext - bull.brk; if (close[i] < bull.ext - rngU * (RETR / 100)) bull = null; }
+    }
+
+    /* ساخت OB */
+    if (loBreakAny) {
+      var oB = null;
+      for (k = 1; k <= OBLOOK && i - k >= 0; k++) if (close[i - k] > open[i - k]) { oB = k; break; }
+      if (oB !== null) {
+        var ztB = high[i - oB], zbB = low[i - oB], fvgB = false;
+        for (k = 0; k <= oB - 2; k++) if (low[i - k - 2] > high[i - k]) { fvgB = true; break; }
+        var leftB = false, preB = false;
+        for (k = oB - 1; k >= 0; k--) { if (!leftB) { if (close[i - k] < zbB) leftB = true; } else if (close[i - k] >= zbB) { preB = true; break; } }
+        if (fvgB && leftB && !preB && !ov(supply, ztB, zbB)) {
+          supply.push({ side: 'supply', top: ztB, bot: zbB, live: true, createdIdx: i, tappedIdx: null, fadedIdx: null });
+          if (supply.length > MAXZ) supply.shift();
+        }
+      }
+    }
+    if (hiBreakAny) {
+      var oU = null;
+      for (k = 1; k <= OBLOOK && i - k >= 0; k++) if (close[i - k] < open[i - k]) { oU = k; break; }
+      if (oU !== null) {
+        var ztU = high[i - oU], zbU = low[i - oU], fvgU = false;
+        for (k = 0; k <= oU - 2; k++) if (high[i - k - 2] < low[i - k]) { fvgU = true; break; }
+        var leftU = false, preU = false;
+        for (k = oU - 1; k >= 0; k--) { if (!leftU) { if (close[i - k] > ztU) leftU = true; } else if (close[i - k] <= ztU) { preU = true; break; } }
+        if (fvgU && leftU && !preU && !ov(demand, ztU, zbU)) {
+          demand.push({ side: 'demand', top: ztU, bot: zbU, live: true, createdIdx: i, tappedIdx: null, fadedIdx: null });
+          if (demand.length > MAXZ) demand.shift();
+        }
+      }
+    }
+
+    /* ستاپ ۴ساعته */
+    var ocBuy = false, ocSell = false, j;
+    for (k = 0; k < demand.length; k++) { var dzz = demand[k]; if (dzz.live && bar.l <= dzz.top && bar.h >= dzz.bot) { ocBuy = true; break; } }
+    for (k = 0; k < supply.length; k++) { var szz = supply[k]; if (szz.live && bar.l <= szz.top && bar.h >= szz.bot) { ocSell = true; break; } }
+
+    if (h4Ready) {
+      var bucket = Math.floor(bar.t / H4);
+      if (curBucket === null) curBucket = bucket;
+      if (bucket !== curBucket) {
+        curBucket = bucket; sellArmed = false; buyArmed = false; sellWaiting = false; buyWaiting = false; sellZone = null; buyZone = null;
+      }
+      for (var b = bucket - 1; b >= bucket - 12; b--) {
+        if (h4map[b]) { h4HighNow = h4map[b].h; h4LowNow = h4map[b].l; break; }
+      }
+      var sellWas = sellArmed, buyWas = buyArmed;
+      if (h4HighNow !== null && bar.h >= h4HighNow) { sellArmed = true; sellWaiting = false; sellZone = null; }
+      if (h4LowNow !== null && bar.l <= h4LowNow) { buyArmed = true; buyWaiting = false; buyZone = null; }
+      if (sellWas && !sellWaiting && lastPivotLow !== null && close[i] < lastPivotLow) { sellZone = { lo: bar.l, hi: bar.h }; sellWaiting = true; sellArmed = false; }
+      if (buyWas && !buyWaiting && lastPivotHigh !== null && close[i] > lastPivotHigh) { buyZone = { lo: bar.l, hi: bar.h }; buyWaiting = true; buyArmed = false; }
+    }
+
+    /* الگوهای کندلی */
+    var rng = bar.h - bar.l, body = Math.abs(bar.c - bar.o);
+    var prevBar = i > 0 ? bars[i - 1] : null;
+    var dojiPrev = prevBar ? (prevBar.h - prevBar.l > 0 && Math.abs(prevBar.c - prevBar.o) <= (prevBar.h - prevBar.l) * DOJI / 100) : false;
+    var bearEng = bar.c < bar.o && i > 0 && close[i - 1] > open[i - 1] && bar.o >= close[i - 1] && bar.c <= open[i - 1];
+    var bullEng = bar.c > bar.o && i > 0 && close[i - 1] < open[i - 1] && bar.o <= close[i - 1] && bar.c >= open[i - 1];
+    var keyBar = rng > 0 && body >= rng * KEYBAR / 100 && !isNaN(atrVal) && body >= atrVal * KEYATR;
+    var bullPat = bullEng || (dojiPrev && keyBar && bar.c > bar.o);
+    var bearPat = bearEng || (dojiPrev && keyBar && bar.c < bar.o);
+    var bullPatFa = bullEng ? 'انگالف صعودی' : 'دوجی + کی‌بار صعودی';
+    var bearPatFa = bearEng ? 'انگالف نزولی' : 'دوجی + کی‌بار نزولی';
+
+    /* ریتست + سیگنال */
+    if (sellWaiting && sellZone && bar.l <= sellZone.hi && bar.h >= sellZone.lo && bearPat) {
+      signals.push({ side: 'sell', kind: 'setup4h', idx: i, t: bar.t, price: bar.c, zoneLo: sellZone.lo, zoneHi: sellZone.hi, ob: ocSell, pat: bearPatFa + (ocSell ? ' + هم‌پوشانی OB' : '') });
+      sellWaiting = false;
+    }
+    if (buyWaiting && buyZone && bar.l <= buyZone.hi && bar.h >= buyZone.lo && bullPat) {
+      signals.push({ side: 'buy', kind: 'setup4h', idx: i, t: bar.t, price: bar.c, zoneLo: buyZone.lo, zoneHi: buyZone.hi, ob: ocBuy, pat: bullPatFa + (ocBuy ? ' + هم‌پوشانی OB' : '') });
+      buyWaiting = false;
+    }
+
+    /* واگرایی */
+    for (k = 0; k < pivDiv.hs.length; k++) {
+      var p = pivDiv.hs[k];
+      if (p.idx + 5 !== i) continue;
+      var prevH = null;
+      for (j = pivDiv.hs.length - 1; j >= 0; j--) if (pivDiv.hs[j].idx < p.idx) { prevH = pivDiv.hs[j]; break; }
+      if (!prevH) continue;
+      var gapH = p.idx - prevH.idx;
+      if (gapH < 5 || gapH > 60) continue;
+      if (high[p.idx] > high[prevH.idx]) { var vB = votesAt(p.idx, prevH.idx, 'bear'); if (vB >= 3) { lastDiv = { side: 'bear', votes: vB, hidden: false, idx: i }; lastBearIdx = i; } }
+      else { var vHB = votesAt(p.idx, prevH.idx, 'hBear'); if (vHB >= 3) { lastDiv = { side: 'bear', votes: vHB, hidden: true, idx: i }; lastBearIdx = i; } }
+    }
+    for (k = 0; k < pivDiv.ls.length; k++) {
+      var p2 = pivDiv.ls[k];
+      if (p2.idx + 5 !== i) continue;
+      var prevL = null;
+      for (j = pivDiv.ls.length - 1; j >= 0; j--) if (pivDiv.ls[j].idx < p2.idx) { prevL = pivDiv.ls[j]; break; }
+      if (!prevL) continue;
+      var gapL = p2.idx - prevL.idx;
+      if (gapL < 5 || gapL > 60) continue;
+      if (low[p2.idx] < low[prevL.idx]) { var vBl = votesAt(p2.idx, prevL.idx, 'bull'); if (vBl >= 3) { lastDiv = { side: 'bull', votes: vBl, hidden: false, idx: i }; lastBullIdx = i; } }
+      else { var vHl = votesAt(p2.idx, prevL.idx, 'hBull'); if (vHl >= 3) { lastDiv = { side: 'bull', votes: vHl, hidden: true, idx: i }; lastBullIdx = i; } }
+    }
+  }
+
+  /* جمع‌بندی */
+  var last = bars[n - 1], lastAtr = isNaN(atr[n - 1]) ? null : atr[n - 1];
+  var tail = bars.slice(-200), bodyless = 0;
+  for (i = 0; i < tail.length; i++) if (tail[i].o === tail[i].c) bodyless++;
+  var degraded = tail.length > 0 && bodyless / tail.length > 0.6;
+  if (degraded) notes.push('کیفیت داده: ' + faDigits(Math.round(bodyless / tail.length * 100)) + '٪ از ۲۰۰ کندل اخیر این تایم‌فریم از منبع بدون بدنه‌اند (open=close) — زون‌های OB، الگوهای کندلی و موج روی این داده قابل محاسبه نیستند؛ تایم‌فریم بزرگ‌تر (۵ یا ۱۵ دقیقه) را انتخاب کنید.');
+
+  var lastDivIdx = lastDiv ? lastDiv.idx : null;
+  var divRecent = lastDivIdx !== null && (n - 1 - lastDivIdx) <= 10;
+  var liveSupply = supply.filter(function (z) { return z.live && z.bot > last.c; }).sort(function (a, b) { return a.bot - b.bot; }).slice(0, 3);
+  var liveDemand = demand.filter(function (z) { return z.live && z.top < last.c; }).sort(function (a, b) { return b.top - a.top; }).slice(0, 3);
+
+  var waveOut = { active: null, nAtr: null, retrLevel: null };
+  if (bear && bear.active) { var rB = bear.brk - bear.ext; waveOut = { active: 'bear', nAtr: bear.atrBrk > 0 ? rB / bear.atrBrk : null, retrLevel: bear.ext + rB * (RETR / 100) }; }
+  else if (bull && bull.active) { var rU = bull.ext - bull.brk; waveOut = { active: 'bull', nAtr: bull.atrBrk > 0 ? rU / bull.atrBrk : null, retrLevel: bull.ext - rU * (RETR / 100) }; }
+
+  /* پیشنهاد حدودی */
+  var sg = null;
+  var fresh = signals.filter(function (s) { return (n - 1 - s.idx) <= SCALP_FRESH; });
+  var latest = fresh.length ? fresh[fresh.length - 1] : null;
+  if (latest && lastAtr && lastAtr > 0) {
+    var mid = (latest.zoneLo + latest.zoneHi) / 2, buf = 0.5 * lastAtr;
+    var risk = latest.side === 'buy' ? mid - (latest.zoneLo - buf) : (latest.zoneHi + buf) - mid;
+    if (risk > 0) {
+      function pickTp(dir, minDist) {
+        var cands = [];
+        if (dir === 1) {
+          for (var q = 0; q < liveSupply.length; q++) { cands.push(liveSupply[q].bot); cands.push(liveSupply[q].top); }
+          if (swingHigh !== null) cands.push(swingHigh);
+          if (h4HighNow !== null) cands.push(h4HighNow);
+          var okv = cands.filter(function (v) { return v >= mid + minDist; }).sort(function (a, b2) { return a - b2; });
+          return okv.length ? okv[0] : mid + 2 * minDist;
+        }
+        for (var q2 = 0; q2 < liveDemand.length; q2++) { cands.push(liveDemand[q2].bot); cands.push(liveDemand[q2].top); }
+        if (swingLow !== null) cands.push(swingLow);
+        if (h4LowNow !== null) cands.push(h4LowNow);
+        var okv2 = cands.filter(function (v) { return v <= mid - minDist; }).sort(function (a, b2) { return b2 - a; });
+        return okv2.length ? okv2[0] : mid - 2 * minDist;
+      }
+      var tp1 = pickTp(latest.side === 'buy' ? 1 : -1, risk);
+      var tp2 = pickTp(latest.side === 'buy' ? 1 : -1, 2 * risk);
+      sg = {
+        side: latest.side, entryLo: latest.zoneLo, entryHi: latest.zoneHi,
+        sl: latest.side === 'buy' ? latest.zoneLo - buf : latest.zoneHi + buf,
+        tp1: tp1, tp2: tp2, kind: latest.kind, barsAgo: n - 1 - latest.idx,
+        reason: (latest.kind === 'setup4h' ? 'ستاپ ۴ساعته (' + latest.pat + ')' : latest.pat) + ' — سطوح و اهداف حدودی‌اند (ATR۱۴ تایم‌فریم: ' + scPx(lastAtr) + ')'
+      };
+    }
+  }
+
+  var divNote = 'واگرایی تازه‌ای در ۱۰ کندل اخیر ثبت نشده است.';
+  if (lastDiv && divRecent)
+    divNote = 'واگرایی ' + (lastDiv.hidden ? 'مخفی ' : '') + (lastDiv.side === 'bull' ? 'صعودی' : 'نزولی') + ' با توافق ' + faDigits(lastDiv.votes) + '/۵ ابزار، ' + faDigits(n - 1 - lastDiv.idx) + ' کندل پیش ثبت شده است.';
+
+  return {
+    bars: n, lastClose: last.c, lastT: last.t,
+    atr: lastAtr, atrPct: lastAtr ? lastAtr / last.c * 100 : null,
+    h4High: h4HighNow, h4Low: h4LowNow,
+    swingHigh: swingHigh, swingLow: swingLow, swingHighBroken: hiBroken, swingLowBroken: loBroken,
+    setup: {
+      sell: sellWaiting ? 'retest' : sellArmed ? 'armed' : 'idle',
+      buy: buyWaiting ? 'retest' : buyArmed ? 'armed' : 'idle',
+      sellZone: sellZone, buyZone: buyZone, unavailable: !h4Ready
+    },
+    wave: waveOut,
+    supplyZones: liveSupply, demandZones: liveDemand,
+    signals: signals.slice(-6),
+    divergence: {
+      recentBull: !!(divRecent && lastDiv && lastDiv.side === 'bull'),
+      recentBear: !!(divRecent && lastDiv && lastDiv.side === 'bear'),
+      note: divNote
+    },
+    suggestion: sg, degraded: degraded, notes: notes
+  };
+}
+
+/* ---------- دریافت داده از Yahoo با پروکسی ---------- */
+function scFetchBars(yahooSym, interval, range) {
+  var u = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(yahooSym) + '?interval=' + interval + '&range=' + range + '&includePrePost=false';
+  var i = 0;
+  function attempt() {
+    if (i >= PROXIES.length) return Promise.reject(new Error('proxy-fail'));
+    var p = PROXIES[i++];
+    return fetchJSON(p(u), 12000).then(function (j) {
+      var r = j && j.chart && j.chart.result && j.chart.result[0];
+      var q = r && r.indicators && r.indicators.quote && r.indicators.quote[0];
+      if (!r || !q || !q.close || !r.timestamp) throw new Error('bad');
+      var out = [], k;
+      for (k = 0; k < q.close.length; k++) {
+        if (q.close[k] == null || q.open[k] == null || q.high[k] == null || q.low[k] == null) continue;
+        out.push({ t: r.timestamp[k], o: q.open[k], h: q.high[k], l: q.low[k], c: q.close[k] });
+      }
+      if (out.length < 80) throw new Error('thin');
+      return out;
+    }).catch(function () { return attempt(); });
+  }
+  return attempt();
+}
+function scAgg4h(bars) {
+  var H = 14400, map = {}, keys = [], i;
+  for (i = 0; i < bars.length; i++) {
+    var b = Math.floor(bars[i].t / H) * H;
+    if (map[b] === undefined) { map[b] = { t: b, o: bars[i].o, h: bars[i].h, l: bars[i].l, c: bars[i].c }; keys.push(b); }
+    else { var e = map[b]; e.h = Math.max(e.h, bars[i].h); e.l = Math.min(e.l, bars[i].l); e.c = bars[i].c; }
+  }
+  keys.sort(function (a, b) { return a - b; });
+  return keys.map(function (k) { return map[k]; });
+}
+
+/* ---------- محاسبه + کش ---------- */
+function scKey() { return S_SCALP.sym + '@' + S_SCALP.tf; }
+function scalpCompute(force) {
+  var key = scKey();
+  var cached = SCALP_CACHE[key];
+  if (!force && cached && Date.now() - cached.at < 60000) return Promise.resolve(cached.payload);
+  var symCfg = SCALP_SYMS[S_SCALP.sym], tfCfg = SCALP_TFS[S_SCALP.tf];
+  if (!symCfg || !tfCfg) return Promise.reject(new Error('cfg'));
+  SCALP_BUSY = true;
+  var h4p = null;
+  return scFetchBars(symCfg.y, tfCfg.i, tfCfg.r).then(function (bars) {
+    return scFetchBars(symCfg.y, '1h', '3mo').then(function (h1) { h4p = scAgg4h(h1); return bars; }).catch(function () { return bars; });
+  }).then(function (bars) {
+    var engine = scalpRun(bars, h4p);
+    var rw = null;
+    try {
+      rw = trRangeComp(bars.map(function (b) { return b.h; }), bars.map(function (b) { return b.l; }), bars.map(function (b) { return b.c; }));
+    } catch (e) { rw = null; }
+    var payload = {
+      ok: true, sym: S_SCALP.sym, symbolLabel: symCfg.label, symbolMono: symCfg.mono,
+      tf: S_SCALP.tf, tfLabel: tfCfg.label, engine: engine, rangeWarn: rw, at: Date.now()
+    };
+    SCALP_CACHE[key] = { at: Date.now(), payload: payload };
+    SCALP_BUSY = false;
+    return payload;
+  }).catch(function (err) {
+    SCALP_BUSY = false;
+    throw err;
   });
-  var ress = appScroll.querySelectorAll('[data-bt-res]');
-  for (i = 0; i < ress.length; i++) {
+}
+
+/* ---------- رندر: باکس اسکلپ (داخل اپ پیشنهاد معامله) ---------- */
+function scStateChip(label, st) {
+  var cls = st === 'retest' ? 'mid' : st === 'armed' ? 'warn' : 'na';
+  var txt = st === 'retest' ? 'در انتظار ریتست' : st === 'armed' ? 'مسلح' : 'غیرفعال';
+  return '<span class="chip ' + cls + '">' + label + ': ' + txt + '</span>';
+}
+function scBodyHTML(d, fixed) {
+  var e = d.engine, h = '';
+  if (e.degraded) h += '<div class="bt-warn">⚠ کیفیت داده این تایم‌فریم برای موتور اسکلپ کافی نیست — ' + e.notes[0] + '</div>';
+  var sg = e.suggestion;
+  if (sg) {
+    h += '<div class="sc-sig ' + (sg.side === 'buy' ? 'b' : 's') + '">' +
+      '<div class="sc-sig-top"><b>' + icon(sg.side === 'buy' ? 'trendUp' : 'trendDown', 15) + (sg.side === 'buy' ? 'پیشنهاد خرید اسکلپ' : 'پیشنهاد فروش اسکلپ') + '</b>' +
+      '<span class="chip na">' + (sg.kind === 'setup4h' ? 'ستاپ ۴ساعته' : 'برخورد اوردر بلاک') + ' · ' + faDigits(sg.barsAgo) + ' کندل پیش</span></div>' +
+      '<div class="sc-grid">' +
+      '<span>ناحیه ورود (حدودی): <b dir="ltr">' + scPx(sg.entryLo) + ' – ' + scPx(sg.entryHi) + '</b></span>' +
+      '<span>حد ضرر: <b class="r" dir="ltr">' + scPx(sg.sl) + '</b></span>' +
+      '<span>هدف ۱: <b class="g" dir="ltr">' + scPx(sg.tp1) + '</b></span>' +
+      '<span>هدف ۲: <b class="g" dir="ltr">' + scPx(sg.tp2) + '</b></span></div>' +
+      '<p class="m">' + sg.reason + '</p>' +
+      '<p class="m amber">ابطال محاسباتی: بسته‌شدن کندل خارج و خلاف ناحیه ورود — اجرا، حجم و ریسک بر عهده خودتان است.</p></div>';
+  } else {
+    var stTxt = '';
+    if (e.setup.sell === 'retest' && e.setup.sellZone) stTxt += '<p class="m">ناحیه ریتست فروش: <b dir="ltr">' + scPx(e.setup.sellZone.lo) + ' – ' + scPx(e.setup.sellZone.hi) + '</b> — بازگشت به ناحیه + الگوی نزولی = سیگنال فروش.</p>';
+    if (e.setup.buy === 'retest' && e.setup.buyZone) stTxt += '<p class="m">ناحیه ریتست خرید: <b dir="ltr">' + scPx(e.setup.buyZone.lo) + ' – ' + scPx(e.setup.buyZone.hi) + '</b> — بازگشت به ناحیه + الگوی صعودی = سیگنال خرید.</p>';
+    h += '<div class="sc-wait"><div class="sc-sig-top"><b>' + icon('hourglass', 14) + 'سیگنال تازه‌ای صادر نشده است</b></div>' +
+      '<p class="m">اندیکاتور فعلاً ستاپ کامل (برخورد ← شکست ← ریتست ← الگو) یا برخورد تازه به زون OB ندارد؛ این وضعیت «عدم سیگنال» است، نه «عدم داده».</p>' +
+      '<div class="sc-chips">' + scStateChip('ستاپ فروش', e.setup.sell) + scStateChip('ستاپ خرید', e.setup.buy) + '</div>' + stTxt + '</div>';
+  }
+  if (d.rangeWarn && d.rangeWarn.active)
+    h += '<div class="bt-warn' + (d.rangeWarn.severity === 'tight' ? ' red' : '') + '"><b>' + (d.rangeWarn.severity === 'tight' ? 'هشدار جدی: رنج فشرده در تایم‌فریم اسکلپ' : 'هشدار: بازار رنج است') + '</b><span>' + d.rangeWarn.message + '</span></div>';
+
+  h += '<div class="sc-lv"><p class="t">' + icon('target', 13) + 'سطوح مهم (مقادیر حدودی)</p>' +
+    '<div class="sc-grid">' +
+    '<span>سقف کندل ۴ساعتهٔ بسته‌شده: <b class="r" dir="ltr">' + scPx(e.h4High) + '</b></span>' +
+    '<span>کف کندل ۴ساعتهٔ بسته‌شده: <b class="g" dir="ltr">' + scPx(e.h4Low) + '</b></span>' +
+    '<span>آخرین سقف سوئینگ: <b dir="ltr">' + scPx(e.swingHigh) + (e.swingHighBroken ? ' (شکسته)' : '') + '</b></span>' +
+    '<span>آخرین کف سوئینگ: <b dir="ltr">' + scPx(e.swingLow) + (e.swingLowBroken ? ' (شکسته)' : '') + '</b></span></div>';
+  var zi;
+  for (zi = 0; zi < e.supplyZones.length; zi++) h += '<p class="z r">زون فروش OB (زنده): <b dir="ltr">' + scPx(e.supplyZones[zi].bot) + ' – ' + scPx(e.supplyZones[zi].top) + '</b></p>';
+  for (zi = 0; zi < e.demandZones.length; zi++) h += '<p class="z g">زون خرید OB (زنده): <b dir="ltr">' + scPx(e.demandZones[zi].bot) + ' – ' + scPx(e.demandZones[zi].top) + '</b></p>';
+  if (e.wave.active) h += '<p class="m">موج شکست ' + (e.wave.active === 'bear' ? 'نزولی' : 'صعودی') + ' فعال است (' + scPx(e.wave.nAtr) + ' برابر ATR) — سطح پایان موج (اصلاح ۲۳٪): <b dir="ltr">' + scPx(e.wave.retrLevel) + '</b></p>';
+  if (e.setup.unavailable && e.notes[0]) h += '<p class="m amber">' + e.notes[0] + '</p>';
+  h += '</div>';
+  h += '<p class="sc-div">واگرایی چندابزاری (RSI/MACD/Stoch/CCI/MFI — توافق ۳ از ۵): ' + e.divergence.note + '</p>';
+
+  if (e.signals.length) {
+    h += '<div class="sc-hist"><p class="t">سیگنال‌های اخیر موتور (۶ مورد آخر)</p>';
+    var sigs = e.signals.slice().reverse();
+    for (var si = 0; si < sigs.length; si++) {
+      var s = sigs[si];
+      h += '<div class="sc-hrow"><span class="' + (s.side === 'buy' ? 'g' : 'r') + '">' + (s.side === 'buy' ? 'خرید' : 'فروش') + ' — ' + (s.kind === 'setup4h' ? 'ستاپ ۴ساعته' : 'برخورد OB') + '</span><span dir="ltr">' + scPx(s.zoneLo) + ' – ' + scPx(s.zoneHi) + '</span><span>' + faTime(new Date(s.t * 1000)) + '</span></div>';
+    }
+    h += '</div>';
+  }
+  h += '<p class="sc-foot">' + d.symbolLabel + ' · تایم‌فریم ' + d.tfLabel + ' · قیمت آخرین کندل بسته‌شده: <span dir="ltr">' + scPx(e.lastClose) + '</span> · ATR۱۴: <span dir="ltr">' + scPx(e.atr) + '</span> · آخرین محاسبه: ' + faTime(new Date(d.at)) +
+    '<br>پورت الگوریتمی اندیکاتور کاربر روی کندل‌های Yahoo Finance — سطوح حدودی‌اند و سیگنال قطعی یا توصیه خرید/فروش نیستند؛ تایم‌فریم‌های کوچک نویز بیشتری دارند.</p>';
+  return h;
+}
+function scSelectorsHTML(fixed) {
+  var h = '<div class="sc-sels">';
+  if (!fixed) {
+    h += '<div class="sc-chips" data-sc-syms>';
+    Object.keys(SCALP_SYMS).forEach(function (k) {
+      h += '<button type="button" class="cchip' + (S_SCALP.sym === k ? ' on' : '') + '" data-sc-sym="' + k + '">' + SCALP_SYMS[k].label.split(' — ')[0] + '</button>';
+    });
+    h += '</div>';
+  }
+  h += '<div class="sc-chips" data-sc-tfs>';
+  Object.keys(SCALP_TFS).forEach(function (t) {
+    h += '<button type="button" class="cchip' + (S_SCALP.tf === t ? ' on' : '') + '" data-sc-tf="' + t + '">' + SCALP_TFS[t].label + '</button>';
+  });
+  h += '</div>' +
+    '<button type="button" class="iconbtn" data-sc-refresh aria-label="بروزرسانی اسکلپ"><span data-sc-spin style="display:inline-flex">' + icon('refresh', 14) + '</span></button>' +
+    '</div>';
+  return h;
+}
+function scContentHTML(fixed, d) {
+  var head = '<div class="sc-head">' + icon('zap', 15) + '<b>' + (fixed ? 'سیگنال اسکلپ اونس — XAUUSD' : 'پیشنهاد اسکلپ') + '</b>' +
+    '<span class="sc-sub">موتور اندیکاتور: SBW موج شکست · اوردر بلاک FVG · ستاپ ۴ساعته · واگرایی ۵ابزاری</span></div>' + scSelectorsHTML(fixed);
+  if (!d) return head + '<div class="bt-state"><span class="spin">' + icon('refresh', 18) + '</span>در حال تحلیل کندل‌ها…<span class="s">موج، اوردر بلاک‌ها و ستاپ ۴ساعته روی داده Yahoo Finance</span></div>';
+  return head + scBodyHTML(d, fixed);
+}
+function bindScalpControls(rerender) {
+  var syms = appScroll.querySelectorAll('[data-sc-sym]');
+  for (var i = 0; i < syms.length; i++) {
     (function (b) {
       b.addEventListener('click', function () {
-        var entries = btGet(BT_KEYS.journal, []);
-        for (var k = 0; k < entries.length; k++) {
-          if (entries[k].id !== b.dataset.btId) continue;
-          entries[k].result = b.dataset.btRes;
-          if (b.dataset.btRes === 'loss' && !entries[k].review)
-            entries[k].review = { followedPlan: true, riskRespected: true, slMovedBadly: false, assumptionViolated: false };
-        }
-        btSet(BT_KEYS.journal, entries);
-        if (b.dataset.btRes === 'loss') {
-          btSet(BT_KEYS.lastloss, new Date().toISOString());
-          try { if (navigator.vibrate) navigator.vibrate(40); } catch (e) {}
-        }
-        renderTraderApp(true);
+        if (S_SCALP.sym === b.dataset.scSym) return;
+        S_SCALP.sym = b.dataset.scSym; scSave();
+        rerender(true);
       });
-    })(ress[i]);
+    })(syms[i]);
   }
-  var rvs = appScroll.querySelectorAll('[data-bt-rv]');
-  for (i = 0; i < rvs.length; i++) {
+  var tfs = appScroll.querySelectorAll('[data-sc-tf]');
+  for (var j = 0; j < tfs.length; j++) {
     (function (b) {
       b.addEventListener('click', function () {
-        var entries = btGet(BT_KEYS.journal, []);
-        for (var k = 0; k < entries.length; k++) {
-          if (entries[k].id === b.dataset.btId && entries[k].review) entries[k].review[b.dataset.btRv] = !entries[k].review[b.dataset.btRv];
-        }
-        btSet(BT_KEYS.journal, entries);
-        renderTraderApp(true);
+        if (S_SCALP.tf === b.dataset.scTf) return;
+        S_SCALP.tf = b.dataset.scTf; scSave();
+        rerender(true);
       });
-    })(rvs[i]);
+    })(tfs[j]);
   }
+  var rf = appScroll.querySelector('[data-sc-refresh]');
+  if (rf) rf.addEventListener('click', function () { rerender(true); });
+}
+/* باکس داخل اپ پیشنهاد معامله */
+function renderScalpBox(force) {
+  var slot = appScroll.querySelector('[data-sc-slot]');
+  if (!slot) return;
+  if (SCALP_BUSY && !force) { slot.innerHTML = scContentHTML(false, null); return; }
+  slot.innerHTML = '<div class="bt-state"><span class="spin">' + icon('refresh', 18) + '</span>در حال تحلیل کندل‌ها…</div>';
+  scalpCompute(!!force).then(function (d) {
+    var s2 = appScroll.querySelector('[data-sc-slot]');
+    if (!s2) return;
+    s2.innerHTML = scContentHTML(false, d);
+    bindScalpControls(renderScalpBox);
+  }).catch(function () {
+    var s3 = appScroll.querySelector('[data-sc-slot]');
+    if (!s3) return;
+    s3.innerHTML = '<div class="bt-state"><span style="color:var(--red)">' + icon('wifi', 20) + '</span>دریافت کندل‌ها از Yahoo Finance ممکن نشد — اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.<button type="button" class="btn" data-sc-retry>' + icon('refresh', 13) + 'تلاش مجدد</button></div>';
+    var rb = s3.querySelector('[data-sc-retry]');
+    if (rb) rb.addEventListener('click', function () { renderScalpBox(true); });
+  });
+}
+
+/* ---------- اپ مستقل سیگنال اسکلپ اونس ---------- */
+var SCALP_AUTO = null; /* تایمر بروزرسانی خودکار — فقط وقتی اپ باز است */
+function scStopAuto() { if (SCALP_AUTO) { clearInterval(SCALP_AUTO); SCALP_AUTO = null; } }
+function renderScalpApp() {
+  scStopAuto();
+  appScroll.innerHTML = '<div class="app-pad"><div data-sc-app>' + scContentHTML(true, null) + '</div>' +
+    '<p class="ms-note">این پنجره مستقل، همان موتور اندیکاتور را روی نماد اونس (XAUUSD) اجرا می‌کند و هر ۶۰ ثانیه خودکار بروزرسانی می‌شود؛ اگر اندیکاتور شما در تریدینگ‌ویو سیگنال بدهد، این پنجره همان سیگنال را با سطوح حدودی نشان می‌دهد. خروجی اطلاع‌رسانی است و توصیه معامله نیست.</p></div>';
+  bindScalpControls(renderScalpAppInner);
+  renderScalpAppInner(true);
+}
+function renderScalpAppInner(force) {
+  var box = appScroll.querySelector('[data-sc-app]');
+  if (!box) return;
+  if (!force && SCALP_BUSY) return;
+  scalpCompute(!!force).then(function (d) {
+    var b2 = appScroll.querySelector('[data-sc-app]');
+    if (!b2) return;
+    b2.innerHTML = scContentHTML(true, d);
+    bindScalpControls(renderScalpAppInner);
+    /* بروزرسانی خودکار ۶۰ ثانیه‌ای فقط برای اپ مستقل */
+    scStopAuto();
+    SCALP_AUTO = setInterval(function () {
+      if (!appScroll.querySelector('[data-sc-app]')) { scStopAuto(); return; }
+      renderScalpAppInner(true);
+    }, 60000);
+  }).catch(function () {
+    var b3 = appScroll.querySelector('[data-sc-app]');
+    if (!b3) return;
+    b3.innerHTML = '<div class="bt-state"><span style="color:var(--red)">' + icon('wifi', 20) + '</span>دریافت کندل‌ها از Yahoo Finance ممکن نشد — اتصال اینترنت یا VPN را بررسی کنید و دوباره تلاش کنید.<button type="button" class="btn" data-sc-retry2>' + icon('refresh', 13) + 'تلاش مجدد</button></div>';
+    var rb = b3.querySelector('[data-sc-retry2]');
+    if (rb) rb.addEventListener('click', function () { renderScalpAppInner(true); });
+  });
 }
 
 })();</script>

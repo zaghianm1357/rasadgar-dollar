@@ -3,61 +3,32 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
-  BookOpenCheck,
-  Briefcase,
-  Check,
   ClipboardCopy,
   Compass,
   Gauge,
   LoaderCircle,
   Newspaper,
   RefreshCw,
-  ShieldAlert,
   Sigma,
   SlidersHorizontal,
-  Target,
-  Trash2,
+  Sparkles,
+  X,
 } from "lucide-react";
 import { faTime, faDigits } from "@/lib/tehran";
 import { currencyFa } from "@/lib/currency-fa";
-import { computeTradePlan, decisionQuality, refreshNudge, restSuggestion, revengeLock } from "@/lib/trader-engine";
+import { computeTradePlan, refreshNudge } from "@/lib/trader-engine";
 import { compositeScore, compositeLabelFa } from "@/lib/factor-quant";
-import type { RangeWarning, EntryZone } from "@/lib/trader-engine";
+import type { RangeWarning, EntryZone, EntryZoneOutput } from "@/lib/trader-engine";
 import type { PlanOutput } from "@/lib/trader-engine";
 import type { TraderResponse } from "@/lib/trader-types";
 import type { FactorQuantResponse, FactorRow } from "@/lib/factor-types";
 
 /* ---------- کلیدهای ذخیره‌سازی ---------- */
 
-const K_JOURNAL = "bt_journal_v1";
 const K_VISIT = "bt_visit_v1";
 const K_REFRESH = "bt_refresh_v1";
-const K_PLAN = "bt_plan_v1";
-const K_LASTLOSS = "bt_last_loss_v1";
-const K_POSITIONS = "bt_positions_v1";
 const K_FWEIGHTS = "bt_fw_v1";
-
-interface JournalEntry {
-  id: string;
-  atISO: string;
-  reason: string;
-  scenario: string;
-  invalidation: string;
-  expectation: string;
-  dxyRole: string;
-  side: "buy" | "sell" | null;
-  entry: string;
-  result: "win" | "loss" | "be" | null;
-  review: { followedPlan: boolean; riskRespected: boolean; slMovedBadly: boolean; assumptionViolated: boolean } | null;
-}
-
-interface Position {
-  id: string;
-  sym: string;
-  side: "buy" | "sell";
-  lots: number;
-  riskUsd: number;
-}
+const K_AI = "bt_ai_v1";
 
 function lsGet<T>(key: string, fallback: T): T {
   try {
@@ -88,19 +59,12 @@ function faPct(v: number | null | undefined): string {
 const TF_FA: Record<string, string> = { "15m": "۱۵ دقیقه", "1h": "۱ ساعته", "4h": "۴ ساعته", "1d": "روزانه" };
 const TREND_FA: Record<string, string> = { bullish: "صعودی", bearish: "نزولی", neutral: "خنثی" };
 const VERDICT_FA: Record<string, string> = { strong: "شرایط قوی", moderate: "شرایط متوسط", "no-trade": "بدون معامله" };
-const DQ_LABEL: Record<string, string> = {
-  good: "تصمیم خوب + نتیجه مثبت",
-  neutral: "تصمیم سالم",
-  lucky: "نتیجه مثبت با فرآیند ناسالم",
-  "bad-execution": "اجرای ناسالم",
-};
 
 const TABS = [
   { id: "view", label: "نمای بازار", icon: Compass },
-  { id: "plan", label: "پلن و ریسک", icon: ShieldAlert },
+  { id: "ai", label: "تحلیل هوشمند", icon: Sparkles },
   { id: "factors", label: "عوامل کمّی", icon: Sigma },
   { id: "news", label: "اخبار", icon: Newspaper },
-  { id: "journal", label: "ژورنال", icon: BookOpenCheck },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -435,12 +399,11 @@ export function TraderApp() {
           </div>
         )}
         {!loading && !error && d && tab === "view" && <ViewTab d={d} visitChanges={visitChanges} />}
-        {!loading && !error && d && tab === "plan" && <PlanTab d={d} />}
+        {!loading && !error && d && tab === "ai" && <AiTab />}
         {!loading && !error && d && tab === "factors" && (
           <FactorsTab sym={sym} data={fq} status={fqStatus} error={fqError} onReload={() => loadFactors(true)} />
         )}
         {!loading && !error && d && tab === "news" && <NewsTab d={d} />}
-        {!loading && !error && d && tab === "journal" && <JournalTab balance={planBalance} />}
 
         {!loading && !error && d && (
           <p className="pt-2 text-center text-[9px] leading-4 text-muted-foreground/70">
@@ -564,31 +527,6 @@ function ViewTab({ d, visitChanges }: { d: TraderResponse; visitChanges: { text:
         </p>
       </Section>
 
-      {/* شناسنامه نماد */}
-      <Section title={`شناسنامه نماد — ${d.symbol.name}`} icon={<Briefcase className="h-3.5 w-3.5 text-amber-300" />}>
-        <div className="flex flex-col gap-1">
-          {d.symbol.specs.map((s) => (
-            <div key={s.label} className="flex items-start justify-between gap-2 border-b border-border/40 pb-1 last:border-0">
-              <span className="flex-none text-[10px] text-muted-foreground">{s.label}</span>
-              <span className="flex items-center gap-1 text-end text-[10px] font-bold">
-                {s.value}
-                {s.needsConfirm && (
-                  <span
-                    title="این مقدار به کارگزاری شما بستگی دارد — پیش از محاسبه حجم/ریسک با مشخصات حساب خودتان تطبیق دهید"
-                    className="flex-none rounded border border-amber-500/40 bg-amber-500/10 px-1 py-px text-[8px] text-amber-300"
-                  >
-                    نیازمند تأیید
-                  </span>
-                )}
-              </span>
-            </div>
-          ))}
-        </div>
-        <p className="mt-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2 py-1.5 text-[9px] leading-4 text-amber-200/90">
-          چرا «نیازمند تأیید»؟ اندازه قرارداد، ارزش پیپ، اسپرد، ساعات معامله و حداقل حجم به کارگزاری و نوع حساب شما بستگی دارد؛ ابزار مقادیر معمول بازار را نشان می‌دهد و از حدس زدن مشخصات حساب شما خودداری می‌کند. پیش از محاسبه حجم و ریسک، این مقادیر را با پنل کارگزاری خود تطبیق دهید — این هشدار مانع محاسبه نیست، جلوی خطای عددی را می‌گیرد.
-        </p>
-      </Section>
-
       {/* تغییرات از آخرین بازدید */}
       <Section title="چه چیزی از آخرین بازدید تغییر کرده؟" icon={<RefreshCw className="h-3.5 w-3.5 text-violet-300" />}>
         {visitChanges.length === 0 ? (
@@ -605,6 +543,9 @@ function ViewTab({ d, visitChanges }: { d: TraderResponse; visitChanges: { text:
         )}
         <p className="mt-1 text-[9px] text-muted-foreground">فقط تغییر واقعی داده‌ها نمایش داده می‌شود؛ هشدار، دستور ورود یا خروج نیست.</p>
       </Section>
+
+      {/* ماشین‌حساب پیپ/حجم و حد ضرر و حد سود */}
+      <RiskCalculator d={d} />
     </div>
   );
 }
@@ -613,11 +554,9 @@ function ActivityIcon() {
   return <Compass className="h-3.5 w-3.5 text-sky-300" />;
 }
 
-/* ---------- تب ۲: پلن و ریسک ---------- */
+/* ---------- ماشین‌حساب پیپ/حجم و حد ضرر و حد سود (انتهای نمای بازار) ---------- */
 
-let planBalance = 1000; // موجودی برای تب ژورنال (درصدهای ریسک تجمیعی)
-
-function PlanTab({ d }: { d: TraderResponse }) {
+function RiskCalculator({ d }: { d: TraderResponse }) {
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [entry, setEntry] = useState(() => (d.symbol.price ? String(Math.round(d.symbol.price * 100) / 100) : ""));
   const [balance, setBalance] = useState("1000");
@@ -626,10 +565,6 @@ function PlanTab({ d }: { d: TraderResponse }) {
   const [slMode, setSlMode] = useState<"swing" | "atr">("atr");
   const [plan, setPlan] = useState<PlanOutput | null>(null);
   const [copied, setCopied] = useState(false);
-  const [locked, setLocked] = useState<{ locked: boolean; minutesLeft: number }>(() => revengeLock(lsGet<string | null>(K_LASTLOSS, null)));
-  const [checks, setChecks] = useState<Record<string, boolean>>({});
-  const [positions, setPositions] = useState<Position[]>(() => lsGet<Position[]>(K_POSITIONS, []));
-  const [preMortemSide, setPreMortemSide] = useState<"buy" | "sell" | null>(null);
 
   const atrAbs = useMemo(() => {
     if (!d.symbol.price || d.regime.atrPct === null) return null;
@@ -657,7 +592,6 @@ function PlanTab({ d }: { d: TraderResponse }) {
       symbolLabel: d.symbol.key === "xau" ? "XAUUSD" : "DJI",
     });
     setPlan(out);
-    planBalance = Number(balance.replace(/[^\d.]/g, "")) || planBalance;
     setCopied(false);
   };
 
@@ -671,259 +605,321 @@ function PlanTab({ d }: { d: TraderResponse }) {
     }
   };
 
-  /* چک‌لیست: ۴ مورد خودکار از داده + ۳ مورد دستی */
-  const autoChecks = [
-    { label: "خبر مهم نزدیک است؟", value: d.checklistAuto.newsNear, warn: true },
-    { label: `تایم‌فریم‌ها ${d.checklistAuto.tfSummary} هستند؟`, value: d.checklistAuto.tfSummary === "هم‌جهت", warn: false },
-    { label: "حرکت DXY با سناریو سازگار است؟", value: d.checklistAuto.dxyCompatible, warn: false },
-    { label: "داده‌های لازم موجود و به‌روز هستند؟", value: d.checklistAuto.dataFresh, warn: false },
-  ];
-  const manualChecks = [
-    { key: "reason", label: "دلیل معامله روشن و ثبت شده است؟" },
-    { key: "sl", label: "حد ضرر یا شرط ابطال مشخص است؟" },
-    { key: "cap", label: "ریسک معامله با سقف ریسک من سازگار است؟" },
-  ];
-  const doneManual = manualChecks.filter((m) => checks[m.key]).length;
-  const ready = doneManual === manualChecks.length;
-
-  const totalRisk = positions.reduce((s, p) => s + p.riskUsd, 0);
-  const balanceNum = Number(balance.replace(/[^\d.]/g, "")) || 0;
-  const totalRiskPct = balanceNum > 0 ? (totalRisk / balanceNum) * 100 : null;
-
   return (
-    <div className="flex flex-col gap-2">
-      {/* قفل Revenge Trading */}
-      {locked.locked && (
-        <div className="flex items-start gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-2.5 py-2 text-[10px] font-bold leading-5 text-rose-200">
-          <AlertTriangle className="mt-0.5 h-3 w-3 flex-none" />
-          احتمالاً در حالت Revenge Trading هستید — یک نفس عمیق بکشید. پیشنهاد معامله تا {faDigits(locked.minutesLeft)} دقیقه قفل است.
+    <Section title="ماشین‌حساب پیپ/حجم و حد ضرر و حد سود" icon={<Gauge className="h-3.5 w-3.5 text-violet-300" />}>
+      <div className="grid grid-cols-2 gap-1.5">
+        <label className="text-[9px] font-bold text-muted-foreground">
+          جهت
+          <select value={side} onChange={(e) => setSide(e.target.value as "buy" | "sell")} className={inputCls} data-testid="bt-side">
+            <option value="buy">خرید (Buy)</option>
+            <option value="sell">فروش (Sell)</option>
+          </select>
+        </label>
+        <label className="text-[9px] font-bold text-muted-foreground">
+          نقطه ورود
+          <input value={entry} onChange={(e) => setEntry(e.target.value)} inputMode="decimal" dir="ltr" className={inputCls} placeholder="4200" data-testid="bt-entry" />
+        </label>
+        <label className="text-[9px] font-bold text-muted-foreground">
+          موجودی حساب ($)
+          <input value={balance} onChange={(e) => setBalance(e.target.value)} inputMode="decimal" dir="ltr" className={inputCls} placeholder="1000" data-testid="bt-balance" />
+        </label>
+        <label className="text-[9px] font-bold text-muted-foreground">
+          ریسک (٪)
+          <input value={riskPct} onChange={(e) => setRiskPct(e.target.value)} inputMode="decimal" dir="ltr" className={inputCls} placeholder="1" data-testid="bt-risk" />
+        </label>
+        <label className="text-[9px] font-bold text-muted-foreground">
+          نسبت R/R
+          <select value={rr} onChange={(e) => setRr(e.target.value)} className={inputCls}>
+            <option value="2">۱ به ۲</option>
+            <option value="3">۱ به ۳</option>
+          </select>
+        </label>
+        <label className="text-[9px] font-bold text-muted-foreground">
+          مبنای حد ضرر
+          <select value={slMode} onChange={(e) => setSlMode(e.target.value as "swing" | "atr")} className={inputCls}>
+            <option value="atr">ATR × ۱.۵ (خودکار)</option>
+            <option value="swing">آخرین سوئینگ</option>
+          </select>
+        </label>
+      </div>
+      <button
+        type="button"
+        onClick={generate}
+        className="mt-2 w-full rounded-lg border border-violet-500/50 bg-violet-500/20 py-1.5 text-[11px] font-extrabold text-violet-200"
+        data-testid="bt-generate"
+      >
+        محاسبه حد ضرر، حد سود و حجم
+      </button>
+
+      {plan && plan.ok && (
+        <div className="mt-2 rounded-lg border border-violet-500/30 bg-violet-500/5 p-2" data-testid="bt-plan-result">
+          <div className="grid grid-cols-2 gap-1 text-[10px] font-bold">
+            <p>حد ضرر: <span className="text-rose-300" dir="ltr">{plan.sl}</span></p>
+            <p>حد سود: <span className="text-emerald-300" dir="ltr">{plan.tp}</span></p>
+            <p>حجم: <span className="text-amber-300" dir="ltr">{plan.lots}</span> لات</p>
+            <p>ریسک: <span dir="ltr">${plan.riskAmount}</span></p>
+            <p>زیان در SL: <span className="text-rose-300" dir="ltr">${plan.lossAtSL}</span></p>
+            <p>سود در TP: <span className="text-emerald-300" dir="ltr">${plan.profitAtTP}</span></p>
+          </div>
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <code dir="ltr" className="min-w-0 flex-1 truncate rounded bg-black/30 px-1.5 py-1 text-[9px]">{plan.copyText}</code>
+            <button type="button" onClick={copy} className="flex h-6 w-6 flex-none items-center justify-center rounded-full border border-white/15 bg-white/10" aria-label="کپی خلاصه محاسبه">
+              {copied ? <Sparkles className="h-3 w-3 text-emerald-300" /> : <ClipboardCopy className="h-3 w-3" />}
+            </button>
+          </div>
+          {plan.warnings.map((w, i) => (
+            <p key={i} className="mt-1 text-[9px] leading-4 text-amber-300/90">⚠ {w}</p>
+          ))}
         </div>
       )}
-
-      <Section title="تولیدکننده خودکار پلن معامله" icon={<ShieldAlert className="h-3.5 w-3.5 text-violet-300" />}>
-        <div className="grid grid-cols-2 gap-1.5">
-          <label className="text-[9px] font-bold text-muted-foreground">
-            جهت
-            <select value={side} onChange={(e) => setSide(e.target.value as "buy" | "sell")} className={inputCls} data-testid="bt-side">
-              <option value="buy">خرید (Buy)</option>
-              <option value="sell">فروش (Sell)</option>
-            </select>
-          </label>
-          <label className="text-[9px] font-bold text-muted-foreground">
-            نقطه ورود
-            <input value={entry} onChange={(e) => setEntry(e.target.value)} inputMode="decimal" dir="ltr" className={inputCls} placeholder="4200" data-testid="bt-entry" />
-          </label>
-          <label className="text-[9px] font-bold text-muted-foreground">
-            موجودی حساب ($)
-            <input value={balance} onChange={(e) => setBalance(e.target.value)} inputMode="decimal" dir="ltr" className={inputCls} placeholder="1000" data-testid="bt-balance" />
-          </label>
-          <label className="text-[9px] font-bold text-muted-foreground">
-            ریسک (٪)
-            <input value={riskPct} onChange={(e) => setRiskPct(e.target.value)} inputMode="decimal" dir="ltr" className={inputCls} placeholder="1" data-testid="bt-risk" />
-          </label>
-          <label className="text-[9px] font-bold text-muted-foreground">
-            نسبت R/R
-            <select value={rr} onChange={(e) => setRr(e.target.value)} className={inputCls}>
-              <option value="2">۱ به ۲</option>
-              <option value="3">۱ به ۳</option>
-            </select>
-          </label>
-          <label className="text-[9px] font-bold text-muted-foreground">
-            مبنای حد ضرر
-            <select value={slMode} onChange={(e) => setSlMode(e.target.value as "swing" | "atr")} className={inputCls}>
-              <option value="atr">ATR × ۱.۵ (خودکار)</option>
-              <option value="swing">آخرین سوئینگ</option>
-            </select>
-          </label>
-        </div>
-        <button
-          type="button"
-          onClick={generate}
-          disabled={locked.locked}
-          className="mt-2 w-full rounded-lg border border-violet-500/50 bg-violet-500/20 py-1.5 text-[11px] font-extrabold text-violet-200 disabled:opacity-50"
-          data-testid="bt-generate"
-        >
-          ساخت پلن
-        </button>
-
-        {plan && plan.ok && (
-          <div className="mt-2 rounded-lg border border-violet-500/30 bg-violet-500/5 p-2" data-testid="bt-plan-result">
-            <div className="grid grid-cols-2 gap-1 text-[10px] font-bold">
-              <p>حد ضرر: <span className="text-rose-300" dir="ltr">{plan.sl}</span></p>
-              <p>حد سود: <span className="text-emerald-300" dir="ltr">{plan.tp}</span></p>
-              <p>حجم: <span className="text-amber-300" dir="ltr">{plan.lots}</span> لات</p>
-              <p>ریسک: <span dir="ltr">${plan.riskAmount}</span></p>
-              <p>زیان در SL: <span className="text-rose-300" dir="ltr">${plan.lossAtSL}</span></p>
-              <p>سود در TP: <span className="text-emerald-300" dir="ltr">${plan.profitAtTP}</span></p>
-            </div>
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <code dir="ltr" className="min-w-0 flex-1 truncate rounded bg-black/30 px-1.5 py-1 text-[9px]">{plan.copyText}</code>
-              <button type="button" onClick={copy} className="flex h-6 w-6 flex-none items-center justify-center rounded-full border border-white/15 bg-white/10" aria-label="کپی خلاصه پلن">
-                {copied ? <Check className="h-3 w-3 text-emerald-300" /> : <ClipboardCopy className="h-3 w-3" />}
-              </button>
-            </div>
-            {plan.warnings.map((w, i) => (
-              <p key={i} className="mt-1 text-[9px] leading-4 text-amber-300/90">⚠ {w}</p>
-            ))}
-          </div>
-        )}
-        {plan && !plan.ok && <p className="mt-2 text-[10px] font-bold text-rose-300">{plan.error}</p>}
-      </Section>
-
-      {/* نواحی ورود مبتنی بر ساختار */}
-      <Section title="نواحی ورود پیشنهادی بر اساس ساختار (الگوریتمی)" icon={<Target className="h-3.5 w-3.5 text-sky-300" />}>
-        {d.entryZones.zones.length === 0 ? (
-          <p className="text-[10px] leading-5 text-muted-foreground">{d.entryZones.note}</p>
-        ) : (
-          <>
-            <p className="text-[9px] leading-4 text-muted-foreground">
-              ساختار ۴ساعته: {d.entryZones.trendFa} — {d.entryZones.note}
-            </p>
-            {d.entryZones.zones.map((z, i) => (
-              <div key={i} className="mt-1.5 rounded-lg border border-sky-500/25 bg-sky-500/5 p-2" data-testid={`bt-zone-${z.side}`}>
-                <div className="flex items-center justify-between">
-                  <span className={`text-[11px] font-black ${z.side === "buy" ? "text-emerald-300" : "text-rose-300"}`}>
-                    {z.side === "buy" ? "ناحیه خرید" : "ناحیه فروش"}
-                  </span>
-                  <span className={`rounded-full px-1.5 py-px text-[9px] font-bold ${z.activeNow ? "bg-emerald-500/15 text-emerald-300" : "bg-white/10 text-zinc-300"}`}>
-                    {z.activeNow ? "ناحیه فعال (قیمت داخل آن است)" : "ناحیه انتظار پولبک"}
-                  </span>
-                </div>
-                <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] font-bold">
-                  <p>ناحیه ورود: <span dir="ltr">{z.zoneLo} – {z.zoneHi}</span></p>
-                  <p>حد ضرر: <span className="text-rose-300" dir="ltr">{z.sl}</span></p>
-                  <p>هدف ۱ (RR۲): <span className="text-emerald-300" dir="ltr">{z.tp1}</span></p>
-                  <p>هدف ۲ (RR۳): <span className="text-emerald-300" dir="ltr">{z.tp2}</span></p>
-                </div>
-                <p className="mt-1 text-[9px] leading-4 text-muted-foreground">{z.basis}</p>
-                <p className="text-[9px] leading-4 text-amber-300/90">{z.invalidate}</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSide(z.side);
-                    setEntry(String(Math.round(((z.zoneLo + z.zoneHi) / 2) * 100) / 100));
-                  }}
-                  className="mt-1 w-full rounded-lg border border-violet-500/40 bg-violet-500/10 py-1 text-[10px] font-extrabold text-violet-200"
-                >
-                  انتقال به فرم پلن
-                </button>
-              </div>
-            ))}
-            <p className="mt-1 text-[9px] leading-4 text-muted-foreground">
-              نواحی آموزشی و مبتنی بر سوئینگ/ATR هستند — سیگنال قطعی نیستند؛ تأیید کندل داخل ناحیه شرط اجراست و محاسبه حجم جداگانه در فرم پلن انجام می‌شود.
-            </p>
-          </>
-        )}
-      </Section>
-
-      {/* چک‌لیست */}
-      <Section title="چک‌لیست پیش از معامله" icon={<Check className="h-3.5 w-3.5 text-emerald-300" />}>
-        <div className="flex flex-col gap-1">
-          {autoChecks.map((a) => (
-            <div key={a.label} className="flex items-center justify-between text-[10px]">
-              <span className={a.value ? "" : a.warn ? "text-amber-300 font-bold" : "text-rose-300 font-bold"}>{a.label}</span>
-              <span className={`rounded-full px-1.5 py-px text-[9px] font-extrabold ${a.value ? "bg-emerald-500/15 text-emerald-300" : a.warn ? "bg-amber-500/15 text-amber-300" : "bg-rose-500/15 text-rose-300"}`}>
-                {a.value ? "بله" : "خیر"}
-              </span>
-            </div>
-          ))}
-          {manualChecks.map((m) => (
-            <label key={m.key} className="flex cursor-pointer items-center justify-between text-[10px]">
-              <span>{m.label}</span>
-              <input type="checkbox" checked={!!checks[m.key]} onChange={(e) => setChecks((c) => ({ ...c, [m.key]: e.target.checked }))} className="h-3.5 w-3.5 accent-emerald-500" />
-            </label>
-          ))}
-        </div>
-        {!ready && <p className="mt-1.5 text-[10px] font-bold text-amber-300">وضعیت: تحلیل ناقص — موارد دستی را تکمیل کنید؛ اطلاعات حدس زده نمی‌شود.</p>}
-        {ready && <p className="mt-1.5 text-[10px] font-bold text-emerald-300">چک‌لیست کامل شد — اجرای برنامه همچنان بر عهده خودتان است.</p>}
-      </Section>
-
-      {/* پیش‌مرگ */}
-      <Section title="اگر این معامله شکست بخورد، محتمل‌ترین دلیل چیست؟" icon={<AlertTriangle className="h-3.5 w-3.5 text-rose-300" />}>
-        <div className="mb-1.5 flex gap-1.5">
-          <button type="button" onClick={() => setPreMortemSide("buy")} className={`flex-1 rounded-full border px-2 py-1 text-[10px] font-bold ${preMortemSide === "buy" ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-200" : "border-border/70 text-muted-foreground"}`}>سناریوی خرید</button>
-          <button type="button" onClick={() => setPreMortemSide("sell")} className={`flex-1 rounded-full border px-2 py-1 text-[10px] font-bold ${preMortemSide === "sell" ? "border-rose-500/60 bg-rose-500/20 text-rose-200" : "border-border/70 text-muted-foreground"}`}>سناریوی فروش</button>
-        </div>
-        <ul className="flex flex-col gap-1">
-          {(preMortemSide
-            ? d.preMortem.factors
-            : d.preMortem.factors
-          ).map((f, i) => (
-            <li key={i} className="flex items-start gap-1.5 text-[10px] leading-5 text-foreground/85">
-              <span className="mt-1.5 h-1.5 w-1.5 flex-none rounded-full bg-rose-400" />
-              {f}
-            </li>
-          ))}
-        </ul>
-        <p className="mt-1 text-[9px] text-muted-foreground">{d.preMortem.balanceNote}</p>
-      </Section>
-
-      {/* ریسک تجمیعی */}
-      <Section title="ریسک تجمیعی پوزیشن‌ها" icon={<ShieldAlert className="h-3.5 w-3.5 text-amber-300" />}>
-        {positions.length === 0 ? (
-          <p className="text-[10px] text-muted-foreground">پوزیشنی ثبت نشده است. پوزیشن‌های باز خود را اضافه کنید تا مواجهه کلی با دلار بررسی شود.</p>
-        ) : (
-          <div className="flex flex-col gap-1">
-            {positions.map((p) => (
-              <div key={p.id} className="flex items-center justify-between rounded-lg border border-border/60 bg-background/40 px-2 py-1 text-[10px]">
-                <span className="font-bold">{p.sym}</span>
-                <span className={p.side === "buy" ? "text-emerald-300" : "text-rose-300"}>{p.side === "buy" ? "خرید" : "فروش"}</span>
-                <span dir="ltr">{p.lots} lot</span>
-                <span dir="ltr">${p.riskUsd}</span>
-                <button type="button" aria-label="حذف پوزیشن" onClick={() => { const nx = positions.filter((x) => x.id !== p.id); setPositions(nx); lsSet(K_POSITIONS, nx); }}>
-                  <Trash2 className="h-3 w-3 text-muted-foreground" />
-                </button>
-              </div>
-            ))}
-            <p className="text-[10px] font-bold">
-              ریسک تجمیعی: <span dir="ltr">${Math.round(totalRisk * 100) / 100}</span>
-              {totalRiskPct !== null && <> ({faNum(totalRiskPct)}٪ موجودی)</>}
-              {totalRiskPct !== null && totalRiskPct > 5 && <span className="text-rose-300"> — بالاتر از سقف معمول ۵٪؛ هم‌جهت‌بودن پوزیشن‌ها در برابر دلار را بررسی کنید.</span>}
-            </p>
-          </div>
-        )}
-        <AddPosition onAdd={(p) => { const nx = [...positions, p]; setPositions(nx); lsSet(K_POSITIONS, nx); }} />
-        <p className="mt-1 text-[9px] leading-4 text-muted-foreground">چند نماد متفاوت می‌توانند هم‌زمان تحت‌تأثیر یک عامل مشترک (دلار) باشند؛ همبستگی ثابت فرض نمی‌شود و جمع ریسک، تضمین زیان/سود نیست.</p>
-      </Section>
-    </div>
+      {plan && !plan.ok && <p className="mt-2 text-[10px] font-bold text-rose-300">{plan.error}</p>}
+      <p className="mt-1.5 text-[9px] leading-4 text-muted-foreground">
+        اندازه قرارداد و ارزش پیپ به کارگزاری شما بستگی دارد؛ مقادیر را با پنل کارگزاری تطبیق دهید. این ماشین‌حساب تضمین نتیجه یا توصیه معامله نیست.
+      </p>
+    </Section>
   );
 }
 
-function AddPosition({ onAdd }: { onAdd: (p: Position) => void }) {
-  const [sym, setSym] = useState("XAUUSD");
-  const [side, setSide] = useState<"buy" | "sell">("buy");
-  const [lots, setLots] = useState("");
-  const [risk, setRisk] = useState("");
+/* ---------- تب تحلیل هوشمند — نماد و تایم‌فریم دلخواه کاربر ---------- */
+
+const AI_SYMBOLS: { label: string; symbol: string }[] = [
+  { label: "طلا", symbol: "OANDA:XAUUSD" },
+  { label: "نقره", symbol: "OANDA:XAGUSD" },
+  { label: "یورو/دلار", symbol: "OANDA:EURUSD" },
+  { label: "بیت‌کوین", symbol: "BINANCE:BTCUSDT" },
+];
+
+const AI_INTERVALS: { label: string; value: string }[] = [
+  { label: "۵دقیقه", value: "5" },
+  { label: "۱۵دقیقه", value: "15" },
+  { label: "۱ساعت", value: "60" },
+  { label: "۴ساعت", value: "240" },
+  { label: "روزانه", value: "D" },
+];
+
+const AI_VALID = new Set(AI_INTERVALS.map((i) => i.value));
+
+function AiTab() {
+  const [symbol, setSymbol] = useState<string>(() => {
+    try {
+      const raw = localStorage.getItem(K_AI);
+      if (raw) {
+        const p = JSON.parse(raw) as { symbol?: string; interval?: string };
+        if (p.symbol && p.symbol.includes(":")) return p.symbol;
+      }
+    } catch {
+      /* پیش‌فرض */
+    }
+    return "OANDA:XAUUSD";
+  });
+  const [interval, setIntervalTf] = useState<string>(() => {
+    try {
+      const raw = localStorage.getItem(K_AI);
+      if (raw) {
+        const p = JSON.parse(raw) as { symbol?: string; interval?: string };
+        if (p.interval && AI_VALID.has(p.interval)) return p.interval;
+      }
+    } catch {
+      /* پیش‌فرض */
+    }
+    return "15";
+  });
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [text, setText] = useState("");
+  const [at, setAt] = useState<string | null>(null);
+  const [resKey, setResKey] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [zones, setZones] = useState<EntryZoneOutput | null>(null);
+  const [rw, setRw] = useState<RangeWarning | null>(null);
+
+  const symLabel = AI_SYMBOLS.find((s) => s.symbol === symbol)?.label ?? symbol;
+  const tfLabel = AI_INTERVALS.find((i) => i.value === interval)?.label ?? interval;
+
+  const run = useCallback(
+    (sym: string, itv: string, force: boolean) => {
+      setStatus("loading");
+      setError(null);
+      fetch(`/api/chart-analysis?symbol=${encodeURIComponent(sym)}&interval=${itv}${force ? "&force=1" : ""}`)
+        .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
+        .then(({ ok, j }) => {
+          if (ok && j?.ok) {
+            setText(String(j.analysis ?? ""));
+            setAt(j.generatedAtISO ? String(j.generatedAtISO) : null);
+            setResKey(`${sym}@${itv}`);
+            setZones((j.zones as EntryZoneOutput | null) ?? null);
+            setRw((j.rangeWarning as RangeWarning | null) ?? null);
+            setStatus("done");
+          } else {
+            setError(String(j?.error ?? "خطای نامشخص"));
+            setStatus("error");
+          }
+        })
+        .catch(() => {
+          setError("ارتباط با سرور برقرار نشد");
+          setStatus("error");
+        });
+    },
+    [],
+  );
+
+  const apply = (sym: string, itv: string) => {
+    setSymbol(sym);
+    setIntervalTf(itv);
+    try {
+      localStorage.setItem(K_AI, JSON.stringify({ symbol: sym, interval: itv }));
+    } catch {
+      /* حالت ناشناس */
+    }
+    run(sym, itv, false);
+  };
+
   return (
-    <div className="mt-1.5 grid grid-cols-4 gap-1">
-      <select value={sym} onChange={(e) => setSym(e.target.value)} className={`${inputCls} col-span-1 !text-[10px]`}>
-        <option>XAUUSD</option>
-        <option>DJI</option>
-        <option>EURUSD</option>
-        <option>BTCUSDT</option>
-      </select>
-      <select value={side} onChange={(e) => setSide(e.target.value as "buy" | "sell")} className={`${inputCls} !text-[10px]`}>
-        <option value="buy">خرید</option>
-        <option value="sell">فروش</option>
-      </select>
-      <input value={lots} onChange={(e) => setLots(e.target.value)} placeholder="لات" inputMode="decimal" dir="ltr" className={`${inputCls} !text-[10px]`} />
-      <div className="flex gap-1">
-        <input value={risk} onChange={(e) => setRisk(e.target.value)} placeholder="ریسک $" inputMode="decimal" dir="ltr" className={`${inputCls} !text-[10px]`} />
-        <button
-          type="button"
-          onClick={() => {
-            const l = Number(lots);
-            const r = Number(risk);
-            if (!(l > 0) || !(r > 0)) return;
-            onAdd({ id: String(Date.now()), sym, side, lots: l, riskUsd: r });
-            setLots("");
-            setRisk("");
-          }}
-          className="flex-none rounded-lg border border-emerald-500/50 bg-emerald-500/15 px-2 text-[11px] font-extrabold text-emerald-200"
-          aria-label="افزودن پوزیشن"
-        >
-          +
-        </button>
+    <div className="flex flex-col gap-2">
+      <Section title="تحلیل هوشمند — همان نماد و تایم‌فریم انتخابی" icon={<Sparkles className="h-3.5 w-3.5 text-violet-300" />}>
+        <p className="mb-1.5 text-[9px] leading-4 text-muted-foreground">
+          نماد و تایم‌فریم را خودتان انتخاب کنید و «اجرای تحلیل» را بزنید. این بخش از پنجره تریدینگ‌ویو به دستیار معامله‌گر منتقل شده است.
+        </p>
+        <div className="no-scrollbar -mx-0.5 flex items-center gap-1 overflow-x-auto px-0.5 pb-1" data-testid="bt-ai-syms">
+          {AI_SYMBOLS.map((p) => (
+            <button
+              key={p.symbol}
+              type="button"
+              onClick={() => apply(p.symbol, interval)}
+              className={`flex-none rounded-full border px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                symbol === p.symbol ? "border-amber-500/60 bg-amber-500/20 text-amber-200" : "border-border/70 bg-card/60 text-muted-foreground"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto" data-testid="bt-ai-tfs">
+            {AI_INTERVALS.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => apply(symbol, p.value)}
+                className={`flex-none rounded-full border px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                  interval === p.value ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-200" : "border-border/70 bg-card/60 text-muted-foreground"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => run(symbol, interval, false)}
+            disabled={status === "loading"}
+            aria-label="اجرای تحلیل هوشمند"
+            data-testid="bt-ai-run"
+            className="flex flex-none items-center gap-1 rounded-full border border-violet-500/50 bg-violet-500/15 px-2.5 py-1 text-[10px] font-extrabold text-violet-200 disabled:opacity-60"
+          >
+            {status === "loading" ? <LoaderCircle className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+            اجرای تحلیل
+          </button>
+        </div>
+      </Section>
+
+      <div className="flex flex-col gap-1.5" data-testid="bt-ai-panel">
+        {status === "idle" && (
+          <Section title={`تحلیل ${symLabel} · ${tfLabel}`} icon={<Sparkles className="h-3.5 w-3.5 text-violet-300" />}>
+            <p className="text-[10px] leading-5 text-muted-foreground">برای شروع، دکمه «اجرای تحلیل» را بزنید.</p>
+          </Section>
+        )}
+        {status === "loading" && (
+          <Section title={`تحلیل ${symLabel} · ${tfLabel}`} icon={<Sparkles className="h-3.5 w-3.5 text-violet-300" />}>
+            <div className="flex flex-col items-center gap-1.5 py-3 text-center">
+              <LoaderCircle className="h-6 w-6 animate-spin text-violet-300" />
+              <p className="text-xs font-bold text-foreground/85">در حال تحلیل…</p>
+              <p className="text-[10px] text-muted-foreground">معمولاً ۵ تا ۱۵ ثانیه طول می‌کشد</p>
+            </div>
+          </Section>
+        )}
+        {status === "error" && (
+          <Section title={`تحلیل ${symLabel} · ${tfLabel}`} icon={<Sparkles className="h-3.5 w-3.5 text-violet-300" />}>
+            <div className="flex flex-col items-center gap-1.5 py-2 text-center">
+              <AlertTriangle className="h-6 w-6 text-amber-400" />
+              <p className="text-[11px] leading-5 text-muted-foreground">{error}</p>
+              <button
+                type="button"
+                onClick={() => run(symbol, interval, true)}
+                className="flex items-center gap-1.5 rounded-full border border-violet-500/50 bg-violet-500/15 px-3.5 py-1.5 text-xs font-extrabold text-violet-200"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                تلاش مجدد
+              </button>
+            </div>
+          </Section>
+        )}
+        {status === "done" && (
+          <Section
+            title={`تحلیل ${symLabel} · ${tfLabel}`}
+            icon={<Sparkles className="h-3.5 w-3.5 text-violet-300" />}
+          >
+            <div className="mb-1 flex items-center justify-between">
+              {resKey !== null && resKey !== `${symbol}@${interval}` ? (
+                <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-px text-[9px] font-bold text-amber-200">
+                  این تحلیل مربوط به نماد/تایم‌فریم قبلی است — دوباره اجرا کنید
+                </span>
+              ) : (
+                <span className="text-[9px] text-muted-foreground/80">{at ? faTime(new Date(at)) : ""}</span>
+              )}
+              <button
+                type="button"
+                onClick={() => run(symbol, interval, true)}
+                aria-label="بروزرسانی تحلیل"
+                className="flex h-6 w-6 flex-none items-center justify-center rounded-full border border-white/15 bg-white/10"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </button>
+            </div>
+            {rw?.active && (
+              <div
+                className={`mb-1.5 rounded-lg border px-2 py-1.5 ${rw.severity === "tight" ? "border-rose-500/60 bg-rose-500/15" : "border-amber-500/50 bg-amber-500/10"}`}
+                data-testid="bt-ai-rangewarn"
+              >
+                <p className={`text-[10.5px] font-black ${rw.severity === "tight" ? "text-rose-200" : "text-amber-200"}`}>
+                  {rw.severity === "tight" ? "هشدار جدی: رنج فشرده" : "هشدار: بازار رنج است"}
+                </p>
+                <p className="mt-0.5 text-[9.5px] leading-4 text-foreground/85">{rw.message}</p>
+              </div>
+            )}
+            <p className="whitespace-pre-wrap text-[11px] leading-6 text-foreground/90">{text}</p>
+            {zones && zones.zones.length > 0 && (
+              <div className="mt-1.5 rounded-lg border border-sky-500/30 bg-sky-500/5 px-2 py-1.5" data-testid="bt-ai-zones">
+                <p className="text-[10.5px] font-black text-sky-200">نواحی ورود مبتنی بر ساختار (الگوریتمی)</p>
+                <p className="mt-0.5 text-[9px] leading-4 text-muted-foreground">ساختار این تایم‌فریم: {zones.trendFa} — {zones.note}</p>
+                {zones.zones.map((z: EntryZone, i) => (
+                  <div key={i} className="mt-1 rounded-lg border border-border/60 bg-background/40 p-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[10px] font-black ${z.side === "buy" ? "text-emerald-300" : "text-rose-300"}`}>
+                        {z.side === "buy" ? "ناحیه خرید" : "ناحیه فروش"}
+                      </span>
+                      <span className={`rounded-full px-1.5 py-px text-[8.5px] font-bold ${z.activeNow ? "bg-emerald-500/15 text-emerald-300" : "bg-white/10 text-zinc-300"}`}>
+                        {z.activeNow ? "فعال" : "انتظار پولبک"}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 grid grid-cols-2 gap-x-2 text-[9px] font-bold">
+                      <p>ناحیه: <span dir="ltr">{z.zoneLo} – {z.zoneHi}</span></p>
+                      <p>SL: <span className="text-rose-300" dir="ltr">{z.sl}</span></p>
+                      <p>TP۱ (RR۲): <span className="text-emerald-300" dir="ltr">{z.tp1}</span></p>
+                      <p>TP۲ (RR۳): <span className="text-emerald-300" dir="ltr">{z.tp2}</span></p>
+                    </div>
+                    <p className="mt-0.5 text-[8.5px] leading-4 text-amber-300/90">{z.invalidate}</p>
+                  </div>
+                ))}
+                <p className="mt-1 text-[8.5px] leading-4 text-muted-foreground">
+                  نواحی آموزشی مبتنی بر سوئینگ/ATR هستند — سیگنال قطعی نیستند؛ تأیید کندل داخل ناحیه شرط اجراست.
+                </p>
+              </div>
+            )}
+            <p className="pt-1 text-center text-[9px] text-muted-foreground/70">
+              تحلیل صرفاً اطلاع‌رسانی است و توصیه معاملاتی محسوب نمی‌شود — منبع داده: Yahoo Finance
+            </p>
+          </Section>
+        )}
       </div>
     </div>
   );
@@ -1019,194 +1015,6 @@ function NewsTab({ d }: { d: TraderResponse }) {
         ) : (
           <p className="text-[10px] leading-5 text-muted-foreground">{d.history.reason ?? "نمونه تاریخی کافی نیست."}</p>
         )}
-      </Section>
-    </div>
-  );
-}
-
-/* ---------- تب ۴: ژورنال ---------- */
-
-function JournalTab({ balance }: { balance: number }) {
-  const [entries, setEntries] = useState<JournalEntry[]>(() => lsGet<JournalEntry[]>(K_JOURNAL, []));
-  const [reason, setReason] = useState("");
-  const [scenario, setScenario] = useState("");
-  const [invalidation, setInvalidation] = useState("");
-  const [expectation, setExpectation] = useState("");
-  const [side, setSide] = useState<"buy" | "sell">("buy");
-  const [entry, setEntry] = useState("");
-  const [saved, setSaved] = useState(false);
-
-  const todayLosses = useMemo(() => {
-    const todayKey = new Date().toISOString().slice(0, 10);
-    return entries.filter((e) => e.result === "loss" && e.atISO.slice(0, 10) === todayKey).length;
-  }, [entries]);
-
-  const rest = restSuggestion(todayLosses === 0 ? [] : Array(todayLosses).fill("loss" as const));
-  const lastLoss = lsGet<string | null>(K_LASTLOSS, null);
-  const lock = revengeLock(lastLoss);
-
-  const save = () => {
-    if (!reason.trim() || !invalidation.trim()) {
-      setSaved(false);
-      return;
-    }
-    const e: JournalEntry = {
-      id: String(Date.now()),
-      atISO: new Date().toISOString(),
-      reason,
-      scenario,
-      invalidation,
-      expectation,
-      dxyRole: "",
-      side,
-      entry,
-      result: null,
-      review: null,
-    };
-    const nx = [e, ...entries];
-    setEntries(nx);
-    lsSet(K_JOURNAL, nx);
-    setReason("");
-    setScenario("");
-    setInvalidation("");
-    setExpectation("");
-    setEntry("");
-    setSaved(true);
-  };
-
-  const setResult = (id: string, result: JournalEntry["result"]) => {
-    const nx = entries.map((e) =>
-      e.id === id ? { ...e, result, review: result === "loss" ? e.review ?? { followedPlan: true, riskRespected: true, slMovedBadly: false, assumptionViolated: false } : e.review } : e
-    );
-    setEntries(nx);
-    lsSet(K_JOURNAL, nx);
-    if (result === "loss") {
-      lsSet(K_LASTLOSS, new Date().toISOString());
-      try {
-        navigator.vibrate?.(40);
-      } catch {
-        /* پشتیبانی نمی‌شود */
-      }
-    }
-  };
-
-  const setReview = (id: string, key: keyof NonNullable<JournalEntry["review"]>, v: boolean) => {
-    const nx = entries.map((e) => (e.id === id && e.review ? { ...e, review: { ...e.review, [key]: v } } : e));
-    setEntries(nx);
-    lsSet(K_JOURNAL, nx);
-  };
-
-  return (
-    <div className="flex flex-col gap-2">
-      {lock.locked && (
-        <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-2.5 py-2 text-[10px] font-bold leading-5 text-rose-200">
-          احتمالاً در حالت Revenge Trading هستید — یک نفس عمیق بکشید. پیشنهاد معامله تا {faDigits(lock.minutesLeft)} دقیقه دیگر قفل است.
-        </div>
-      )}
-      {rest.suggest && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-[10px] font-bold leading-5 text-amber-200">{rest.message}</div>
-      )}
-
-      <Section title="ثبت فرض‌ها — پیش از معامله" icon={<BookOpenCheck className="h-3.5 w-3.5 text-emerald-300" />}>
-        <div className="grid grid-cols-2 gap-1.5">
-          <label className="text-[9px] font-bold text-muted-foreground">
-            جهت
-            <select value={side} onChange={(e) => setSide(e.target.value as "buy" | "sell")} className={inputCls}>
-              <option value="buy">خرید</option>
-              <option value="sell">فروش</option>
-            </select>
-          </label>
-          <label className="text-[9px] font-bold text-muted-foreground">
-            ورود (اختیاری)
-            <input value={entry} onChange={(e) => setEntry(e.target.value)} inputMode="decimal" dir="ltr" className={inputCls} />
-          </label>
-        </div>
-        <label className="mt-1.5 block text-[9px] font-bold text-muted-foreground">
-          دلیل ورود (اجباری)
-          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} className={`${inputCls} resize-none`} placeholder="مثال: بازگشت از حمایت با کندل پوششی در ۱ ساعته" />
-        </label>
-        <label className="mt-1.5 block text-[9px] font-bold text-muted-foreground">
-          سناریوی انتخاب‌شده
-          <input value={scenario} onChange={(e) => setScenario(e.target.value)} className={inputCls} placeholder="سناریوی اول / دوم یا توضیح خودتان" />
-        </label>
-        <label className="mt-1.5 block text-[9px] font-bold text-muted-foreground">
-          شرط ابطال (اجباری)
-          <textarea value={invalidation} onChange={(e) => setInvalidation(e.target.value)} rows={2} className={`${inputCls} resize-none`} placeholder="مثال: بسته‌شدن کندل زیر 4185" />
-        </label>
-        <label className="mt-1.5 block text-[9px] font-bold text-muted-foreground">
-          انتظار شما از معامله
-          <input value={expectation} onChange={(e) => setExpectation(e.target.value)} className={inputCls} placeholder="مثال: رسیدن به TP با RR=۲" />
-        </label>
-        <button type="button" onClick={save} className="mt-2 w-full rounded-lg border border-emerald-500/50 bg-emerald-500/20 py-1.5 text-[11px] font-extrabold text-emerald-200">
-          ثبت در ژورنال
-        </button>
-        {!saved && <p className="mt-1 text-[9px] text-muted-foreground">بدون دلیل و شرط ابطال، ثبت انجام نمی‌شود — تحلیل ناقص حدس زده نمی‌شود.</p>}
-        {saved && <p className="mt-1 text-[9px] font-bold text-emerald-300">ثبت شد.</p>}
-      </Section>
-
-      <Section title={`معاملات ثبت‌شده${balance > 0 ? ` — موجودی: $${faNum(balance, 0)}` : ""}`} icon={<BookOpenCheck className="h-3.5 w-3.5 text-sky-300" />}>
-        {entries.length === 0 ? (
-          <p className="text-[10px] text-muted-foreground">هنوز معامله‌ای ثبت نشده است. کیفیت تصمیم جدا از سود/زیان ارزیابی می‌شود.</p>
-        ) : (
-          <div className="flex flex-col gap-1.5">
-            {entries.slice(0, 10).map((e) => {
-              const dq = e.review && e.result ? decisionQuality({ ...e.review }, e.result) : null;
-              return (
-                <div key={e.id} className="rounded-lg border border-border/60 bg-background/40 p-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-extrabold">
-                      {e.side === "buy" ? "خرید" : "فروش"} {e.entry ? <span dir="ltr">@ {e.entry}</span> : null}
-                    </p>
-                    <p className="text-[9px] text-muted-foreground">{faTime(new Date(e.atISO))}</p>
-                  </div>
-                  <p className="mt-0.5 text-[10px] leading-5 text-foreground/85">دلیل: {e.reason}</p>
-                  <p className="text-[9px] leading-4 text-muted-foreground">ابطال: {e.invalidation}</p>
-                  {dq && <p className="mt-0.5 text-[9px] font-bold text-sky-300">ارزیابی: {DQ_LABEL[dq.grade]} — {dq.note}</p>}
-                  <div className="mt-1 flex items-center gap-1">
-                    {!e.result ? (
-                      <>
-                        <span className="text-[9px] text-muted-foreground">نتیجه:</span>
-                        <button type="button" onClick={() => setResult(e.id, "win")} className="rounded-full border border-emerald-500/50 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-300">سود</button>
-                        <button type="button" onClick={() => setResult(e.id, "loss")} className="rounded-full border border-rose-500/50 bg-rose-500/10 px-2 py-0.5 text-[9px] font-bold text-rose-300">ضرر</button>
-                        <button type="button" onClick={() => setResult(e.id, "be")} className="rounded-full border border-border/70 bg-white/5 px-2 py-0.5 text-[9px] font-bold text-muted-foreground">سر‌به‌سر</button>
-                      </>
-                    ) : (
-                      <>
-                        <span className={`rounded-full px-2 py-0.5 text-[9px] font-extrabold ${e.result === "win" ? "bg-emerald-500/15 text-emerald-300" : e.result === "loss" ? "bg-rose-500/15 text-rose-300" : "bg-white/10 text-muted-foreground"}`}>
-                          {e.result === "win" ? "سود" : e.result === "loss" ? "ضرر" : "سربه‌سر"}
-                        </span>
-                        {e.review && (
-                          <div className="flex flex-wrap items-center gap-1 text-[8px]">
-                            {(
-                              [
-                                ["followedPlan", "طبق برنامه"],
-                                ["riskRespected", "ریسک رعایت شد"],
-                                ["slMovedBadly", "SL بد جابه‌جا شد"],
-                                ["assumptionViolated", "فرض نقض شد"],
-                              ] as const
-                            ).map(([k, label]) => (
-                              <button
-                                key={k}
-                                type="button"
-                                onClick={() => setReview(e.id, k, !e.review![k])}
-                                className={`rounded-full border px-1.5 py-px font-bold ${e.review![k] ? "border-sky-500/50 bg-sky-500/15 text-sky-300" : "border-border/60 text-muted-foreground"}`}
-                              >
-                                {label}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <p className="mt-1.5 text-[9px] leading-4 text-muted-foreground">
-          نتیجه یک معامله به‌تنهایی اثبات خوب یا بد بودن روش شما نیست؛ از چند نمونه محدود قانون کلی نسازید. ژورنال فقط روی همین دستگاه ذخیره می‌شود.
-        </p>
       </Section>
     </div>
   );

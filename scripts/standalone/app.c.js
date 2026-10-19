@@ -230,6 +230,11 @@ function renderNewsApp() {
 
 /* ---------- پیشنهاد معامله ---------- */
 var SUG = { st: '1h', en: '5m' };
+/* تایم‌فریم‌های ساختار قابل انتخاب توسط کاربر — ۵ دقیقه هم اضافه شد (داده در اسنپ‌شات موجود است) */
+var SUG_ST_TFS = ['5m', '15m', '1h', '4h', '1d', '1wk', '1mo'];
+function sugStOptions() {
+  return SUG_ST_TFS.map(function (tf) { return '<option value="' + tf + '"' + (SUG.st === tf ? ' selected' : '') + '>' + TF_LONG[tf] + '</option>'; }).join('');
+}
 function validEntries(st) {
   return ['5m', '15m', '1h', '4h'].filter(function (tf) { return TF_MINUTES[tf] <= TF_MINUTES[st]; });
 }
@@ -272,7 +277,7 @@ function sugCardHTML(name, mono, symKey) {
 }
 function sugBoxHTML() {
   var enTf = effectiveEntry();
-  var stOpts = TF_ORDER.map(function (tf) { return '<option value="' + tf + '"' + (SUG.st === tf ? ' selected' : '') + '>' + TF_LONG[tf] + '</option>'; }).join('');
+  var stOpts = sugStOptions();
   var enOpts = validEntries(SUG.st).map(function (tf) { return '<option value="' + tf + '"' + (enTf === tf ? ' selected' : '') + '>' + TF_LONG[tf] + '</option>'; }).join('');
   return '<div class="sug">' +
     '<div class="sug-head">' + icon('crosshair', 16) + '<span class="sug-t">پیشنهاد معامله</span><span class="sug-s">ترکیب تایم‌فریم ساختار و تایم‌فریم ورود</span></div>' +
@@ -361,9 +366,11 @@ function renderStructureApp() {
 function renderSuggestionApp() {
   appScroll.innerHTML = '<div class="app-pad">' +
     '<div class="sug-slot">' + sugBoxHTML() + '</div>' +
-    '<p class="ms-note">این اپ همان منطق پیشنهاد معامله داخل اپ «ساختار بازار» است — ترکیب جهت تایم‌فریم ساختار و تایم‌فریم ورود. داده‌ها اسنپ‌شات لحظه تولید فایل‌اند؛ پیشنهاد معامله سیگنال معاملاتی نیست.</p>' +
+    '<div data-sc-slot>' + scContentHTML(false, null) + '</div>' +
+    '<p class="ms-note">بخش اول: ترکیب جهت تایم‌فریم ساختار و تایم‌فریم ورود (هر دو قابل انتخاب توسط شما). بخش دوم «پیشنهاد اسکلپ»: پورت اندیکاتور SBW + اوردر بلاک + ستاپ ۴ساعته + واگرایی روی کندل‌های زنده Yahoo — نماد و تایم‌فریم دلخواه را انتخاب کنید. داده بخش اول اسنپ‌شات لحظه تولید فایل است؛ پیشنهاد معامله سیگنال معاملاتی نیست.</p>' +
     '</div>';
   bindSug();
+  renderScalpBox(false);
 }
 
 /* ---------- اپ چارت TradingView ---------- */
@@ -484,7 +491,15 @@ function chartEnsureAuto() {
   });
 }
 
-/* ---------- تحلیل هوشمند محلی (الگوریتمی — کندل‌های همان نماد/تایم‌فریم از Yahoo) ---------- */
+/* ---------- تحلیل هوشمند (تب دستیار معامله‌گر — مستقل از چارت) ---------- */
+var AI_KEY_STORE = 'sd_ai_v1';
+var S_AI = { sym: 'OANDA:XAUUSD', tf: '15' };
+function aiApply(sym, tf) {
+  if (CHART_YAHOO[sym]) S_AI.sym = sym;
+  if (CHART_ITV[tf]) S_AI.tf = tf;
+  lsSet(AI_KEY_STORE, JSON.stringify(S_AI));
+  aiSyncStale();
+}
 var CHART_YAHOO = {
   'OANDA:XAUUSD': { y: 'GC=F', name: 'طلا — XAUUSD' },
   'OANDA:XAGUSD': { y: 'SI=F', name: 'نقره — XAGUSD' },
@@ -498,12 +513,16 @@ var CHART_ITV = {
   '240': { i: '1h', r: '6mo', label: '۴ ساعته', lb: 3, agg: 4, atr: [0.3, 0.8] },
   'D': { i: '1d', r: '1y', label: 'روزانه', lb: 2, atr: [0.7, 1.6] }
 };
+try {
+  var _aiS = JSON.parse(lsGet(AI_KEY_STORE) || 'null');
+  if (_aiS && CHART_YAHOO[_aiS.sym] && CHART_ITV[_aiS.tf]) S_AI = { sym: _aiS.sym, tf: _aiS.tf };
+} catch (e) {}
 var AI_TTL = 15 * 60 * 1000;
 var AI_CACHE = {};
 var AI_BUSY = false;
 var AI_STATE = { key: null, text: '', at: null };
-function aiKey() { return S_CHART.sym + '@' + S_CHART.tf; }
-function aiTfLabel() { var c = CHART_ITV[S_CHART.tf]; return c ? c.label : S_CHART.tf; }
+function aiKey() { return S_AI.sym + '@' + S_AI.tf; }
+function aiTfLabel() { var c = CHART_ITV[S_AI.tf]; return c ? c.label : S_AI.tf; }
 function aiPx(v) {
   var d = v >= 10 ? 2 : 4;
   return faDigits(Number(v).toLocaleString('en-US', { maximumFractionDigits: d })).replace(/,/g, '٬');
@@ -667,8 +686,8 @@ function aiSyncHeader() {
   var p = document.getElementById('ai_panel');
   if (!p) return;
   var t = p.querySelector('.ai-head .t');
-  var cfg = CHART_YAHOO[S_CHART.sym];
-  if (t) t.textContent = 'تحلیل هوش مصنوعی — ' + (cfg ? cfg.name : S_CHART.sym) + ' · ' + aiTfLabel();
+  var cfg = CHART_YAHOO[S_AI.sym];
+  if (t) t.textContent = 'تحلیل هوشمند — ' + (cfg ? cfg.name : S_AI.sym) + ' · ' + aiTfLabel();
 }
 function aiRenderLoading() {
   var b = aiBody();
@@ -711,8 +730,8 @@ function runAi(force) {
     aiRenderText();
     return;
   }
-  var cfg = CHART_YAHOO[S_CHART.sym];
-  var itv = CHART_ITV[S_CHART.tf];
+  var cfg = CHART_YAHOO[S_AI.sym];
+  var itv = CHART_ITV[S_AI.tf];
   if (!cfg || !itv) { aiRenderError('این نماد در موتور تحلیل پشتیبانی نمی‌شود.'); return; }
   AI_BUSY = true;
   setAiBusy(true);
@@ -748,38 +767,16 @@ function renderChartApp() {
     '<div class="chart-chips no-scrollbar" data-chart-syms>' + chartChipRowHTML(CHART_SYMS, 'sym') + '</div>' +
     '<div class="chart-tfrow">' +
       '<div class="chart-chips no-scrollbar" data-chart-tfs>' + chartChipRowHTML(CHART_TFS, 'tf') + '</div>' +
-      '<button type="button" class="cchip ai-btn" id="ai_btn" title="تحلیل الگوریتمی همان نماد و تایم‌فریم انتخابی">' + icon('sparkles', 12) + 'تحلیل هوشمند</button>' +
       '<button type="button" class="cchip tv-login" id="tv_login_btn" title="ویجت داخلی لاگین ندارد — با حساب خودتان در سایت اصلی وارد شوید">' + icon('ext', 12) + 'ورود به حساب</button>' +
+      '<span class="cchip ai-here" title="تحلیل هوشمند به دستیار معامله‌گر منتقل شد">' + icon('sparkles', 12) + 'تحلیل هوشمند → دستیار</span>' +
     '</div>' +
     '<div id="tv_chart"><div class="tv-state tv-loading">در حال بارگذاری چارت TradingView…</div></div>' +
-    '<div id="ai_panel" hidden>' +
-      '<div class="ai-head"><span style="display:inline-flex;flex:none">' + icon('sparkles', 13) + '</span><span class="t">تحلیل هوش مصنوعی</span><span class="at" id="ai_at"></span>' +
-      '<button type="button" class="ai-rf" data-ai-refresh title="بروزرسانی تحلیل">' + icon('refresh', 11) + '</button>' +
-      '<button type="button" class="ai-x" data-ai-close aria-label="بستن تحلیل">' + icon('x', 12) + '</button></div>' +
-      '<div class="ai-body"><div class="ai-state">برای شروع، دکمه «تحلیل هوشمند» را بزنید</div></div>' +
-      '<p class="ai-foot">موتور تحلیل: الگوریتم محلی (EMA/RSI/ATR/سوئینگ) روی کندل‌های Yahoo Finance — صرفاً اطلاع‌رسانی است و توصیه معاملاتی نیست.</p>' +
-    '</div>' +
-    '<p class="chart-note">رسم‌ها و اندیکاتورهای داخل ویجت ذخیره نمی‌شوند — برای ذخیره با حساب خودتان از دکمه «ورود به حساب» استفاده کنید. «تحلیل هوشمند» کندل‌های همان نماد و تایم‌فریم را از Yahoo Finance می‌گیرد (نیازمند اینترنت)؛ در نسخه وب ابزار، همین بخش با هوش مصنوعی مولد ارائه می‌شود.</p>' +
+    '<p class="chart-note">رسم‌ها و اندیکاتورهای داخل ویجت ذخیره نمی‌شوند — برای ذخیره با حساب خودتان از دکمه «ورود به حساب» استفاده کنید. «تحلیل هوشمند» به تب تحلیل هوشمند دستیار معامله‌گر منتقل شده است (نماد و تایم‌فریم دلخواه خودتان را آنجا انتخاب کنید).</p>' +
     '</div>';
   bindChartChips();
   var lb = appScroll.querySelector('#tv_login_btn');
   if (lb) lb.addEventListener('click', function () {
     try { window.open('https://www.tradingview.com/chart/?symbol=' + encodeURIComponent(S_CHART.sym), '_blank', 'noopener'); } catch (e) {}
-  });
-  var ab = appScroll.querySelector('#ai_btn');
-  if (ab) ab.addEventListener('click', function () {
-    var p = document.getElementById('ai_panel');
-    if (!p) return;
-    p.hidden = false;
-    aiSyncHeader();
-    runAi(false);
-  });
-  var rf = appScroll.querySelector('[data-ai-refresh]');
-  if (rf) rf.addEventListener('click', function () { runAi(true); });
-  var xc = appScroll.querySelector('[data-ai-close]');
-  if (xc) xc.addEventListener('click', function () {
-    var p = document.getElementById('ai_panel');
-    if (p) p.hidden = true;
   });
   chartEnsureAuto();
 }
@@ -805,7 +802,8 @@ function renderAboutApp() {
     '<li>• اخبار اقتصادی USD: ForexFactory با ترجمه و تحلیل تأثیر هوش مصنوعی (در لحظه تولید فایل).</li>' +
     '<li>• قیمت طلا (فیوچرز COMEX — همبستگی نزدیک به XAUUSD) و داو جونز: Yahoo Finance — بروزرسانی زنده اختیاری.</li>' +
     '<li>• ساختار بازار: ترکیب EMA۲۰/۵۰ و سقف/کف‌های سوئینگ در ۶ تایم‌فریم + تایم‌فریم ورود ۵ دقیقه.</li>' +
-    '<li>• چارت تریدینگ‌ویو + «تحلیل هوشمند» + دستیار معامله‌گر (BIG TRADER): امتیاز اطمینان، پلن معامله، سناریوی خبری، واگرایی DXY و ژورنال رفتاری.</li>' +
+    '<li>• چارت تریدینگ‌ویو + دستیار معامله‌گر (BIG TRADER): امتیاز اطمینان، ماشین‌حساب حجم/حد ضرر و حد سود، تحلیل هوشمند، سناریوی خبری و عوامل کمّی.</li>' +
+    '<li>• پیشنهاد اسکلپ و سیگنال اسکلپ اونس: پورت اندیکاتور SBW + اوردر بلاک FVG + ستاپ ۴ساعته + واگرایی روی کندل‌های زنده Yahoo Finance.</li>' +
     '</ul></section>' +
     '<section class="about-sec"><div class="about-h"><span style="color:var(--violet)">' + icon('sliders', 16) + '</span><h2 class="about-t">این فایل</h2></div>' +
     '<p class="about-p">تولید: ' + faDateLong(gen) + ' — ' + faTime(gen) + ' تهران. این فایل را می‌توانید با ایمیل یا پیام‌رسان برای خودتان یا دیگران بفرستید و روی هر گوشی با مرورگر باز کنید. انتخاب‌ها (ترتیب آیکون‌ها، فیلترها) در همان دستگاه ذخیره می‌شود.</p></section>' +
@@ -819,6 +817,7 @@ function renderApp(id, keep) {
   if (id === 'news') renderNewsApp();
   else if (id === 'structure') renderStructureApp();
   else if (id === 'suggestion') renderSuggestionApp();
+  else if (id === 'scalp') renderScalpApp();
   else if (id === 'chart') renderChartApp();
   else if (id === 'trader') renderTraderApp();
   else renderAboutApp();

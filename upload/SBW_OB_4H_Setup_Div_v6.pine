@@ -1,0 +1,802 @@
+//@version=6
+// Combined: Swing Break Wave (xATR) + FVG-confirmed Order Blocks
+//         + 4H Touch -> 1m Structure Break -> Retest -> Pattern, with Multi-Oscillator Divergence
+indicator("SBW + OB xATR + 4H Setup + Div", "SBW·OB·4H·Div", overlay=true, max_lines_count=500, max_labels_count=500, max_boxes_count=500, max_bars_back=500)
+
+//━━━━━━━━━━━━━━━━ Inputs: Swing / Wave ━━━━━━━━━━━━━━━━
+grpS = "1) Swing Detection"
+swingLen = input.int(5, "Pivot Length (Left/Right)", minval=1, group=grpS)
+
+grpW = "2) Wave / Retracement"
+retrPct     = input.float(23.0, "Wave-End Retracement %", minval=0.5, maxval=99.0, step=0.5, group=grpW, tooltip="Wave ends when price retraces more than this % of the wave range")
+breakSrc    = input.string("Close", "Break Confirmation", options=["Close", "Wick"], group=grpW)
+retrSrc     = input.string("Close", "Retrace Confirmation", options=["Close", "Wick"], group=grpW)
+confirmOnly = input.bool(true, "Evaluate On Bar Close Only (no repaint)", group=grpW)
+
+grpA = "3) ATR"
+atrLen = input.int(14, "ATR Length", minval=1, group=grpA)
+
+grpO = "4) Order Blocks + FVG"
+showOB      = input.bool(true, "Detect & Draw Order Blocks", group=grpO)
+obLook      = input.int(20, "OB Search Lookback (bars)", minval=3, maxval=50, group=grpO)
+obZoneType  = input.string("Full Range", "OB Zone Type", options=["Full Range", "Body"], group=grpO)
+obFVGreq    = input.bool(true, "Require FVG After OB (displacement filter)", group=grpO)
+obMitRule   = input.string("Close", "Mitigation Trigger", options=["Close", "Wick"], group=grpO, tooltip="Close = zone dies when price closes back inside | Wick = any touch kills the zone")
+obMitAction = input.string("Fade", "On Mitigation", options=["Fade", "Delete"], group=grpO)
+maxZones    = input.int(12, "Max Zones Per Side", minval=1, maxval=50, group=grpO)
+obLabels    = input.bool(true, "Zone Text (SELL / BUY)", group=grpO)
+obSignals   = input.bool(true, "Signal On Zone Tap", group=grpO)
+
+grpD = "5) Display"
+showLive  = input.bool(true,  "Show Active Wave", group=grpD)
+showHist  = input.bool(true,  "Show Completed Waves", group=grpD)
+showMarks = input.bool(true,  "Show Break Markers", group=grpD)
+showSwing = input.bool(false, "Show Last Swing Levels", group=grpD)
+showBG    = input.bool(false, "Highlight Active Wave (Background)", group=grpD)
+showTable = input.bool(true,  "Show Info Table", group=grpD)
+tblPosIn  = input.string("Top Right", "Table Position", options=["Top Right", "Top Left", "Bottom Right", "Bottom Left"], group=grpD)
+avgN      = input.int(10, "Average Of Last N Waves", minval=2, maxval=50, group=grpD)
+maxKeep   = input.int(40, "Max Completed Waves To Keep", minval=1, maxval=150, group=grpD)
+
+//━━━━━━━━━━━━━━━━ Inputs: 4H Setup ━━━━━━━━━━━━━━━━
+grpH = "6) تنظیمات ستاپ ۴ساعته"
+use4H = input.bool(true, "فعال‌سازی ستاپ ۴ساعته (برخورد ← شکست ← ریتست)", group=grpH)
+pivotLen = input.int(3, "طول پیوت ۱ دقیقه", minval=1, group=grpH)
+patternMode = input.string("هرکدام", "ستاپ تأیید", options=["انگالف", "دوجی + کی‌بار", "هرکدام"], group=grpH)
+dojiBodyPercent = input.float(10.0, "حداکثر بدنهٔ دوجی (% از دامنه)", minval=1, maxval=50, group=grpH)
+keybarBodyPercent = input.float(70.0, "حداقل بدنهٔ کی‌بار (% از دامنه)", minval=50, maxval=99, group=grpH)
+atrLength = input.int(14, "طول ATR برای کی‌بار", minval=1, group=grpH)
+keybarAtrMultiplier = input.float(1.0, "حداقل اندازهٔ بدنهٔ کی‌بار (برابر ATR)", minval=1.0, step=0.1, group=grpH)
+
+grpC = "7) هم‌پوشانی با OB"
+reqOBconf = input.bool(false, "سیگنال ۴ساعته فقط داخل زون OB فعال (Confluence)", group=grpC, tooltip="اگر روشن باشد، BUY/SELL ستاپ ۴ساعته فقط وقتی صادر می‌شود که کندل ریتست با یک زون OB زنده هم‌پوشانی داشته باشد.")
+
+//━━━━━━━━━━━━━━━━ Inputs: Divergence ━━━━━━━━━━━━━━━━
+grpG = "8) تنظیمات واگرایی"
+useDivergenceFilter = input.bool(false, "استفاده از فیلتر واگرایی", group=grpG)
+useHiddenDivForFilter = input.bool(false, "پذیرش واگرایی مخفی در فیلتر ورود", group=grpG)
+showDivergence = input.bool(true, "نمایش خطوط و برچسب‌های واگرایی", group=grpG)
+minAgreement = input.int(3, "حداقل توافق ابزارهای واگرایی (۱ تا ۵)", minval=1, maxval=5, group=grpG)
+divergenceLookback = input.int(10, "اعتبار واگرایی برای ورود (تعداد کندل)", minval=1, group=grpG)
+lbR = input.int(5, "Pivot Lookback Right", minval=1, group=grpG)
+lbL = input.int(5, "Pivot Lookback Left", minval=1, group=grpG)
+rangeUpper = input.int(60, "حداکثر فاصلهٔ پیوت‌ها", minval=1, group=grpG)
+rangeLower = input.int(5, "حداقل فاصلهٔ پیوت‌ها", minval=1, group=grpG)
+rsiLen = input.int(14, "RSI Period", minval=1, group=grpG)
+macdFast = input.int(12, "MACD Fast", minval=1, group=grpG)
+macdSlow = input.int(26, "MACD Slow", minval=1, group=grpG)
+macdSignalLen = input.int(9, "MACD Signal", minval=1, group=grpG)
+stochLen = input.int(14, "Stochastic Period", minval=1, group=grpG)
+cciLen = input.int(20, "CCI Period", minval=1, group=grpG)
+mfiLen = input.int(14, "MFI Period", minval=1, group=grpG)
+showRegularBull = input.bool(true, "نمایش واگرایی معمولی صعودی", group=grpG)
+showHiddenBull = input.bool(false, "نمایش واگرایی مخفی صعودی", group=grpG)
+showRegularBear = input.bool(true, "نمایش واگرایی معمولی نزولی", group=grpG)
+showHiddenBear = input.bool(false, "نمایش واگرایی مخفی نزولی", group=grpG)
+
+cBear = #f23645
+cBull = #089981
+cGray = color.gray
+
+//━━━━━━━━━━━━━━━━ Swings ━━━━━━━━━━━━━━━━
+atrVal = ta.atr(atrLen)
+ph = ta.pivothigh(swingLen, swingLen)
+pl = ta.pivotlow(swingLen, swingLen)
+
+var float swingHigh    = na
+var float swingLow     = na
+var int   swingHighBar = na
+var int   swingLowBar  = na
+var bool  hiBroken = false
+var bool  loBroken = false
+
+if not na(ph)
+    swingHigh    := ph
+    swingHighBar := bar_index - swingLen
+    hiBroken     := false
+if not na(pl)
+    swingLow    := pl
+    swingLowBar := bar_index - swingLen
+    loBroken    := false
+
+//━━━━━━━━━━━━━━━━ Order-Block storage ━━━━━━━━━━━━━━━━
+var array<box>   supBox  = array.new<box>()
+var array<float> supTop  = array.new<float>()
+var array<float> supBot  = array.new<float>()
+var array<bool>  supLive = array.new<bool>()
+var array<bool>  supTch  = array.new<bool>()
+
+var array<box>   demBox  = array.new<box>()
+var array<float> demTop  = array.new<float>()
+var array<float> demBot  = array.new<float>()
+var array<bool>  demLive = array.new<bool>()
+var array<bool>  demTch  = array.new<bool>()
+
+f_capSide(array<box> bx, array<float> tp, array<float> bt, array<bool> lv, array<bool> tc) =>
+    if array.size(bx) > maxZones
+        box oldBx = array.shift(bx)
+        box.delete(oldBx)
+        array.shift(tp)
+        array.shift(bt)
+        array.shift(lv)
+        array.shift(tc)
+
+f_overlap(array<float> tp, array<float> bt, array<bool> lv, float t, float b) =>
+    bool ov = false
+    if array.size(tp) > 0
+        for i = 0 to array.size(tp) - 1
+            if array.get(lv, i) and array.get(tp, i) > b and t > array.get(bt, i)
+                ov := true
+                break
+    ov
+
+// does the current bar's range overlap any LIVE zone?
+f_inZone(array<float> tp, array<float> bt, array<bool> lv) =>
+    bool r = false
+    if array.size(tp) > 0
+        for i = 0 to array.size(tp) - 1
+            if array.get(lv, i) and low <= array.get(tp, i) and high >= array.get(bt, i)
+                r := true
+                break
+    r
+
+f_maintain(array<box> bx, array<float> tp, array<float> bt, array<bool> lv, array<bool> tc, bool isSup) =>
+    bool touched = false
+    string tmsg = ""
+    int nLive = 0
+    if array.size(bx) > 0
+        for i = array.size(bx) - 1 to 0
+            if array.get(lv, i)
+                box   bxo = array.get(bx, i)
+                float t   = array.get(tp, i)
+                float b   = array.get(bt, i)
+                box.set_right(bxo, bar_index)
+                bool wickIn  = isSup ? high >= b : low <= t
+                bool closeIn = isSup ? close >= b : close <= t
+                if not array.get(tc, i) and wickIn
+                    array.set(tc, i, true)
+                    touched := true
+                    tmsg := (isSup ? "Price tapped SELL zone (OB): " : "Price tapped BUY zone (OB): ") + str.tostring(b, format.mintick) + " - " + str.tostring(t, format.mintick)
+                bool mit = obMitRule == "Wick" ? wickIn : closeIn
+                if mit
+                    if obMitAction == "Delete"
+                        box.delete(bxo)
+                        array.remove(bx, i)
+                        array.remove(tp, i)
+                        array.remove(bt, i)
+                        array.remove(lv, i)
+                        array.remove(tc, i)
+                    else
+                        array.set(lv, i, false)
+                        box.set_right(bxo, bar_index)
+                        box.set_bgcolor(bxo, color.new(isSup ? cBear : cBull, 92))
+                        box.set_border_color(bxo, color.new(isSup ? cBear : cBull, 78))
+                        box.set_border_style(bxo, line.style_dashed)
+                        box.set_text_color(bxo, color.new(isSup ? cBear : cBull, 70))
+    if array.size(lv) > 0
+        for i = 0 to array.size(lv) - 1
+            if array.get(lv, i)
+                nLive += 1
+    [touched, tmsg, nLive]
+
+// confluence check BEFORE maintenance (zones still live as of the previous bar)
+ocSell = f_inZone(supTop, supBot, supLive)
+ocBuy  = f_inZone(demTop, demBot, demLive)
+
+[tapSell, msgSell, cntSup] = f_maintain(supBox, supTop, supBot, supLive, supTch, true)
+[tapBuy,  msgBuy,  cntDem] = f_maintain(demBox, demTop, demBot, demLive, demTch, false)
+
+//━━━━━━━━━━━━━━━━ Wave state ━━━━━━━━━━━━━━━━
+var bool  bearActive     = false
+var float bearBreakLvl   = na
+var float bearAtrAtBrk   = na
+var float bearExtreme    = na
+var int   bearExtremeBar = na
+var int   bearStartBar   = na
+var int   bearLvlBar     = na
+
+var bool  bullActive     = false
+var float bullBreakLvl   = na
+var float bullAtrAtBrk   = na
+var float bullExtreme    = na
+var int   bullExtremeBar = na
+var int   bullStartBar   = na
+var int   bullLvlBar     = na
+
+//━━━━━━━━━━━━━━━━ State machine ━━━━━━━━━━━━━━━━
+bool confirmed  = not confirmOnly or barstate.isconfirmed
+bool canMeasure = not na(atrVal) and atrVal > 0
+
+bool newLoBreak = false
+bool newHiBreak = false
+bool loBreakAny = false
+bool hiBreakAny = false
+bool bearEnded  = false
+bool bullEnded  = false
+float bearFinalN = na
+float bullFinalN = na
+
+if confirmed
+    if hiBroken and close < swingHigh
+        hiBroken := false
+    if loBroken and close > swingLow
+        loBroken := false
+
+    bool brkLo = not na(swingLow)  and (breakSrc == "Close" ? close < swingLow : low  < swingLow)
+    bool brkHi = not na(swingHigh) and (breakSrc == "Close" ? close > swingHigh : high > swingHigh)
+
+    if brkLo
+        if not loBroken
+            loBreakAny := true
+            if not bearActive and canMeasure
+                newLoBreak := true
+        loBroken := true
+    if brkHi
+        if not hiBroken
+            hiBreakAny := true
+            if not bullActive and canMeasure
+                newHiBreak := true
+        hiBroken := true
+
+    if newLoBreak
+        bearActive     := true
+        bearBreakLvl   := swingLow
+        bearLvlBar     := swingLowBar
+        bearAtrAtBrk   := atrVal
+        bearExtreme    := low
+        bearExtremeBar := bar_index
+        bearStartBar   := bar_index
+
+    if newHiBreak
+        bullActive     := true
+        bullBreakLvl   := swingHigh
+        bullLvlBar     := swingHighBar
+        bullAtrAtBrk   := atrVal
+        bullExtreme    := high
+        bullExtremeBar := bar_index
+        bullStartBar   := bar_index
+
+    if bearActive
+        if low < bearExtreme
+            bearExtreme    := low
+            bearExtremeBar := bar_index
+        if bar_index > bearStartBar
+            float rngB = bearBreakLvl - bearExtreme
+            float rlB  = bearExtreme + rngB * (retrPct / 100.0)
+            bool  hitB = retrSrc == "Close" ? close > rlB : high > rlB
+            if hitB
+                bearActive := false
+                bearEnded  := true
+                bearFinalN := rngB / bearAtrAtBrk
+
+    if bullActive
+        if high > bullExtreme
+            bullExtreme    := high
+            bullExtremeBar := bar_index
+        if bar_index > bullStartBar
+            float rngU = bullExtreme - bullBreakLvl
+            float rlU  = bullExtreme - rngU * (retrPct / 100.0)
+            bool  hitU = retrSrc == "Close" ? close < rlU : low < rlU
+            if hitU
+                bullActive := false
+                bullEnded  := true
+                bullFinalN := rngU / bullAtrAtBrk
+
+    //──────── OB: SELL zones on fresh swing-LOW breaks ────────
+    if showOB and loBreakAny
+        int oB = na
+        for k = 1 to obLook
+            if close[k] > open[k]
+                oB := k
+                break
+        if not na(oB)
+            float ztB = obZoneType == "Body" ? math.max(open[oB], close[oB]) : high[oB]
+            float zbB = obZoneType == "Body" ? math.min(open[oB], close[oB]) : low[oB]
+            bool fvgB = not obFVGreq
+            if obFVGreq and oB >= 2
+                for a = 0 to oB - 2
+                    if low[a + 2] > high[a]
+                        fvgB := true
+                        break
+            bool leftB   = false
+            bool preMitB = false
+            for k2 = oB - 1 to 0
+                if not leftB
+                    if close[k2] < zbB
+                        leftB := true
+                else if close[k2] >= zbB
+                    preMitB := true
+                    break
+            if fvgB and leftB and not preMitB and not f_overlap(supTop, supBot, supLive, ztB, zbB)
+                box nbB = box.new(bar_index - oB, ztB, bar_index, zbB, border_color=color.new(cBear, 40), border_width=1, bgcolor=color.new(cBear, 84), text=obLabels ? "SELL ZONE" : "", text_color=color.new(cBear, 30), text_size=size.small, text_halign=text.align_left)
+                array.push(supBox, nbB)
+                array.push(supTop, ztB)
+                array.push(supBot, zbB)
+                array.push(supLive, true)
+                array.push(supTch, false)
+                f_capSide(supBox, supTop, supBot, supLive, supTch)
+                alert("New SELL zone (OB): " + str.tostring(zbB, format.mintick) + " - " + str.tostring(ztB, format.mintick), alert.freq_once_per_bar)
+
+    //──────── OB: BUY zones on fresh swing-HIGH breaks ────────
+    if showOB and hiBreakAny
+        int oU = na
+        for k = 1 to obLook
+            if close[k] < open[k]
+                oU := k
+                break
+        if not na(oU)
+            float ztU = obZoneType == "Body" ? math.max(open[oU], close[oU]) : high[oU]
+            float zbU = obZoneType == "Body" ? math.min(open[oU], close[oU]) : low[oU]
+            bool fvgU = not obFVGreq
+            if obFVGreq and oU >= 2
+                for a = 0 to oU - 2
+                    if high[a + 2] < low[a]
+                        fvgU := true
+                        break
+            bool leftU   = false
+            bool preMitU = false
+            for k3 = oU - 1 to 0
+                if not leftU
+                    if close[k3] > ztU
+                        leftU := true
+                else if close[k3] <= ztU
+                    preMitU := true
+                    break
+            if fvgU and leftU and not preMitU and not f_overlap(demTop, demBot, demLive, ztU, zbU)
+                box nbU = box.new(bar_index - oU, ztU, bar_index, zbU, border_color=color.new(cBull, 40), border_width=1, bgcolor=color.new(cBull, 84), text=obLabels ? "BUY ZONE" : "", text_color=color.new(cBull, 30), text_size=size.small, text_halign=text.align_left)
+                array.push(demBox, nbU)
+                array.push(demTop, ztU)
+                array.push(demBot, zbU)
+                array.push(demLive, true)
+                array.push(demTch, false)
+                f_capSide(demBox, demTop, demBot, demLive, demTch)
+                alert("New BUY zone (OB): " + str.tostring(zbU, format.mintick) + " - " + str.tostring(ztU, format.mintick), alert.freq_once_per_bar)
+
+float bearRetrLvl = na
+float bearN       = na
+if bearActive
+    float extB  = math.min(bearExtreme, low)
+    float rngB2 = bearBreakLvl - extB
+    bearRetrLvl := extB + rngB2 * (retrPct / 100.0)
+    bearN       := rngB2 / bearAtrAtBrk
+
+float bullRetrLvl = na
+float bullN       = na
+if bullActive
+    float extU  = math.max(bullExtreme, high)
+    float rngU2 = extU - bullBreakLvl
+    bullRetrLvl := extU - rngU2 * (retrPct / 100.0)
+    bullN       := rngU2 / bullAtrAtBrk
+
+//━━━━━━━━━━━━━━━━ Wave objects ━━━━━━━━━━━━━━━━
+var array<float> bearNs = array.new<float>()
+var array<float> bullNs = array.new<float>()
+var array<line>  keepLn = array.new<line>()
+var array<label> keepLb = array.new<label>()
+
+f_trim() =>
+    while array.size(keepLn) > maxKeep * 3
+        line.delete(array.shift(keepLn))
+    while array.size(keepLb) > maxKeep
+        label.delete(array.shift(keepLb))
+
+var line  bBrkLn = na
+var line  bExtLn = na
+var line  bRtrLn = na
+var label bLbl   = na
+
+var line  uBrkLn = na
+var line  uExtLn = na
+var line  uRtrLn = na
+var label uLbl   = na
+
+if bearActive and showLive
+    if na(bBrkLn)
+        bBrkLn := line.new(bearLvlBar, bearBreakLvl, bar_index, bearBreakLvl, color=cBear, width=2)
+        bExtLn := line.new(bearExtremeBar, bearExtreme, bar_index, bearExtreme, color=cBear, width=2)
+        bRtrLn := line.new(bearExtremeBar, bearRetrLvl, bar_index, bearRetrLvl, color=cGray, style=line.style_dotted)
+        bLbl   := label.new(bearExtremeBar, bearExtreme, "", style=label.style_label_up, color=color.new(cBear, 85), textcolor=cBear, size=size.small)
+    line.set_xy1(bBrkLn, bearLvlBar, bearBreakLvl)
+    line.set_xy2(bBrkLn, bar_index, bearBreakLvl)
+    line.set_xy1(bExtLn, bearExtremeBar, bearExtreme)
+    line.set_xy2(bExtLn, bar_index, bearExtreme)
+    line.set_xy1(bRtrLn, bearExtremeBar, bearRetrLvl)
+    line.set_xy2(bRtrLn, bar_index, bearRetrLvl)
+    label.set_xy(bLbl, bearExtremeBar, bearExtreme)
+    label.set_text(bLbl, "▼ " + str.tostring(bearN, "#.##") + "×ATR")
+
+if bullActive and showLive
+    if na(uBrkLn)
+        uBrkLn := line.new(bullLvlBar, bullBreakLvl, bar_index, bullBreakLvl, color=cBull, width=2)
+        uExtLn := line.new(bullExtremeBar, bullExtreme, bar_index, bullExtreme, color=cBull, width=2)
+        uRtrLn := line.new(bullExtremeBar, bullRetrLvl, bar_index, bullRetrLvl, color=cGray, style=line.style_dotted)
+        uLbl   := label.new(bullExtremeBar, bullExtreme, "", style=label.style_label_down, color=color.new(cBull, 85), textcolor=cBull, size=size.small)
+    line.set_xy1(uBrkLn, bullLvlBar, bullBreakLvl)
+    line.set_xy2(uBrkLn, bar_index, bullBreakLvl)
+    line.set_xy1(uExtLn, bullExtremeBar, bullExtreme)
+    line.set_xy2(uExtLn, bar_index, bullExtreme)
+    line.set_xy1(uRtrLn, bullExtremeBar, bullRetrLvl)
+    line.set_xy2(uRtrLn, bar_index, bullRetrLvl)
+    label.set_xy(uLbl, bullExtremeBar, bullExtreme)
+    label.set_text(uLbl, "▲ " + str.tostring(bullN, "#.##") + "×ATR")
+
+if bearEnded
+    array.push(bearNs, bearFinalN)
+    if array.size(bearNs) > 500
+        array.shift(bearNs)
+    float fRtrB = bearExtreme + (bearBreakLvl - bearExtreme) * (retrPct / 100.0)
+    string txtB = "▼ " + str.tostring(bearFinalN, "#.##") + " × ATR"
+    if showLive and not na(bBrkLn)
+        line.set_xy2(bBrkLn, bar_index, bearBreakLvl)
+        line.set_xy1(bExtLn, bearExtremeBar, bearExtreme)
+        line.set_xy2(bExtLn, bar_index, bearExtreme)
+        line.set_xy1(bRtrLn, bearExtremeBar, fRtrB)
+        line.set_xy2(bRtrLn, bar_index, fRtrB)
+        label.set_xy(bLbl, bearExtremeBar, bearExtreme)
+        label.set_text(bLbl, txtB)
+        array.push(keepLn, bBrkLn)
+        array.push(keepLn, bExtLn)
+        array.push(keepLn, bRtrLn)
+        array.push(keepLb, bLbl)
+        bBrkLn := na
+        bExtLn := na
+        bRtrLn := na
+        bLbl   := na
+    else if showHist
+        array.push(keepLn, line.new(bearLvlBar, bearBreakLvl, bar_index, bearBreakLvl, color=cBear))
+        array.push(keepLn, line.new(bearExtremeBar, bearExtreme, bar_index, bearExtreme, color=cBear))
+        array.push(keepLn, line.new(bearExtremeBar, fRtrB, bar_index, fRtrB, color=cGray, style=line.style_dotted))
+        array.push(keepLb, label.new(bearExtremeBar, bearExtreme, txtB, style=label.style_label_up, color=color.new(cBear, 85), textcolor=cBear, size=size.small))
+    f_trim()
+
+if bullEnded
+    array.push(bullNs, bullFinalN)
+    if array.size(bullNs) > 500
+        array.shift(bullNs)
+    float fRtrU = bullExtreme - (bullExtreme - bullBreakLvl) * (retrPct / 100.0)
+    string txtU = "▲ " + str.tostring(bullFinalN, "#.##") + " × ATR"
+    if showLive and not na(uBrkLn)
+        line.set_xy2(uBrkLn, bar_index, bullBreakLvl)
+        line.set_xy1(uExtLn, bullExtremeBar, bullExtreme)
+        line.set_xy2(uExtLn, bar_index, bullExtreme)
+        line.set_xy1(uRtrLn, bullExtremeBar, fRtrU)
+        line.set_xy2(uRtrLn, bar_index, fRtrU)
+        label.set_xy(uLbl, bullExtremeBar, bullExtreme)
+        label.set_text(uLbl, txtU)
+        array.push(keepLn, uBrkLn)
+        array.push(keepLn, uExtLn)
+        array.push(keepLn, uRtrLn)
+        array.push(keepLb, uLbl)
+        uBrkLn := na
+        uExtLn := na
+        uRtrLn := na
+        uLbl   := na
+    else if showHist
+        array.push(keepLn, line.new(bullLvlBar, bullBreakLvl, bar_index, bullBreakLvl, color=cBull))
+        array.push(keepLn, line.new(bullExtremeBar, bullExtreme, bar_index, bullExtreme, color=cBull))
+        array.push(keepLn, line.new(bullExtremeBar, fRtrU, bar_index, fRtrU, color=cGray, style=line.style_dotted))
+        array.push(keepLb, label.new(bullExtremeBar, bullExtreme, txtU, style=label.style_label_down, color=color.new(cBull, 85), textcolor=cBull, size=size.small))
+    f_trim()
+
+//━━━━━━━━━━━━━━━━ Wave / OB visuals ━━━━━━━━━━━━━━━━
+plotshape(showMarks and newLoBreak, "Swing Low Break", shape.triangledown, location.abovebar, color=cBear, size=size.tiny)
+plotshape(showMarks and newHiBreak, "Swing High Break", shape.triangleup, location.belowbar, color=cBull, size=size.tiny)
+
+plotshape(obSignals and tapSell, "Sell Zone Tap", shape.labeldown, location.abovebar, color=color.new(cBear, 15), text="OB SELL", textcolor=color.white, size=size.tiny)
+plotshape(obSignals and tapBuy,  "Buy Zone Tap",  shape.labelup,   location.belowbar, color=color.new(cBull, 15), text="OB BUY",  textcolor=color.white, size=size.tiny)
+
+bgcolor(showBG ? (bearActive ? color.new(cBear, 93) : bullActive ? color.new(cBull, 93) : na) : na, title="Active Wave BG")
+
+bool showLoLvl = showSwing and not na(swingLow)  and swingLow  == swingLow[1]
+bool showHiLvl = showSwing and not na(swingHigh) and swingHigh == swingHigh[1]
+plot(showLoLvl ? swingLow  : na, "Last Swing Low",  color=color.new(cBear, 55), style=plot.style_stepline)
+plot(showHiLvl ? swingHigh : na, "Last Swing High", color=color.new(cBull, 55), style=plot.style_stepline)
+
+//━━━━━━━━━━━━━━━━ 4H levels ━━━━━━━━━━━━━━━━
+[h4High, h4Low] = request.security(syminfo.tickerid, "240", [high[1], low[1]], lookahead=barmerge.lookahead_on)
+
+plot(use4H ? h4High : na, title="سقف آخرین کندل بسته‌شدهٔ ۴ساعته", color=color.red, linewidth=2, style=plot.style_stepline)
+plot(use4H ? h4Low  : na, title="کف آخرین کندل بسته‌شدهٔ ۴ساعته", color=color.green, linewidth=2, style=plot.style_stepline)
+
+new4h = ta.change(time("240")) != 0
+
+//━━━━━━━━━━━━━━━━ 1m pivots for structure break ━━━━━━━━━━━━━━━━
+pivotLow  = ta.pivotlow(low, pivotLen, pivotLen)
+pivotHigh = ta.pivothigh(high, pivotLen, pivotLen)
+
+var float lastPivotLow  = na
+var float lastPivotHigh = na
+
+if not na(pivotLow)
+    lastPivotLow := pivotLow
+if not na(pivotHigh)
+    lastPivotHigh := pivotHigh
+
+//━━━━━━━━━━━━━━━━ 4H setup state ━━━━━━━━━━━━━━━━
+var bool sellArmed = false
+var bool buyArmed = false
+var bool sellWaitingRetest = false
+var bool buyWaitingRetest = false
+
+var float sellZoneHigh = na
+var float sellZoneLow = na
+var float buyZoneHigh = na
+var float buyZoneLow = na
+
+var box sellBox = na
+var box buyBox = na
+
+if new4h
+    sellArmed := false
+    buyArmed := false
+    sellWaitingRetest := false
+    buyWaitingRetest := false
+    sellZoneHigh := na
+    sellZoneLow := na
+    buyZoneHigh := na
+    buyZoneLow := na
+    if not na(sellBox)
+        box.delete(sellBox)
+        sellBox := na
+    if not na(buyBox)
+        box.delete(buyBox)
+        buyBox := na
+
+sellWasArmed = sellArmed
+buyWasArmed = buyArmed
+
+if use4H and not na(h4High) and high >= h4High
+    sellArmed := true
+    sellWaitingRetest := false
+    sellZoneHigh := na
+    sellZoneLow := na
+    if not na(sellBox)
+        box.delete(sellBox)
+        sellBox := na
+
+if use4H and not na(h4Low) and low <= h4Low
+    buyArmed := true
+    buyWaitingRetest := false
+    buyZoneHigh := na
+    buyZoneLow := na
+    if not na(buyBox)
+        box.delete(buyBox)
+        buyBox := na
+
+sellBreak = use4H and sellWasArmed and not sellWaitingRetest and not na(lastPivotLow) and close < lastPivotLow
+
+if sellBreak
+    sellZoneHigh := high
+    sellZoneLow := low
+    sellWaitingRetest := true
+    sellArmed := false
+    sellBox := box.new(left=bar_index, top=sellZoneHigh, right=bar_index + 1, bottom=sellZoneLow, extend=extend.right, bgcolor=color.new(color.red, 85), border_color=color.red)
+
+buyBreak = use4H and buyWasArmed and not buyWaitingRetest and not na(lastPivotHigh) and close > lastPivotHigh
+
+if buyBreak
+    buyZoneHigh := high
+    buyZoneLow := low
+    buyWaitingRetest := true
+    buyArmed := false
+    buyBox := box.new(left=bar_index, top=buyZoneHigh, right=bar_index + 1, bottom=buyZoneLow, extend=extend.right, bgcolor=color.new(color.green, 85), border_color=color.green)
+
+//━━━━━━━━━━━━━━━━ Candle patterns ━━━━━━━━━━━━━━━━
+candleRange = high - low
+bodySize = math.abs(close - open)
+atrValue = ta.atr(atrLength)
+
+bearishEngulf = close < open and close[1] > open[1] and open >= close[1] and close <= open[1]
+bullishEngulf = close > open and close[1] < open[1] and open <= close[1] and close >= open[1]
+
+isDoji = candleRange > 0 and bodySize <= candleRange * dojiBodyPercent / 100.0
+
+isKeyBar = candleRange > 0 and bodySize >= candleRange * keybarBodyPercent / 100.0 and not na(atrValue) and bodySize >= atrValue * keybarAtrMultiplier
+
+bullishKeyBar = isKeyBar and close > open
+bearishKeyBar = isKeyBar and close < open
+
+bullishDojiKeyBar = isDoji[1] and bullishKeyBar
+bearishDojiKeyBar = isDoji[1] and bearishKeyBar
+
+buyPattern =
+     patternMode == "انگالف" ? bullishEngulf :
+     patternMode == "دوجی + کی‌بار" ? bullishDojiKeyBar :
+     (bullishEngulf or bullishDojiKeyBar)
+
+sellPattern =
+     patternMode == "انگالف" ? bearishEngulf :
+     patternMode == "دوجی + کی‌بار" ? bearishDojiKeyBar :
+     (bearishEngulf or bearishDojiKeyBar)
+
+//━━━━━━━━━━━━━━━━ Divergence (RSI / MACD / Stoch / CCI / MFI) ━━━━━━━━━━━━━━━━
+divRsi = ta.rsi(close, rsiLen)
+[divMacdLine, divSignalLine, divMacdHist] = ta.macd(close, macdFast, macdSlow, macdSignalLen)
+divStoch = ta.stoch(close, high, low, stochLen)
+divCci = ta.cci(hlc3, cciLen)
+divMfi = ta.mfi(hlc3, mfiLen)
+
+divPivotLow  = ta.pivotlow(low, lbL, lbR)
+divPivotHigh = ta.pivothigh(high, lbL, lbR)
+
+divPlFound = not na(divPivotLow)
+divPhFound = not na(divPivotHigh)
+
+divInRange(cond) =>
+    barsSince = ta.barssince(cond)
+    rangeLower <= barsSince and barsSince <= rangeUpper
+
+divInRangeLow  = divInRange(divPlFound[1])
+divInRangeHigh = divInRange(divPhFound[1])
+
+prevDivLowPrice = ta.valuewhen(divPlFound, low[lbR], 1)
+prevDivRsiLow   = ta.valuewhen(divPlFound, divRsi[lbR], 1)
+prevDivMacdLow  = ta.valuewhen(divPlFound, divMacdHist[lbR], 1)
+prevDivStochLow = ta.valuewhen(divPlFound, divStoch[lbR], 1)
+prevDivCciLow   = ta.valuewhen(divPlFound, divCci[lbR], 1)
+prevDivMfiLow   = ta.valuewhen(divPlFound, divMfi[lbR], 1)
+prevDivLowBar   = int(ta.valuewhen(divPlFound, bar_index[lbR], 1))
+
+prevDivHighPrice = ta.valuewhen(divPhFound, high[lbR], 1)
+prevDivRsiHigh   = ta.valuewhen(divPhFound, divRsi[lbR], 1)
+prevDivMacdHigh  = ta.valuewhen(divPhFound, divMacdHist[lbR], 1)
+prevDivStochHigh = ta.valuewhen(divPhFound, divStoch[lbR], 1)
+prevDivCciHigh   = ta.valuewhen(divPhFound, divCci[lbR], 1)
+prevDivMfiHigh   = ta.valuewhen(divPhFound, divMfi[lbR], 1)
+prevDivHighBar   = int(ta.valuewhen(divPhFound, bar_index[lbR], 1))
+
+bullVotes =
+     (divRsi[lbR] > prevDivRsiLow ? 1 : 0) +
+     (divMacdHist[lbR] > prevDivMacdLow ? 1 : 0) +
+     (divStoch[lbR] > prevDivStochLow ? 1 : 0) +
+     (divCci[lbR] > prevDivCciLow ? 1 : 0) +
+     (divMfi[lbR] > prevDivMfiLow ? 1 : 0)
+
+hiddenBullVotes =
+     (divRsi[lbR] < prevDivRsiLow ? 1 : 0) +
+     (divMacdHist[lbR] < prevDivMacdLow ? 1 : 0) +
+     (divStoch[lbR] < prevDivStochLow ? 1 : 0) +
+     (divCci[lbR] < prevDivCciLow ? 1 : 0) +
+     (divMfi[lbR] < prevDivMfiLow ? 1 : 0)
+
+bearVotes =
+     (divRsi[lbR] < prevDivRsiHigh ? 1 : 0) +
+     (divMacdHist[lbR] < prevDivMacdHigh ? 1 : 0) +
+     (divStoch[lbR] < prevDivStochHigh ? 1 : 0) +
+     (divCci[lbR] < prevDivCciHigh ? 1 : 0) +
+     (divMfi[lbR] < prevDivMfiHigh ? 1 : 0)
+
+hiddenBearVotes =
+     (divRsi[lbR] > prevDivRsiHigh ? 1 : 0) +
+     (divMacdHist[lbR] > prevDivMacdHigh ? 1 : 0) +
+     (divStoch[lbR] > prevDivStochHigh ? 1 : 0) +
+     (divCci[lbR] > prevDivCciHigh ? 1 : 0) +
+     (divMfi[lbR] > prevDivMfiHigh ? 1 : 0)
+
+regularBullDiv = divPlFound and divInRangeLow and low[lbR] < prevDivLowPrice and bullVotes >= minAgreement
+hiddenBullDiv  = divPlFound and divInRangeLow and low[lbR] > prevDivLowPrice and hiddenBullVotes >= minAgreement
+regularBearDiv = divPhFound and divInRangeHigh and high[lbR] > prevDivHighPrice and bearVotes >= minAgreement
+hiddenBearDiv  = divPhFound and divInRangeHigh and high[lbR] < prevDivHighPrice and hiddenBearVotes >= minAgreement
+
+var int lastBullDivBar = na
+var int lastBearDivBar = na
+
+if regularBullDiv or hiddenBullDiv
+    lastBullDivBar := bar_index - lbR
+if regularBearDiv or hiddenBearDiv
+    lastBearDivBar := bar_index - lbR
+
+bullDivRecent = not na(lastBullDivBar) and bar_index - lastBullDivBar <= divergenceLookback
+bearDivRecent = not na(lastBearDivBar) and bar_index - lastBearDivBar <= divergenceLookback
+
+if showDivergence and showRegularBull and regularBullDiv
+    line.new(x1=prevDivLowBar, y1=prevDivLowPrice, x2=bar_index - lbR, y2=low[lbR], xloc=xloc.bar_index, color=color.green, width=2)
+    label.new(x=bar_index - lbR, y=low[lbR], text="Bull " + str.tostring(bullVotes) + "/5", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_up, color=color.green, textcolor=color.white)
+
+if showDivergence and showHiddenBull and hiddenBullDiv
+    line.new(x1=prevDivLowBar, y1=prevDivLowPrice, x2=bar_index - lbR, y2=low[lbR], xloc=xloc.bar_index, color=color.new(color.green, 45), width=2)
+    label.new(x=bar_index - lbR, y=low[lbR], text="H Bull " + str.tostring(hiddenBullVotes) + "/5", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_up, color=color.new(color.green, 25), textcolor=color.white)
+
+if showDivergence and showRegularBear and regularBearDiv
+    line.new(x1=prevDivHighBar, y1=prevDivHighPrice, x2=bar_index - lbR, y2=high[lbR], xloc=xloc.bar_index, color=color.red, width=2)
+    label.new(x=bar_index - lbR, y=high[lbR], text="Bear " + str.tostring(bearVotes) + "/5", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_down, color=color.red, textcolor=color.white)
+
+if showDivergence and showHiddenBear and hiddenBearDiv
+    line.new(x1=prevDivHighBar, y1=prevDivHighPrice, x2=bar_index - lbR, y2=high[lbR], xloc=xloc.bar_index, color=color.new(color.red, 45), width=2)
+    label.new(x=bar_index - lbR, y=high[lbR], text="H Bear " + str.tostring(hiddenBearVotes) + "/5", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_down, color=color.new(color.red, 25), textcolor=color.white)
+
+//━━━━━━━━━━━━━━━━ Retest, filters and 4H signals ━━━━━━━━━━━━━━━━
+sellRetest = sellWaitingRetest and low <= sellZoneHigh and high >= sellZoneLow
+buyRetest  = buyWaitingRetest and low <= buyZoneHigh and high >= buyZoneLow
+
+bullDivAllowed = regularBullDiv or (useHiddenDivForFilter and hiddenBullDiv)
+bearDivAllowed = regularBearDiv or (useHiddenDivForFilter and hiddenBearDiv)
+
+bullDivFilterPass = not useDivergenceFilter or (bullDivRecent and (not useHiddenDivForFilter or bullDivAllowed))
+bearDivFilterPass = not useDivergenceFilter or (bearDivRecent and (not useHiddenDivForFilter or bearDivAllowed))
+
+obPassBuy  = not reqOBconf or ocBuy
+obPassSell = not reqOBconf or ocSell
+
+buySignal  = buyRetest and buyPattern and bullDivFilterPass and obPassBuy
+sellSignal = sellRetest and sellPattern and bearDivFilterPass and obPassSell
+
+if sellSignal
+    label.new(x=bar_index, y=high, text=ocSell ? "4H SELL ★" : "4H SELL", style=label.style_label_down, color=color.red, textcolor=color.white)
+    sellWaitingRetest := false
+
+if buySignal
+    label.new(x=bar_index, y=low, text=ocBuy ? "4H BUY ★" : "4H BUY", style=label.style_label_up, color=color.green, textcolor=color.white)
+    buyWaitingRetest := false
+
+//━━━━━━━━━━━━━━━━ Stats table ━━━━━━━━━━━━━━━━
+f_avg(arr) =>
+    int sz  = array.size(arr)
+    int cnt = math.min(avgN, sz)
+    float s = 0.0
+    if cnt > 0
+        for i = sz - cnt to sz - 1
+            s += array.get(arr, i)
+    cnt > 0 ? s / cnt : float(na)
+
+tblPos = tblPosIn == "Top Right" ? position.top_right : tblPosIn == "Top Left" ? position.top_left : tblPosIn == "Bottom Right" ? position.bottom_right : position.bottom_left
+
+var table tbl = table.new(tblPos, 3, 8, bgcolor=color.new(color.black, 25), frame_color=color.new(color.gray, 60), frame_width=1, border_color=color.new(color.gray, 85), border_width=1)
+
+if showTable and barstate.islast
+    string dash = "—"
+    table.cell(tbl, 0, 0, "SBW ×ATR", text_color=color.white, text_size=size.small, bgcolor=color.new(color.gray, 35))
+    table.cell(tbl, 1, 0, "▼ Low-Break", text_color=cBear, text_size=size.small, bgcolor=color.new(cBear, 80))
+    table.cell(tbl, 2, 0, "▲ High-Break", text_color=cBull, text_size=size.small, bgcolor=color.new(cBull, 80))
+    table.cell(tbl, 0, 1, "Status", text_color=color.silver, text_size=size.tiny)
+    table.cell(tbl, 1, 1, bearActive ? "ACTIVE" : dash, text_color=bearActive ? cBear : color.silver, text_size=size.tiny)
+    table.cell(tbl, 2, 1, bullActive ? "ACTIVE" : dash, text_color=bullActive ? cBull : color.silver, text_size=size.tiny)
+    string curB = bearActive ? str.tostring(bearN, "#.##") : array.size(bearNs) > 0 ? str.tostring(array.get(bearNs, array.size(bearNs) - 1), "#.##") : dash
+    string curU = bullActive ? str.tostring(bullN, "#.##") : array.size(bullNs) > 0 ? str.tostring(array.get(bullNs, array.size(bullNs) - 1), "#.##") : dash
+    table.cell(tbl, 0, 2, "Wave (×ATR)", text_color=color.silver, text_size=size.tiny)
+    table.cell(tbl, 1, 2, curB, text_color=color.white, text_size=size.tiny)
+    table.cell(tbl, 2, 2, curU, text_color=color.white, text_size=size.tiny)
+    table.cell(tbl, 0, 3, "Wave-End Level", text_color=color.silver, text_size=size.tiny)
+    table.cell(tbl, 1, 3, bearActive ? str.tostring(bearRetrLvl, format.mintick) : dash, text_color=color.white, text_size=size.tiny)
+    table.cell(tbl, 2, 3, bullActive ? str.tostring(bullRetrLvl, format.mintick) : dash, text_color=color.white, text_size=size.tiny)
+    float avgB = f_avg(bearNs)
+    float avgU = f_avg(bullNs)
+    table.cell(tbl, 0, 4, "Avg n (last " + str.tostring(avgN) + ")", text_color=color.silver, text_size=size.tiny)
+    table.cell(tbl, 1, 4, na(avgB) ? dash : str.tostring(avgB, "#.##"), text_color=color.white, text_size=size.tiny)
+    table.cell(tbl, 2, 4, na(avgU) ? dash : str.tostring(avgU, "#.##"), text_color=color.white, text_size=size.tiny)
+    table.cell(tbl, 0, 5, "Wave Count", text_color=color.silver, text_size=size.tiny)
+    table.cell(tbl, 1, 5, str.tostring(array.size(bearNs)), text_color=color.white, text_size=size.tiny)
+    table.cell(tbl, 2, 5, str.tostring(array.size(bullNs)), text_color=color.white, text_size=size.tiny)
+    table.cell(tbl, 0, 6, "Active OB Zones", text_color=color.silver, text_size=size.tiny)
+    table.cell(tbl, 1, 6, str.tostring(cntSup), text_color=cBear, text_size=size.tiny)
+    table.cell(tbl, 2, 6, str.tostring(cntDem), text_color=cBull, text_size=size.tiny)
+    table.cell(tbl, 0, 7, "4H Setup", text_color=color.silver, text_size=size.tiny)
+    table.cell(tbl, 1, 7, sellWaitingRetest ? "RETEST" : sellArmed ? "ARMED" : dash, text_color=sellWaitingRetest or sellArmed ? cBear : color.silver, text_size=size.tiny)
+    table.cell(tbl, 2, 7, buyWaitingRetest ? "RETEST" : buyArmed ? "ARMED" : dash, text_color=buyWaitingRetest or buyArmed ? cBull : color.silver, text_size=size.tiny)
+
+//━━━━━━━━━━━━━━━━ Alerts ━━━━━━━━━━━━━━━━
+alertcondition(newLoBreak, "Swing Low Broken", "Swing LOW broken — bearish wave started")
+alertcondition(newHiBreak, "Swing High Broken", "Swing HIGH broken — bullish wave started")
+alertcondition(bearEnded, "Bearish Wave Ended", "Bearish break wave ended (retracement limit hit)")
+alertcondition(bullEnded, "Bullish Wave Ended", "Bullish break wave ended (retracement limit hit)")
+alertcondition(tapSell, "Price Tapped Sell Zone", "Price tapped an unmitigated bearish OB (SELL zone)")
+alertcondition(tapBuy,  "Price Tapped Buy Zone",  "Price tapped an unmitigated bullish OB (BUY zone)")
+
+alertcondition(sellSignal, title="4H SELL", message="SELL: برخورد به سقف ۴ساعته، شکست کف ۱دقیقه، بازگشت به ناحیه و تأیید الگوی نزولی")
+alertcondition(buySignal,  title="4H BUY",  message="BUY: برخورد به کف ۴ساعته، شکست سقف ۱دقیقه، بازگشت به ناحیه و تأیید الگوی صعودی")
+alertcondition(sellSignal and ocSell, title="4H SELL + OB Confluence", message="SELL ستاپ ۴ساعته هم‌پوشان با زون OB")
+alertcondition(buySignal and ocBuy,   title="4H BUY + OB Confluence",  message="BUY ستاپ ۴ساعته هم‌پوشان با زون OB")
+
+alertcondition(regularBullDiv, title="Regular Bullish Divergence", message="Regular bullish divergence")
+alertcondition(hiddenBullDiv,  title="Hidden Bullish Divergence",  message="Hidden bullish divergence")
+alertcondition(regularBearDiv, title="Regular Bearish Divergence", message="Regular bearish divergence")
+alertcondition(hiddenBearDiv,  title="Hidden Bearish Divergence",  message="Hidden bearish divergence")
+
+if bearEnded
+    alert("Bearish break wave ended: " + str.tostring(bearFinalN, "#.##") + " × ATR", alert.freq_once_per_bar_close)
+if bullEnded
+    alert("Bullish break wave ended: " + str.tostring(bullFinalN, "#.##") + " × ATR", alert.freq_once_per_bar_close)
+if tapSell
+    alert(msgSell, alert.freq_once_per_bar)
+if tapBuy
+    alert(msgBuy, alert.freq_once_per_bar)
