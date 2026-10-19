@@ -241,7 +241,7 @@ export function Dashboard() {
             <div>
               <h1 className="text-base sm:text-lg font-extrabold leading-6">رصدگر دلار</h1>
               <p className="text-[10px] sm:text-[11px] text-muted-foreground">
-                اخبار اقتصادی USD از ForexFactory — ترجمه و تحلیل فارسی
+                اخبار اقتصادی USD و ارزهای اصلی از ForexFactory — ترجمه و تحلیل فارسی
               </p>
             </div>
           </div>
@@ -316,7 +316,7 @@ export function Dashboard() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <StatCard
               icon={CalendarDays}
-              title="اخبار امروز (USD)"
+              title="اخبار امروز (دلار و ارزهای اصلی)"
               value={`${faDigits(stats.todayCount)} خبر`}
               sub={`${faDigits(stats.highTodayCount)} خبر با اهمیت بالا`}
               accentCls="bg-primary/12 border-primary/30 text-primary"
@@ -428,7 +428,7 @@ export function Dashboard() {
               <Inbox className="h-8 w-8 text-muted-foreground/60" />
               <p className="text-sm text-muted-foreground">
                 {tab === "today"
-                  ? "برای امروز خبر USD ثبت نشده است (مثلاً روزهای تعطیلی بازار)."
+                  ? "برای امروز خبری از دلار و ارزهای اصلی ثبت نشده است (مثلاً روزهای تعطیلی بازار)."
                   : "در این بازه خبری برای نمایش نیست. بازه زمانی یا فیلتر اهمیت را تغییر دهید."}
               </p>
               {tab === "today" && (

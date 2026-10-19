@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { faTime, faDigits } from "@/lib/tehran";
+import { currencyFa } from "@/lib/currency-fa";
 import { computeTradePlan, decisionQuality, refreshNudge, restSuggestion, revengeLock } from "@/lib/trader-engine";
 import type { PlanOutput } from "@/lib/trader-engine";
 import type { TraderResponse } from "@/lib/trader-types";
@@ -789,13 +790,20 @@ function NewsTab({ d }: { d: TraderResponse }) {
       <Section title="تقویم رویدادها — آمادگی پیش از خبر" icon={<Newspaper className="h-3.5 w-3.5 text-amber-300" />}>
         {ev ? (
           <>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-1">
               <p className="text-[11px] font-extrabold">{ev.titleFa || ev.title}</p>
-              <span className="rounded-full border border-rose-500/40 bg-rose-500/10 px-1.5 py-px text-[9px] font-extrabold text-rose-300">اهمیت بالا</span>
+              <span className="flex-none rounded-full border border-rose-500/40 bg-rose-500/10 px-1.5 py-px text-[9px] font-extrabold text-rose-300">اهمیت بالا</span>
             </div>
             <p className="mt-0.5 text-[10px] text-muted-foreground">
-              {ev.dateISO ? faTime(new Date(ev.dateISO)) + " تهران" : "زمان نامشخص"} — پیش‌بینی: <span dir="ltr">{ev.forecast ?? "—"}</span> · قبلی: <span dir="ltr">{ev.previous ?? "—"}</span>
+              <span className="font-extrabold text-amber-200">ارز: {currencyFa(ev.country)}</span>
+              {ev.dateISO ? <> — {faTime(new Date(ev.dateISO))} تهران</> : " — زمان نامشخص"}
+              {" — پیش‌بینی: "}<span dir="ltr">{ev.forecast ?? "—"}</span> · قبلی: <span dir="ltr">{ev.previous ?? "—"}</span>
             </p>
+            {ev.country !== "USD" && (
+              <p className="mt-1 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2 py-1 text-[9px] leading-4 text-sky-200">
+                این خبر مربوط به دلار آمریکا نیست، اما داده قوی اقتصادهای اصلی از مسیر شاخص دلار، انتظارات نرخ بهره و حس ریسک بر طلا و داو اثر می‌گذارد؛ به همین دلیل در تقویم نمایش داده می‌شود.
+              </p>
+            )}
             <p className="mt-1 text-[12px] font-black text-amber-300" data-testid="bt-countdown">
               {mins !== null ? `${mins >= 60 ? faDigits(Math.floor(mins / 60)) + " ساعت و " : ""}${faDigits(Math.round(mins % 60))} دقیقه باقی‌مانده` : "—"}
             </p>
@@ -807,9 +815,16 @@ function NewsTab({ d }: { d: TraderResponse }) {
             {!ev.dateISO && <p className="mt-1 text-[10px] text-amber-300">زمان انتشار در منبع موجود نیست — حدس زده نمی‌شود.</p>}
           </>
         ) : (
-          <p className="text-[10px] text-muted-foreground">خبر با اهمیت بالا در ۷ روز آینده فید ثبت نشده است.</p>
+          <div className="flex flex-col gap-1">
+            <p className="text-[10px] leading-5 text-muted-foreground">
+              در ۷ روز آینده فید، خبری با اهمیت «بالا» از اقتصادهای اصلی (آمریکا، اروپا، انگلیس، ژاپن، کانادا، استرالیا، نیوزیلند) ثبت نشده است.
+            </p>
+            <p className="text-[9px] leading-4 text-muted-foreground">
+              توجه: تقویم ForexFactory فقط هفته جاری را پوشش می‌دهد؛ رویدادهای هفته بعد در ابتدای هفته آینده اضافه می‌شوند. خبرهای «متوسط» هفته (مثل شاخص‌های PMI) در تب اخبار امروز دیده می‌شوند.
+            </p>
+          </div>
         )}
-        <p className="mt-1.5 text-[9px] text-muted-foreground">منبع: ForexFactory — وضعیت فید: {d.dataQuality.events === "live" ? "زنده" : d.dataQuality.events === "cached" ? "کش‌شده" : "خطا"}</p>
+        <p className="mt-1.5 text-[9px] text-muted-foreground">منبع: ForexFactory (USD کامل + ارزهای اصلی High/Medium) — وضعیت فید: {d.dataQuality.events === "live" ? "زنده" : d.dataQuality.events === "cached" ? "کش‌شده" : "خطا"}</p>
       </Section>
 
       {/* سناریوها */}

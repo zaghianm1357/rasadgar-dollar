@@ -14,6 +14,12 @@ var IMPACT_META = {
   Low: { label: 'اهمیت کم', cls: 'impL', ic: 'sigL' },
   Holiday: { label: 'تعطیلات', cls: 'impO', ic: 'calOff' }
 };
+var CURRENCY_FA = {
+  USD: 'دلار آمریکا', EUR: 'یورو', GBP: 'پوند انگلیس', JPY: 'ین ژاپن',
+  CAD: 'دلار کانادا', AUD: 'دلار استرالیا', NZD: 'دلار نیوزیلند',
+  CHF: 'فرانک سوئیس', CNY: 'یوان چین', ALL: 'چند کشور'
+};
+function currencyFa(c) { return CURRENCY_FA[(c || '').toUpperCase()] || (c || ''); }
 var DIR_META = {
   bullish: { label: 'افزایشی — تقویت دلار', cls: 'bull', ic: 'trendUp' },
   bearish: { label: 'کاهشی — تضعیف دلار', cls: 'bear', ic: 'trendDown' },
@@ -79,6 +85,7 @@ function eventCardHTML(e) {
     '<div class="ev-top">' +
     '<span dir="ltr" class="ev-time">' + (e.dateISO ? faTime(new Date(e.dateISO)) : 'هم‌روز') + '</span>' +
     '<span class="chip ' + impact.cls + '">' + icon(impact.ic, 12) + impact.label + '</span>' +
+    '<span class="chip cur">' + currencyFa(e.country) + '</span>' +
     (isReleased
       ? '<span class="chip st">' + icon('checkCircle', 12) + 'منتشر شد</span>'
       : (t != null ? '<span class="chip st">' + icon('hourglass', 12) + 'در انتظار انتشار</span>' : '')) +
@@ -160,8 +167,8 @@ function renderNewsApp() {
   }
 
   html += '<div class="stats">' +
-    statCardHTML('calDays', 'p', 'اخبار امروز (USD)', faDigits(c.count) + ' خبر', faDigits(c.high) + ' خبر با اهمیت بالا') +
-    statCardHTML('flame', 'a', 'تا خبر مهم بعدی', nx ? cdLong(new Date(nx.dateISO).getTime() - Date.now()) : 'خبر مهمی نیست', nx ? (nx.titleFa || nx.title) : '') +
+    statCardHTML('calDays', 'p', 'اخبار امروز (دلار و ارزهای اصلی)', faDigits(c.count) + ' خبر', faDigits(c.high) + ' خبر با اهمیت بالا') +
+    statCardHTML('flame', 'a', 'تا خبر مهم بعدی', nx ? cdLong(new Date(nx.dateISO).getTime() - Date.now()) : 'خبر مهمی نیست', nx ? (currencyFa(nx.country) + ' — ' + (nx.titleFa || nx.title)) : '') +
     statCardHTML('radio', 'n', 'وضعیت داده', 'اسنپ‌شات داخل فایل', 'تولید فایل: ' + faDateLong(gen) + ' — ' + faTime(gen)) +
     '</div>';
 
@@ -180,7 +187,7 @@ function renderNewsApp() {
 
   if (!groups.length) {
     html += '<div class="empty">' + icon('inbox', 28) +
-      '<p>' + (S_NEWS.tab === 'today' ? 'برای امروز خبر USD ثبت نشده است (مثلاً روزهای تعطیلی بازار).' : 'در این بازه خبری برای نمایش نیست. بازه یا فیلتر را تغییر دهید.') + '</p>' +
+      '<p>' + (S_NEWS.tab === 'today' ? 'برای امروز خبری از دلار و ارزهای اصلی ثبت نشده است (مثلاً روزهای تعطیلی بازار).' : 'در این بازه خبری برای نمایش نیست. بازه یا فیلتر را تغییر دهید.') + '</p>' +
       (S_NEWS.tab === 'today' ? '<button type="button" class="btn" data-goweek>' + icon('calDays', 14) + 'مشاهده این هفته</button>' : '') +
       '</div>';
   } else {

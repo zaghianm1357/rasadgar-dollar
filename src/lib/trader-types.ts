@@ -45,7 +45,7 @@ export interface TraderResponse {
   divergence: DivergenceResult;
   newsGap: {
     minutesLeft: number | null;
-    event: { id: string; title: string; titleFa: string | null; dateISO: string | null; impact: string; forecast: string | null; previous: string | null } | null;
+    event: { id: string; title: string; titleFa: string | null; country: string; dateISO: string | null; impact: string; forecast: string | null; previous: string | null } | null;
   };
   confluence: ConfluenceResult;
   rsi: number | null;

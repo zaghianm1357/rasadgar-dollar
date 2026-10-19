@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { refreshFeed, getMeta } from "@/lib/ff";
+import { refreshFeed, getMeta, MAJOR_CURRENCIES } from "@/lib/ff";
 import { translatePendingEvents, ensureDailyDigest } from "@/lib/translate";
 import { dateKeyInTehran, todayKeyInTehran, tehranDayStart, addDaysToKey } from "@/lib/tehran";
 import type { AssetOutlook, Direction, Impact, NewsEvent, NewsResponse } from "@/lib/types";
@@ -72,6 +72,7 @@ function serialize(e: EconomicEvent): NewsEvent {
     id: e.eventKey,
     title: e.title,
     titleFa: e.titleFa,
+    country: e.country || "USD",
     dateISO: e.date ? e.date.toISOString() : null,
     allDay: e.allDay || !e.date,
     impact: (["High", "Medium", "Low", "Holiday"].includes(e.impact) ? e.impact : "Low") as Impact,
@@ -101,9 +102,9 @@ export async function GET() {
       console.error("[api/news] translate error:", (err as Error).message);
     }
 
-    // ۳) خواندن نهایی رویدادهای USD
+    // ۳) خواندن نهایی رویدادهای مرتبط — USD به‌همراه رویدادهای پراهمیت ارزهای اصلی
     const all = await db.economicEvent.findMany({
-      where: { country: "USD" },
+      where: { country: { in: [...MAJOR_CURRENCIES] } },
       orderBy: [{ date: "asc" }],
     });
 

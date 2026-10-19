@@ -174,6 +174,7 @@ interface NewsEventRow {
   id: string;
   title: string;
   titleFa: string | null;
+  country: string;
   dateISO: string | null;
   impact: string;
   forecast: string | null;
@@ -199,6 +200,7 @@ async function dbEvents(): Promise<NewsEventRow[]> {
     id: e.eventKey,
     title: e.title,
     titleFa: e.titleFa,
+    country: e.country || "USD",
     dateISO: e.date ? e.date.toISOString() : null,
     impact: e.impact,
     forecast: e.forecast,
@@ -474,6 +476,7 @@ async function computeTrader(symbolKey: "xau" | "dji", newsEvents: NewsEventRow[
             id: nextHigh.id,
             title: nextHigh.title,
             titleFa: nextHigh.titleFa,
+            country: nextHigh.country,
             dateISO: nextHigh.dateISO,
             impact: nextHigh.impact,
             forecast: nextHigh.forecast,

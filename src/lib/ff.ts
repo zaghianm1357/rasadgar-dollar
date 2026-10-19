@@ -58,9 +58,26 @@ function weekAnchorKey(now: Date = new Date()): string {
 }
 
 /**
- * فید هفتگی ForexFactory را در صورت نیاز می‌گیرد و رویدادهای USD را در دیتابیس ذخیره می‌کند.
+ * فید هفتگی ForexFactory را در صورت نیاز می‌گیرد و رویدادهای مرتبط را در دیتابیس ذخیره می‌کند.
  * در صورت خطا (مثلاً Rate Limit) از داده‌های قبلی موجود در دیتابیس استفاده می‌شود.
+ *
+ * پوشش ارزها:
+ * - USD: همه رویدادها (هر سطح اهمیت)
+ * - سایر ارزهای اصلی: فقط High و Medium — چون داده قوی این اقتصادها (مثل CPI کانادا/انگلیس)
+ *   از مسیر شاخص دلار و انتظارات نرخ بهره روی XAUUSD اثر می‌گذارد و حذفشان باعث
+ *   می‌شد ابزار در هفته‌ای که تقویم دلار کم‌خبر است، «هیچ خبر مهمی» نشان ندهد.
  */
+export const MAJOR_CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "NZD", "CHF", "CNY"] as const;
+const MAJOR_SET = new Set<string>(MAJOR_CURRENCIES);
+
+function isRelevant(e: RawEvent): boolean {
+  const c = (e.country || "").toUpperCase();
+  const imp = (e.impact || "").toLowerCase();
+  if (!MAJOR_SET.has(c)) return false;
+  if (c === "USD") return true;
+  return imp === "high" || imp === "medium";
+}
+
 export async function refreshFeed(): Promise<FeedResult> {
   return runExclusive(feedLock, async () => {
     const lastOk = Number((await getMeta("ff_feed_last_ok")) || 0);
@@ -90,7 +107,7 @@ export async function refreshFeed(): Promise<FeedResult> {
       }
 
       const raw = JSON.parse(trimmed) as RawEvent[];
-      const usd = raw.filter((e) => (e.country || "").toUpperCase() === "USD");
+      const usd = raw.filter(isRelevant);
       const anchor = weekAnchorKey();
 
       for (const e of usd) {
@@ -105,7 +122,7 @@ export async function refreshFeed(): Promise<FeedResult> {
 
         const data = {
           title: e.title.trim(),
-          country: "USD",
+          country: (e.country || "USD").toUpperCase(),
           date: validDate,
           allDay: !validDate,
           impact: normalizeImpact(e.impact),
@@ -127,7 +144,7 @@ export async function refreshFeed(): Promise<FeedResult> {
       const cutoff = new Date(now - 10 * 24 * 60 * 60 * 1000);
       await db.economicEvent.deleteMany({ where: { date: { lt: cutoff } } });
 
-      return { status: "live", count: usd.length };
+      return { status: "live", count: usd.length }; // usd در این تابع یعنی «رویدادهای مرتبط فیلترشده»
     } catch (err) {
       console.error("[ff] feed fetch failed:", (err as Error).message);
       await setMeta("ff_feed_last_fail", String(now));

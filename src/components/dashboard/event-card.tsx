@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import type { NewsEvent, Direction, AssetOutlook } from "@/lib/types";
 import { faTime, faDigits } from "@/lib/tehran";
+import { currencyFa } from "@/lib/currency-fa";
 
 const DIRECTION_META: Record<
   Direction,
@@ -251,6 +252,10 @@ function EventCardBase({ event, now }: { event: NewsEvent; now: number }) {
           <Badge variant="outline" className={`gap-1 ${impactMeta.cls}`}>
             <ImpactIcon className="h-3 w-3" />
             {impactMeta.label}
+          </Badge>
+
+          <Badge variant="outline" className="gap-1 border-amber-500/30 bg-amber-500/10 text-amber-300">
+            {currencyFa(event.country)}
           </Badge>
 
           {isReleased ? (

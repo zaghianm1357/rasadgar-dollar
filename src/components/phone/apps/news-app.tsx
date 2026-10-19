@@ -17,6 +17,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import type { NewsEvent } from "@/lib/types";
+import { currencyFa } from "@/lib/currency-fa";
 import {
   faDigits,
   faDateLong,
@@ -214,7 +215,7 @@ export function NewsApp() {
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
           <StatCard
             icon={CalendarDays}
-            title="اخبار امروز (USD)"
+            title="اخبار امروز (دلار و ارزهای اصلی)"
             value={`${faDigits(stats.todayCount)} خبر`}
             sub={`${faDigits(stats.highTodayCount)} خبر با اهمیت بالا`}
             accentCls="bg-primary/12 border-primary/30 text-primary"
@@ -225,9 +226,9 @@ export function NewsApp() {
             value={
               stats.nextHigh
                 ? formatCountdown(new Date(stats.nextHigh.dateISO!).getTime() - now.getTime())
-                : "امروز خبر مهمی نیست"
+                : "خبر مهمی در صف نیست"
             }
-            sub={stats.nextHigh ? stats.nextHigh.titleFa || stats.nextHigh.title : undefined}
+            sub={stats.nextHigh ? `${currencyFa(stats.nextHigh.country)} — ${stats.nextHigh.titleFa || stats.nextHigh.title}` : undefined}
             accentCls="bg-amber-500/12 border-amber-500/30 text-amber-400"
           />
           <StatCard
@@ -313,7 +314,7 @@ export function NewsApp() {
             <Inbox className="h-7 w-7 text-muted-foreground/60" />
             <p className="text-xs text-muted-foreground">
               {tab === "today"
-                ? "برای امروز خبر USD ثبت نشده است (مثلاً روزهای تعطیلی بازار)."
+                ? "برای امروز خبری از دلار و ارزهای اصلی ثبت نشده است (مثلاً روزهای تعطیلی بازار)."
                 : "در این بازه خبری برای نمایش نیست. بازه یا فیلتر را تغییر دهید."}
             </p>
             {tab === "today" && (

@@ -17,6 +17,7 @@ export interface NewsEvent {
   id: string;
   title: string;
   titleFa: string | null;
+  country: string;
   dateISO: string | null;
   allDay: boolean;
   impact: Impact;
