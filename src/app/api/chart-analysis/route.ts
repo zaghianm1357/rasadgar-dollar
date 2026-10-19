@@ -1,0 +1,368 @@
+import { NextResponse } from "next/server";
+import ZAI from "z-ai-web-dev-sdk";
+import { getMeta, setMeta } from "@/lib/ff";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * تحلیل هوش مصنوعی چارت — بر اساس داده کندل همان نماد/تایم‌فریم از Yahoo Finance
+ * (ویجت رایگان TradingView داده نمی‌دهد؛ همین نماد و همین تایم‌فریم از منبع داده دریافت می‌شود)
+ * کش ۱۵ دقیقه‌ای در AppMeta برای جلوگیری از هزینه تکراری LLM.
+ */
+
+const UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+const TTL_MS = 15 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 15_000;
+const MIN_BARS = 60;
+
+interface Candle {
+  t: number;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+}
+
+const SYMBOL_MAP: Record<string, { yahoo: string[]; label: string }> = {
+  "OANDA:XAUUSD": { yahoo: ["GC=F", "XAUUSD=X"], label: "طلا (XAUUSD)" },
+  "OANDA:XAGUSD": { yahoo: ["SI=F"], label: "نقره (XAGUSD)" },
+  "OANDA:EURUSD": { yahoo: ["EURUSD=X"], label: "یورو/دلار (EURUSD)" },
+  "BINANCE:BTCUSDT": { yahoo: ["BTC-USD"], label: "بیت‌کوین (BTCUSDT)" },
+};
+
+const INTERVAL_MAP: Record<string, { yahooInterval: string; range: string; agg4h?: boolean; label: string }> = {
+  "5": { yahooInterval: "5m", range: "5d", label: "۵ دقیقه" },
+  "15": { yahooInterval: "15m", range: "5d", label: "۱۵ دقیقه" },
+  "60": { yahooInterval: "1h", range: "3mo", label: "۱ ساعته" },
+  "240": { yahooInterval: "1h", range: "3mo", agg4h: true, label: "۴ ساعته" },
+  D: { yahooInterval: "1d", range: "1y", label: "روزانه" },
+};
+
+/* ---------- دریافت کندل ---------- */
+
+function num(v: unknown): number | null {
+  return typeof v === "number" && isFinite(v) ? v : null;
+}
+
+async function fetchChart(
+  symbol: string,
+  interval: string,
+  range: string
+): Promise<Candle[]> {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+    symbol
+  )}?interval=${interval}&range=${range}&includePrePost=false`;
+  const res = await fetch(url, {
+    headers: { "User-Agent": UA, Accept: "application/json" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = (await res.json()) as {
+    chart?: {
+      result?: Array<{
+        timestamp?: number[];
+        indicators?: {
+          quote?: Array<{
+            open?: (number | null)[];
+            high?: (number | null)[];
+            low?: (number | null)[];
+            close?: (number | null)[];
+          }>;
+        };
+      }> | null;
+    };
+  };
+  const r = json.chart?.result?.[0];
+  const q = r?.indicators?.quote?.[0] ?? {};
+  const ts = r?.timestamp;
+  if (!r || !Array.isArray(ts) || ts.length === 0) throw new Error("empty chart response");
+  const candles: Candle[] = [];
+  for (let i = 0; i < ts.length; i++) {
+    const o = num(q.open?.[i]);
+    const h = num(q.high?.[i]);
+    const l = num(q.low?.[i]);
+    const c = num(q.close?.[i]);
+    if (o === null || h === null || l === null || c === null) continue;
+    candles.push({ t: ts[i], o, h, l, c });
+  }
+  if (candles.length < MIN_BARS) throw new Error(`not enough bars: ${candles.length}`);
+  return candles;
+}
+
+function aggregate4h(candles: Candle[]): Candle[] {
+  const BUCKET = 4 * 3600;
+  const map = new Map<number, Candle>();
+  for (const c of candles) {
+    const b = Math.floor(c.t / BUCKET) * BUCKET;
+    const ex = map.get(b);
+    if (!ex) map.set(b, { t: b, o: c.o, h: c.h, l: c.l, c: c.c });
+    else {
+      if (c.h > ex.h) ex.h = c.h;
+      if (c.l < ex.l) ex.l = c.l;
+      ex.c = c.c;
+    }
+  }
+  return [...map.values()].sort((a, b) => a.t - b.t);
+}
+
+/* ---------- اندیکاتورهای خلاصه ---------- */
+
+function emaLast(values: number[], period: number): number {
+  if (values.length < period) return NaN;
+  let sum = 0;
+  for (let i = 0; i < period; i++) sum += values[i];
+  let prev = sum / period;
+  const k = 2 / (period + 1);
+  for (let i = period; i < values.length; i++) prev = values[i] * k + prev * (1 - k);
+  return prev;
+}
+
+function rsiLast(closes: number[], period = 14): number {
+  if (closes.length < period + 1) return NaN;
+  let gain = 0;
+  let loss = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = closes[i] - closes[i - 1];
+    if (d > 0) gain += d;
+    else loss -= d;
+  }
+  let ag = gain / period;
+  let al = loss / period;
+  for (let i = period + 1; i < closes.length; i++) {
+    const d = closes[i] - closes[i - 1];
+    ag = (ag * (period - 1) + Math.max(d, 0)) / period;
+    al = (al * (period - 1) + Math.max(-d, 0)) / period;
+  }
+  if (al === 0) return 100;
+  return 100 - 100 / (1 + ag / al);
+}
+
+function atrLast(candles: Candle[], period = 14): number {
+  if (candles.length < period + 1) return NaN;
+  let sum = 0;
+  for (let i = candles.length - period; i < candles.length; i++) {
+    const tr = Math.max(
+      candles[i].h - candles[i].l,
+      Math.abs(candles[i].h - candles[i - 1].c),
+      Math.abs(candles[i].l - candles[i - 1].c)
+    );
+    sum += tr;
+  }
+  return sum / period;
+}
+
+function findSwings(candles: Candle[], lookback = 2): { highs: number[]; lows: number[] } {
+  const highs: number[] = [];
+  const lows: number[] = [];
+  for (let i = lookback; i < candles.length - lookback; i++) {
+    let isHigh = true;
+    let isLow = true;
+    for (let j = i - lookback; j <= i + lookback; j++) {
+      if (j === i) continue;
+      if (candles[j].h >= candles[i].h) isHigh = false;
+      if (candles[j].l <= candles[i].l) isLow = false;
+      if (!isHigh && !isLow) break;
+    }
+    if (isHigh) highs.push(candles[i].h);
+    if (isLow) lows.push(candles[i].l);
+  }
+  return { highs, lows };
+}
+
+function roundPrice(v: number): number {
+  if (!isFinite(v)) return 0;
+  if (v >= 1) return Math.round(v * 100) / 100;
+  return Math.round(v * 100000) / 100000;
+}
+
+/* ---------- پرامپت تحلیلگر ---------- */
+
+const ANALYST_SYSTEM = `تو یک تحلیلگر حرفه‌ای بازارهای مالی هستی؛ متخصص پرایس اکشن، ساختار بازار و سبک SMC/ICT.
+کاربر در ابزار یک چارت TradingView را می‌بیند و تو خلاصه اندیکاتورهای «همان نماد و همان تایم‌فریم» را از منبع داده دریافت می‌کنی.
+یک تحلیل فنی فشرده، حرفه‌ای و مستقیم به زبان فارسی بنویس (حداکثر حدود ۲۰۰ کلمه) با دقیقاً این چهار خط و همین برچسب‌ها:
+
+جمع‌بندی: (روند، ساختار و مومنتوم؛ در صورت صراحت از اصطلاح‌های انگلیسی BOS، CHoCH، OB، FVG، EQH/EQL استفاده کن)
+سطوح کلیدی: مقاومت‌ها: ... | حمایت‌ها: ... (اعداد را فقط از داده بگیر و قیمت‌ها را رُند کن)
+سناریوها: ادامه روند در صورت ... | شکست/تغییر جهت در صورت ...
+ریسک: (یک جمله کوتاه)
+
+قوانین: فقط از داده‌های داده‌شده استفاده کن؛ عدد از خودت نساز؛ اگر داده برای تحلیل قطعی کافی نیست صادقانه بگو. اصطلاح‌های تخصصی انگلیسی بازار (BOS، CHoCH، OB، FVG، EQH/EQL و نام نماد) را همان‌طور انگلیسی بنویس، ولی برای هر واژه دیگر فقط معادل فارسی بنویس — هیچ واژه‌ای از چینی، روسی، اسپانیایی یا سایر زبان‌ها ننویس. بدون markdown، بدون جدول، بدون فهرست گلوله‌ای و بدون سلام و تعارف. تحلیل تو اطلاع‌رسانی است، نه توصیه خرید/فروش — جمله توصیه صریح ننویس.
+
+نمونه ساختار و زبان خروجی (اعداد فقط نمونه‌اند — تو از داده واقعی استفاده کن):
+جمع‌بندی: روند صعودی کوتاه‌مدت؛ قیمت بالای EMA50 و ساختار HH/HL. مومنتوم مثبت (RSI=58).
+سطوح کلیدی: مقاومت‌ها: 4208.4 | حمایت‌ها: 4193.2
+سناریوها: ادامه روند در صورت تثبیت بالای 4208.4 | تغییر جهت در صورت شکست 4193.2
+ریسک: نزدیک انتشار داده‌های مهم آمریکا، نوسان شدید محتمل است.`;
+
+/* ---------- قفل و کش ---------- */
+
+const aiLock: { current: Promise<unknown> } = { current: Promise.resolve() };
+
+function runExclusive<T>(lock: { current: Promise<unknown> }, fn: () => Promise<T>): Promise<T> {
+  const p = lock.current.then(fn, fn);
+  lock.current = p.catch(() => undefined);
+  return p;
+}
+
+interface AiCacheEntry {
+  symbol: string;
+  interval: string;
+  analysis: string;
+  generatedAtISO: string;
+  price: number | null;
+}
+
+function cacheKey(symbol: string, interval: string): string {
+  return `chart_ai_v1:${symbol}:${interval}`;
+}
+
+async function readCache(key: string): Promise<AiCacheEntry | null> {
+  try {
+    const raw = await getMeta(key);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as AiCacheEntry;
+    if (!obj || typeof obj.analysis !== "string" || !obj.analysis) return null;
+    return obj;
+  } catch {
+    return null;
+  }
+}
+
+/* ---------- محاسبه خلاصه و تولید تحلیل ---------- */
+
+async function computeAnalysis(symbol: string, interval: string): Promise<AiCacheEntry> {
+  const symSpec = SYMBOL_MAP[symbol];
+  const itvSpec = INTERVAL_MAP[interval];
+  if (!symSpec || !itvSpec) throw new Error("unsupported symbol/interval");
+
+  let candles: Candle[] | null = null;
+  let lastErr: Error | null = null;
+  for (const y of symSpec.yahoo) {
+    try {
+      const raw = await fetchChart(y, itvSpec.yahooInterval, itvSpec.range);
+      candles = itvSpec.agg4h ? aggregate4h(raw) : raw;
+      break;
+    } catch (err) {
+      lastErr = err as Error;
+    }
+  }
+  if (!candles) throw new Error(`yahoo failed: ${lastErr?.message ?? "unknown"}`);
+
+  const closes = candles.map((c) => c.c);
+  const last = closes[closes.length - 1];
+  const prev = closes[closes.length - 2] ?? last;
+  const e20 = emaLast(closes, 20);
+  const e50 = emaLast(closes, 50);
+  const rsi = rsiLast(closes);
+  const atr = atrLast(candles);
+  const { highs, lows } = findSwings(candles);
+  const recent = candles.slice(-20);
+  const recentHigh = Math.max(...recent.map((c) => c.h));
+  const recentLow = Math.min(...recent.map((c) => c.l));
+  const bullRatio = Math.round((recent.filter((c) => c.c > c.o).length / recent.length) * 100);
+  const last12 = candles.slice(-12).map((c) => [roundPrice(c.o), roundPrice(c.h), roundPrice(c.l), roundPrice(c.c)]);
+
+  const payload = {
+    symbol: symSpec.label,
+    interval: itvSpec.label,
+    price: roundPrice(last),
+    dailyChangePct: prev !== 0 ? Math.round(((last - prev) / prev) * 10000) / 100 : null,
+    bars: candles.length,
+    ema20: roundPrice(e20),
+    ema50: roundPrice(e50),
+    priceVsEma50: isFinite(e50) ? (last > e50 ? "above" : "below") : null,
+    ema20VsEma50: isFinite(e20) && isFinite(e50) ? (e20 > e50 ? "above" : "below") : null,
+    rsi14: isFinite(rsi) ? Math.round(rsi * 10) / 10 : null,
+    atr14: isFinite(atr) ? roundPrice(atr) : null,
+    atrPct: isFinite(atr) ? Math.round((atr / last) * 10000) / 100 : null,
+    recentSwingHighs: highs.slice(-4).map(roundPrice),
+    recentSwingLows: lows.slice(-4).map(roundPrice),
+    recent20High: roundPrice(recentHigh),
+    recent20Low: roundPrice(recentLow),
+    bullCandleRatioPct: bullRatio,
+    last12CandlesOHLC: last12,
+  };
+
+  const zai = await ZAI.create();
+  const askLLM = () =>
+    zai.chat.completions.create({
+      messages: [
+        { role: "assistant", content: ANALYST_SYSTEM },
+        { role: "user", content: JSON.stringify(payload) },
+      ],
+      thinking: { type: "disabled" },
+    });
+
+  /* اگر مدل الفبای غیر فارسی/انگلیسی نوشت یک‌بار دیگر تلاش کن */
+  const BAD_SCRIPT = /[\u0400-\u04FF\u3040-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF]/;
+  let text = ((await askLLM()).choices[0]?.message?.content || "").trim();
+  if (!text) throw new Error("empty LLM response");
+  if (BAD_SCRIPT.test(text)) {
+    try {
+      const second = ((await askLLM()).choices[0]?.message?.content || "").trim();
+      if (second && !BAD_SCRIPT.test(second)) text = second;
+    } catch {
+      /* از نتیجه اول استفاده می‌شود */
+    }
+  }
+  /* اصلاح قطعی لغزش‌های شناخته‌شده مدل */
+  text = text.replace(/در\s*caso/g, "در صورت").replace(/\bcaso\b/g, "صورت");
+
+  return {
+    symbol,
+    interval,
+    analysis: text,
+    generatedAtISO: new Date().toISOString(),
+    price: roundPrice(last),
+  };
+}
+
+/* ---------- Route ---------- */
+
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const symbol = url.searchParams.get("symbol") || "OANDA:XAUUSD";
+  const interval = url.searchParams.get("interval") || "15";
+  const force = url.searchParams.get("force") === "1";
+
+  if (!SYMBOL_MAP[symbol]) {
+    return NextResponse.json({ ok: false, error: "نماد پشتیبانی نمی‌شود" }, { status: 400 });
+  }
+  if (!INTERVAL_MAP[interval]) {
+    return NextResponse.json({ ok: false, error: "تایم‌فریم پشتیبانی نمی‌شود" }, { status: 400 });
+  }
+
+  const key = cacheKey(symbol, interval);
+
+  try {
+    if (!force) {
+      const cached = await readCache(key);
+      if (cached && Date.now() - new Date(cached.generatedAtISO).getTime() < TTL_MS) {
+        return NextResponse.json({ ok: true, ...cached, cached: true });
+      }
+    }
+
+    const entry = await runExclusive(aiLock, async () => {
+      /* بررسی مجدد کش داخل قفل — دو درخواست همزمان دوبار LLM صدا نزنند */
+      if (!force) {
+        const cached = await readCache(key);
+        if (cached && Date.now() - new Date(cached.generatedAtISO).getTime() < TTL_MS) return cached;
+      }
+      const fresh = await computeAnalysis(symbol, interval);
+      await setMeta(key, JSON.stringify(fresh));
+      return fresh;
+    });
+
+    return NextResponse.json({ ok: true, ...entry, cached: false });
+  } catch (err) {
+    const msg = (err as Error).message || "";
+    const friendly = msg.startsWith("yahoo failed")
+      ? "دریافت داده بازار ناموفق بود — اتصال سرور به Yahoo Finance را بررسی کنید"
+      : "تولید تحلیل ناموفق بود — کمی بعد دوباره تلاش کنید";
+    console.error("[chart-analysis] failed:", msg);
+    return NextResponse.json({ ok: false, error: friendly }, { status: 502 });
+  }
+}

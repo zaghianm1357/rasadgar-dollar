@@ -488,7 +488,7 @@ function renderChartApp() {
       '<button type="button" class="cchip tv-login" id="tv_login_btn" title="ویجت داخلی لاگین ندارد — با حساب خودتان در سایت اصلی وارد شوید">' + icon('ext', 12) + 'ورود به حساب</button>' +
     '</div>' +
     '<div id="tv_chart"><div class="tv-state tv-loading">در حال بارگذاری چارت TradingView…</div></div>' +
-    '<p class="chart-note">رسم‌ها و اندیکاتورهای داخل ویجت ذخیره نمی‌شوند — برای ذخیره با حساب خودتان از دکمه «ورود به حساب» استفاده کنید. نمایش چارت نیازمند اتصال اینترنت است.</p>' +
+    '<p class="chart-note">رسم‌ها و اندیکاتورهای داخل ویجت ذخیره نمی‌شوند — برای ذخیره با حساب خودتان از دکمه «ورود به حساب» استفاده کنید. نمایش چارت نیازمند اتصال اینترنت است. تحلیل هوشمند چارت به‌دلیل نیاز به هوش مصنوعی سمت سرور، فقط در نسخه وب ابزار در دسترس است.</p>' +
     '</div>';
   bindChartChips();
   var lb = appScroll.querySelector('#tv_login_btn');

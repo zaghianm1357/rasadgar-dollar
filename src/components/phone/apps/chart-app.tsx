@@ -1,7 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, CandlestickChart, ExternalLink, LoaderCircle, RefreshCw } from "lucide-react";
+import {
+  AlertTriangle,
+  CandlestickChart,
+  ExternalLink,
+  LoaderCircle,
+  RefreshCw,
+  Sparkles,
+  X,
+} from "lucide-react";
+import { faTime } from "@/lib/tehran";
 
 /* ---------- تنظیمات چارت ---------- */
 
@@ -110,6 +119,14 @@ export function ChartApp() {
   const [loading, setLoading] = useState(true);
   const [tvError, setTvError] = useState(false);
 
+  /* ---------- تحلیل هوش مصنوعی ---------- */
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiStatus, setAiStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [aiText, setAiText] = useState("");
+  const [aiAt, setAiAt] = useState<string | null>(null);
+  const [aiKey, setAiKey] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   /* ref برای دسترسی بدون stale closure */
   const symRef = useRef(symbol);
   const tfRef = useRef(interval);
@@ -207,6 +224,34 @@ export function ChartApp() {
     }
   }, []);
 
+  /* تحلیل هوشمند: داده همان نماد/تایم‌فریم → سرور → LLM (با کش ۱۵ دقیقه‌ای) */
+  const runAnalysis = useCallback((force: boolean) => {
+    setAiOpen(true);
+    setAiStatus("loading");
+    setAiError(null);
+    const sym = symRef.current;
+    const itv = tfRef.current;
+    fetch(
+      `/api/chart-analysis?symbol=${encodeURIComponent(sym)}&interval=${itv}${force ? "&force=1" : ""}`,
+    )
+      .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
+      .then(({ ok, j }) => {
+        if (ok && j?.ok) {
+          setAiText(String(j.analysis ?? ""));
+          setAiAt(j.generatedAtISO ? String(j.generatedAtISO) : null);
+          setAiKey(`${sym}@${itv}`);
+          setAiStatus("done");
+        } else {
+          setAiError(String(j?.error ?? "خطای نامشخص"));
+          setAiStatus("error");
+        }
+      })
+      .catch(() => {
+        setAiError("ارتباط با سرور برقرار نشد");
+        setAiStatus("error");
+      });
+  }, []);
+
   return (
     <div className="flex h-full flex-col px-3 pb-1.5">
       {/* انتخاب نماد */}
@@ -254,6 +299,21 @@ export function ChartApp() {
         </div>
         <button
           type="button"
+          onClick={() => runAnalysis(false)}
+          disabled={aiStatus === "loading"}
+          aria-label="تحلیل هوش مصنوعی از وضعیت چارت در تایم‌فریم فعلی"
+          data-testid="chart-ai-btn"
+          className="flex flex-none items-center gap-1 rounded-full border border-violet-500/50 bg-violet-500/15 px-2.5 py-1 text-[10px] font-extrabold text-violet-200 transition-colors hover:bg-violet-500/25 disabled:opacity-60"
+        >
+          {aiStatus === "loading" ? (
+            <LoaderCircle className="h-3 w-3 animate-spin" />
+          ) : (
+            <Sparkles className="h-3 w-3" />
+          )}
+          تحلیل هوشمند
+        </button>
+        <button
+          type="button"
           onClick={openWithAccount}
           aria-label="باز کردن چارت کامل تریدینگ‌ویو در تب جدید برای ورود به حساب کاربری"
           title="ویجت داخلی لاگین ندارد — با حساب خودتان در سایت اصلی وارد شوید"
@@ -295,6 +355,78 @@ export function ChartApp() {
           </div>
         )}
       </div>
+
+      {/* پنل تحلیل هوش مصنوعی */}
+      {aiOpen && (
+        <div
+          className="mt-1.5 flex h-[38%] max-h-[340px] flex-none flex-col overflow-hidden rounded-xl border border-violet-500/30 bg-card/60"
+          data-testid="chart-ai-panel"
+        >
+          <div className="flex flex-none items-center gap-1.5 border-b border-border/60 px-2.5 py-1.5">
+            <Sparkles className="h-3.5 w-3.5 flex-none text-violet-300" />
+            <span className="min-w-0 flex-1 truncate text-[11px] font-extrabold">
+              تحلیل هوش مصنوعی — {symbol} · {INTERVAL_PRESETS.find((p) => p.value === interval)?.label}
+            </span>
+            {aiStatus === "done" && aiAt && (
+              <span className="flex-none text-[9px] text-muted-foreground/80">{faTime(new Date(aiAt))}</span>
+            )}
+            <button
+              type="button"
+              onClick={() => runAnalysis(true)}
+              disabled={aiStatus === "loading"}
+              aria-label="بروزرسانی تحلیل"
+              className="flex h-6 w-6 flex-none items-center justify-center rounded-full border border-white/15 bg-white/10 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3 w-3 ${aiStatus === "loading" ? "animate-spin" : ""}`} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setAiOpen(false)}
+              aria-label="بستن پنل تحلیل"
+              className="flex h-6 w-6 flex-none items-center justify-center rounded-full border border-white/15 bg-white/10"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+
+          <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2">
+            {aiStatus === "loading" && (
+              <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+                <LoaderCircle className="h-6 w-6 animate-spin text-violet-300" />
+                <p className="text-xs font-bold text-foreground/85">در حال تحلیل چارت…</p>
+                <p className="text-[10px] text-muted-foreground">معمولاً ۵ تا ۱۵ ثانیه طول می‌کشد</p>
+              </div>
+            )}
+            {aiStatus === "error" && (
+              <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+                <AlertTriangle className="h-6 w-6 text-amber-400" />
+                <p className="max-w-[280px] text-[11px] leading-5 text-muted-foreground">{aiError}</p>
+                <button
+                  type="button"
+                  onClick={() => runAnalysis(true)}
+                  className="mt-0.5 flex items-center gap-1.5 rounded-full border border-violet-500/50 bg-violet-500/15 px-3.5 py-1.5 text-xs font-extrabold text-violet-200 transition-colors hover:bg-violet-500/25"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  تلاش مجدد
+                </button>
+              </div>
+            )}
+            {aiStatus === "done" && (
+              <div className="flex flex-col gap-1.5">
+                {aiKey !== null && aiKey !== `${symbol}@${interval}` && (
+                  <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-center text-[10px] font-bold text-amber-200">
+                    این تحلیل مربوط به نماد/تایم‌فریم قبلی است — دکمه «تحلیل هوشمند» را دوباره بزنید
+                  </p>
+                )}
+                <p className="whitespace-pre-wrap text-[11px] leading-6 text-foreground/90">{aiText}</p>
+                <p className="pt-0.5 text-center text-[9px] text-muted-foreground/70">
+                  تحلیل صرفاً اطلاع‌رسانی است و توصیه معاملاتی محسوب نمی‌شود — منبع داده: Yahoo Finance
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <p className="flex items-center justify-center gap-1 pt-1.5 text-center text-[9px] leading-4 text-muted-foreground/70">
         <CandlestickChart className="h-3 w-3 flex-none" />
