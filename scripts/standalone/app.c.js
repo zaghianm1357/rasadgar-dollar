@@ -417,6 +417,7 @@ function loadChart(symbol, interval) {
   S_CHART.tf = validChartTf(interval || '15');
   lsSet(CHART_KEY, JSON.stringify(S_CHART));
   syncChartChips();
+  aiSyncStale();
   var frame = S_CHART.sym + '@' + S_CHART.tf;
   if (chartLoaded.key === frame && el.querySelector('iframe')) return;
   chartLoaded.key = null;
@@ -475,6 +476,237 @@ function chartEnsureAuto() {
     requestAnimationFrame(function () { window.loadChart(S_CHART.sym, S_CHART.tf); });
   });
 }
+
+/* ---------- تحلیل هوشمند محلی (الگوریتمی — کندل‌های همان نماد/تایم‌فریم از Yahoo) ---------- */
+var CHART_YAHOO = {
+  'OANDA:XAUUSD': { y: 'GC=F', name: 'طلا — XAUUSD' },
+  'OANDA:XAGUSD': { y: 'SI=F', name: 'نقره — XAGUSD' },
+  'OANDA:EURUSD': { y: 'EURUSD=X', name: 'یورو/دلار' },
+  'BINANCE:BTCUSDT': { y: 'BTC-USD', name: 'بیت‌کوین' }
+};
+var CHART_ITV = {
+  '5': { i: '5m', r: '5d', label: '۵ دقیقه', lb: 3, atr: [0.06, 0.15] },
+  '15': { i: '15m', r: '5d', label: '۱۵ دقیقه', lb: 3, atr: [0.1, 0.25] },
+  '60': { i: '1h', r: '3mo', label: '۱ ساعته', lb: 3, atr: [0.18, 0.45] },
+  '240': { i: '1h', r: '6mo', label: '۴ ساعته', lb: 3, agg: 4, atr: [0.3, 0.8] },
+  'D': { i: '1d', r: '1y', label: 'روزانه', lb: 2, atr: [0.7, 1.6] }
+};
+var AI_TTL = 15 * 60 * 1000;
+var AI_CACHE = {};
+var AI_BUSY = false;
+var AI_STATE = { key: null, text: '', at: null };
+function aiKey() { return S_CHART.sym + '@' + S_CHART.tf; }
+function aiTfLabel() { var c = CHART_ITV[S_CHART.tf]; return c ? c.label : S_CHART.tf; }
+function aiPx(v) {
+  var d = v >= 10 ? 2 : 4;
+  return faDigits(Number(v).toLocaleString('en-US', { maximumFractionDigits: d })).replace(/,/g, '٬');
+}
+function fetchYahooOHLC(cfg, itv) {
+  var u = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(cfg.y) + '?interval=' + itv.i + '&range=' + itv.r;
+  var i = 0;
+  function attempt() {
+    if (i >= PROXIES.length) return Promise.reject(new Error('proxy-fail'));
+    var p = PROXIES[i++];
+    return fetchJSON(p(u), 11000).then(function (j) {
+      var r = j && j.chart && j.chart.result && j.chart.result[0];
+      var q = r && r.indicators && r.indicators.quote && r.indicators.quote[0];
+      if (!r || !q || !q.close || !r.timestamp || q.close.length < 60) throw new Error('bad-payload');
+      var px = { t: [], o: [], h: [], l: [], c: [] };
+      for (var k = 0; k < q.close.length; k++) {
+        if (q.close[k] == null || q.open[k] == null || q.high[k] == null || q.low[k] == null) continue;
+        px.t.push(r.timestamp[k]); px.o.push(q.open[k]); px.h.push(q.high[k]); px.l.push(q.low[k]); px.c.push(q.close[k]);
+      }
+      if (px.c.length < 60) throw new Error('thin');
+      return px;
+    }).catch(function () { return attempt(); });
+  }
+  return attempt();
+}
+function aggBars(px, n) {
+  var out = { t: [], o: [], h: [], l: [], c: [] }, key = null;
+  for (var i = 0; i < px.c.length; i++) {
+    var d = new Date(px.t[i] * 1000);
+    var b = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), Math.floor(d.getUTCHours() / n));
+    if (b !== key) {
+      key = b;
+      out.t.push(px.t[i]); out.o.push(px.o[i]); out.h.push(px.h[i]); out.l.push(px.l[i]); out.c.push(px.c[i]);
+    } else {
+      var j = out.c.length - 1;
+      out.h[j] = Math.max(out.h[j], px.h[i]);
+      out.l[j] = Math.min(out.l[j], px.l[i]);
+      out.c[j] = px.c[i];
+    }
+  }
+  return out;
+}
+function emaLast(vals, n) {
+  if (!vals || vals.length < n + 5) return null;
+  var k = 2 / (n + 1), sum = 0;
+  for (var i = 0; i < n; i++) sum += vals[i];
+  var e = sum / n;
+  for (var i = n; i < vals.length; i++) e = vals[i] * k + e * (1 - k);
+  return e;
+}
+function rsiLast(c, n) {
+  if (!c || c.length < n + 1) return null;
+  var g = 0, l = 0, d, i;
+  for (i = 1; i <= n; i++) { d = c[i] - c[i - 1]; if (d > 0) g += d; else l -= d; }
+  var ag = g / n, al = l / n;
+  for (i = n + 1; i < c.length; i++) {
+    d = c[i] - c[i - 1];
+    ag = (ag * (n - 1) + (d > 0 ? d : 0)) / n;
+    al = (al * (n - 1) + (d < 0 ? -d : 0)) / n;
+  }
+  if (al === 0) return ag === 0 ? 50 : 100;
+  return 100 - 100 / (1 + ag / al);
+}
+function atrPct(h, l, c, n) {
+  if (!c || c.length < n + 1) return null;
+  var trs = [], i;
+  for (i = 1; i < c.length; i++) trs.push(Math.max(h[i] - l[i], Math.abs(h[i] - c[i - 1]), Math.abs(l[i] - c[i - 1])));
+  var a = 0;
+  for (i = 0; i < n; i++) a += trs[i];
+  a /= n;
+  for (i = n; i < trs.length; i++) a = (a * (n - 1) + trs[i]) / n;
+  return a / c[c.length - 1] * 100;
+}
+function findSwings(h, l, lb) {
+  var hs = [], ls = [], i, k, ph, pl;
+  for (i = lb; i < h.length - lb; i++) {
+    ph = true; pl = true;
+    for (k = 1; k <= lb; k++) {
+      if (h[i] < h[i - k] || h[i] < h[i + k]) ph = false;
+      if (l[i] > l[i - k] || l[i] > l[i + k]) pl = false;
+      if (!ph && !pl) break;
+    }
+    if (ph) hs.push({ i: i, v: h[i] });
+    if (pl) ls.push({ i: i, v: l[i] });
+  }
+  return { hs: hs, ls: ls };
+}
+function buildAiText(px, itv) {
+  var c = px.c, n = c.length, last = c[n - 1], i;
+  var e20 = emaLast(c, 20), e50 = emaLast(c, 50);
+  var rsi = rsiLast(c, 14);
+  var atr = atrPct(px.h, px.l, c, 14);
+  var sw = findSwings(px.h, px.l, itv.lb);
+  var sh = sw.hs.length ? sw.hs[sw.hs.length - 1] : null;
+  var shp = sw.hs.length > 1 ? sw.hs[sw.hs.length - 2] : null;
+  var sl = sw.ls.length ? sw.ls[sw.ls.length - 1] : null;
+  var slp = sw.ls.length > 1 ? sw.ls[sw.ls.length - 2] : null;
+  var look = Math.min(20, n), hh = -Infinity, ll = Infinity, bull = 0;
+  for (i = n - look; i < n; i++) {
+    if (px.h[i] > hh) hh = px.h[i];
+    if (px.l[i] < ll) ll = px.l[i];
+    if (c[i] >= px.o[i]) bull++;
+  }
+  var ratio = Math.round(bull / look * 100);
+  var maScore = 0;
+  if (e20 != null) maScore += last > e20 ? 1 : -1;
+  if (e20 != null && e50 != null) maScore += e20 > e50 ? 1 : -1;
+  var swScore = 0;
+  if (sh && shp) swScore += sh.v > shp.v ? 1 : -1;
+  if (sl && slp) swScore += sl.v > slp.v ? 1 : -1;
+  var total = maScore + swScore;
+  var dir = total >= 2 ? 'صعودی' : total <= -2 ? 'نزولی' : 'خنثی';
+  var strg = Math.round(Math.abs(total) / 4 * 100);
+  var e20txt = e20 == null ? '' : 'قیمت ' + (last > e20 ? 'بالای' : 'زیرِ') + ' EMA۲۰' + (e50 == null ? '' : ' و ' + (last > e50 ? 'بالای' : 'زیرِ') + ' EMA۵۰') + ' معامله می‌شود؛';
+  var rsiTxt = rsi == null ? '' : ' شاخص قدرت نسبی (RSI۱۴) روی ' + faDigits(String(Math.round(rsi))) + ' است' + (rsi >= 70 ? ' — ناحیه اشباع خرید؛ احتمال تعدیل کوتاه‌مدت بیشتر می‌شود.' : rsi <= 30 ? ' — ناحیه اشباع فروش؛ احتمال واکنش صعودی بیشتر می‌شود.' : ' — ناحیه نرمال؛ فشار یک‌طرفه شدید نیست.');
+  var bosTxt = 'شکست ساختاری (BOS) جدیدی ثبت نشده است؛ رفتار قیمت داخل محدوده سقف/کف سوئینگ است.';
+  if (sh && last > sh.v) bosTxt = 'قیمت بالای آخرین سقف سوئینگ (' + aiPx(sh.v) + ') معامله می‌شود — BOS صعودی؛ تا زمانی که زیر آن برنگردد، ساختار صعودی معتبر است.';
+  else if (sl && last < sl.v) bosTxt = 'قیمت زیر آخرین کف سوئینگ (' + aiPx(sl.v) + ') معامله می‌شود — BOS نزولی؛ تا بازگشت بالای آن، ساختار نزولی معتبر است.';
+  var stTxt = 'ترکیب سقف/کف‌های سوئینگ بی‌جهت است.';
+  if (sh && shp && sl && slp) {
+    if (sh.v > shp.v && sl.v > slp.v) stTxt = 'سقف‌ها و کف‌های بالاتر (HH/HL) — ساختار تداومی صعودی.';
+    else if (sh.v < shp.v && sl.v < slp.v) stTxt = 'سقف‌ها و کف‌های پایین‌تر (LH/LL) — ساختار تداومی نزولی.';
+    else if (sh.v > shp.v) stTxt = 'سقف بالاتر ولی کف پایین‌تر — انبساط دامنه و بی‌تصمیمی.';
+    else stTxt = 'سقف پایین‌تر ولی کف بالاتر — فشردگی و آماده شدن برای حرکت جهت‌دار.';
+  }
+  var res = aiPx(hh), sup = aiPx(ll);
+  var sec1 = '<p class="ai-sec"><b>جمع‌بندی:</b> چارچوب روند در تایم‌فریم ' + aiTfLabel() + ' ' + dir + ' است (قدرت ساختار ' + faDigits(String(strg)) + '٪). ' + e20txt + rsiTxt + ' ' + bosTxt + '</p>';
+  var sec2 = '<p class="ai-sec"><b>سطوح کلیدی:</b> مقاومت‌های نزدیک: ' + (sh ? aiPx(sh.v) + ' (آخرین سقف سوئینگ) و ' : '') + res + ' (سقف ۲۰ کندل اخیر) — حمایت‌های نزدیک: ' + (sl ? aiPx(sl.v) + ' (آخرین کف سوئینگ) و ' : '') + sup + ' (کف ۲۰ کندل اخیر). ' + stTxt + '</p>';
+  var sec3 = '<p class="ai-sec"><b>سناریوها:</b> تثبیت بالای ' + res + ' → تداوم مسیر صعودی و باز شدن سمت قیمت‌های بالاتر؛ از دست رفتن ' + sup + ' → تداوم فشار فروش و ورود به عمق رِنج. بین این دو سطح، رفتار دوطرفه و رِنجی محتمل‌ترین حالت است.</p>';
+  var volTxt = 'معمولی';
+  if (atr != null && itv.atr) volTxt = atr < itv.atr[0] ? 'پایین' : atr > itv.atr[1] ? 'بالا' : 'معمولی';
+  var sec4 = '<p class="ai-sec"><b>ریسک:</b> میانگین دامنه نوسان (ATR۱۴) حدود ' + (atr == null ? '—' : faDigits(atr.toFixed(2)) + '٪') + ' قیمت است — نوسان ' + volTxt + '؛ ' + faDigits(String(ratio)) + '٪ از ۲۰ کندل اخیر صعودی بسته شده‌اند. در تایم‌فریم‌های کوچک‌تر سیگنال‌ها نویز بیشتری دارند؛ تایید با تایم‌فریم بالاتر توصیه می‌شود.</p>';
+  return sec1 + sec2 + sec3 + sec4;
+}
+function aiBody() { var p = document.getElementById('ai_panel'); return p ? p.querySelector('.ai-body') : null; }
+function aiSyncHeader() {
+  var p = document.getElementById('ai_panel');
+  if (!p) return;
+  var t = p.querySelector('.ai-head .t');
+  var cfg = CHART_YAHOO[S_CHART.sym];
+  if (t) t.textContent = 'تحلیل هوش مصنوعی — ' + (cfg ? cfg.name : S_CHART.sym) + ' · ' + aiTfLabel();
+}
+function aiRenderLoading() {
+  var b = aiBody();
+  if (!b) return;
+  b.innerHTML = '<div class="ai-state"><span class="spin" style="display:inline-flex">' + icon('refresh', 18) + '</span>در حال دریافت کندل‌ها و محاسبه تحلیل…<span style="font-size:9px;font-weight:400">معمولاً ۳ تا ۱۰ ثانیه — منبع داده: Yahoo Finance</span></div>';
+  var at = document.getElementById('ai_at');
+  if (at) at.textContent = '';
+}
+function aiRenderError(msg) {
+  var b = aiBody();
+  if (!b) return;
+  b.innerHTML = '<div class="ai-state"><span style="display:inline-flex;color:var(--red)">' + icon('wifi', 20) + '</span>' + msg + '<button type="button" class="btn" data-ai-retry>' + icon('refresh', 13) + 'تلاش مجدد</button></div>';
+  var rb = b.querySelector('[data-ai-retry]');
+  if (rb) rb.addEventListener('click', function () { runAi(true); });
+}
+function aiRenderText() {
+  var b = aiBody();
+  if (!b || !AI_STATE.text) return;
+  var cur = aiKey();
+  var stale = AI_STATE.key !== cur;
+  var at = document.getElementById('ai_at');
+  if (at) at.textContent = !stale && AI_STATE.at ? faTime(new Date(AI_STATE.at)) : '';
+  b.innerHTML = (stale ? '<p class="ai-stale">این تحلیل مربوط به نماد/تایم‌فریم قبلی است — دکمه «تحلیل هوشمند» را دوباره بزنید</p>' : '') + AI_STATE.text;
+  b.scrollTop = 0;
+}
+function setAiBusy(b) {
+  var btn = document.getElementById('ai_btn');
+  if (!btn) return;
+  btn.disabled = b;
+  var ic = btn.querySelector('svg');
+  if (ic) ic.classList.toggle('spin', b);
+}
+function runAi(force) {
+  var p = document.getElementById('ai_panel');
+  if (!p || AI_BUSY) return;
+  var key = aiKey();
+  var cached = AI_CACHE[key];
+  if (!force && cached && (Date.now() - cached.at) < AI_TTL) {
+    AI_STATE = { key: key, text: cached.text, at: cached.at };
+    aiRenderText();
+    return;
+  }
+  var cfg = CHART_YAHOO[S_CHART.sym];
+  var itv = CHART_ITV[S_CHART.tf];
+  if (!cfg || !itv) { aiRenderError('این نماد در موتور تحلیل پشتیبانی نمی‌شود.'); return; }
+  AI_BUSY = true;
+  setAiBusy(true);
+  aiRenderLoading();
+  fetchYahooOHLC(cfg, itv).then(function (px) {
+    if (itv.agg) px = aggBars(px, itv.agg);
+    var text = buildAiText(px, itv);
+    AI_CACHE[key] = { at: Date.now(), text: text };
+    AI_BUSY = false;
+    setAiBusy(false);
+    AI_STATE = { key: key, text: text, at: Date.now() };
+    aiRenderText();
+  }).catch(function () {
+    AI_BUSY = false;
+    setAiBusy(false);
+    aiRenderError('دریافت کندل‌ها از Yahoo Finance ممکن نشد — اتصال اینترنت را بررسی کنید و دوباره تلاش کنید (پروکسی‌های عمومی گاهی موقتاً محدود می‌شوند).');
+  });
+}
+function aiSyncStale() {
+  var p = document.getElementById('ai_panel');
+  if (!p || p.hidden) return;
+  aiSyncHeader();
+  if (AI_BUSY) return;
+  aiRenderText();
+}
 function renderChartApp() {
   if (appScroll.querySelector('#tv_chart')) { /* باز شدن مجدد — ویجت قبلی حفظ شود */
     syncChartChips();
@@ -485,15 +717,38 @@ function renderChartApp() {
     '<div class="chart-chips no-scrollbar" data-chart-syms>' + chartChipRowHTML(CHART_SYMS, 'sym') + '</div>' +
     '<div class="chart-tfrow">' +
       '<div class="chart-chips no-scrollbar" data-chart-tfs>' + chartChipRowHTML(CHART_TFS, 'tf') + '</div>' +
+      '<button type="button" class="cchip ai-btn" id="ai_btn" title="تحلیل الگوریتمی همان نماد و تایم‌فریم انتخابی">' + icon('sparkles', 12) + 'تحلیل هوشمند</button>' +
       '<button type="button" class="cchip tv-login" id="tv_login_btn" title="ویجت داخلی لاگین ندارد — با حساب خودتان در سایت اصلی وارد شوید">' + icon('ext', 12) + 'ورود به حساب</button>' +
     '</div>' +
     '<div id="tv_chart"><div class="tv-state tv-loading">در حال بارگذاری چارت TradingView…</div></div>' +
-    '<p class="chart-note">رسم‌ها و اندیکاتورهای داخل ویجت ذخیره نمی‌شوند — برای ذخیره با حساب خودتان از دکمه «ورود به حساب» استفاده کنید. نمایش چارت نیازمند اتصال اینترنت است. تحلیل هوشمند چارت به‌دلیل نیاز به هوش مصنوعی سمت سرور، فقط در نسخه وب ابزار در دسترس است.</p>' +
+    '<div id="ai_panel" hidden>' +
+      '<div class="ai-head"><span style="display:inline-flex;flex:none">' + icon('sparkles', 13) + '</span><span class="t">تحلیل هوش مصنوعی</span><span class="at" id="ai_at"></span>' +
+      '<button type="button" class="ai-rf" data-ai-refresh title="بروزرسانی تحلیل">' + icon('refresh', 11) + '</button>' +
+      '<button type="button" class="ai-x" data-ai-close aria-label="بستن تحلیل">' + icon('x', 12) + '</button></div>' +
+      '<div class="ai-body"><div class="ai-state">برای شروع، دکمه «تحلیل هوشمند» را بزنید</div></div>' +
+      '<p class="ai-foot">موتور تحلیل: الگوریتم محلی (EMA/RSI/ATR/سوئینگ) روی کندل‌های Yahoo Finance — صرفاً اطلاع‌رسانی است و توصیه معاملاتی نیست.</p>' +
+    '</div>' +
+    '<p class="chart-note">رسم‌ها و اندیکاتورهای داخل ویجت ذخیره نمی‌شوند — برای ذخیره با حساب خودتان از دکمه «ورود به حساب» استفاده کنید. «تحلیل هوشمند» کندل‌های همان نماد و تایم‌فریم را از Yahoo Finance می‌گیرد (نیازمند اینترنت)؛ در نسخه وب ابزار، همین بخش با هوش مصنوعی مولد ارائه می‌شود.</p>' +
     '</div>';
   bindChartChips();
   var lb = appScroll.querySelector('#tv_login_btn');
   if (lb) lb.addEventListener('click', function () {
     try { window.open('https://www.tradingview.com/chart/?symbol=' + encodeURIComponent(S_CHART.sym), '_blank', 'noopener'); } catch (e) {}
+  });
+  var ab = appScroll.querySelector('#ai_btn');
+  if (ab) ab.addEventListener('click', function () {
+    var p = document.getElementById('ai_panel');
+    if (!p) return;
+    p.hidden = false;
+    aiSyncHeader();
+    runAi(false);
+  });
+  var rf = appScroll.querySelector('[data-ai-refresh]');
+  if (rf) rf.addEventListener('click', function () { runAi(true); });
+  var xc = appScroll.querySelector('[data-ai-close]');
+  if (xc) xc.addEventListener('click', function () {
+    var p = document.getElementById('ai_panel');
+    if (p) p.hidden = true;
   });
   chartEnsureAuto();
 }
@@ -519,6 +774,7 @@ function renderAboutApp() {
     '<li>• اخبار اقتصادی USD: ForexFactory با ترجمه و تحلیل تأثیر هوش مصنوعی (در لحظه تولید فایل).</li>' +
     '<li>• قیمت طلا (فیوچرز COMEX — همبستگی نزدیک به XAUUSD) و داو جونز: Yahoo Finance — بروزرسانی زنده اختیاری.</li>' +
     '<li>• ساختار بازار: ترکیب EMA۲۰/۵۰ و سقف/کف‌های سوئینگ در ۶ تایم‌فریم + تایم‌فریم ورود ۵ دقیقه.</li>' +
+    '<li>• چارت تریدینگ‌ویو + «تحلیل هوشمند»: ویجت رسمی TradingView و موتور تحلیل الگوریتمی محلی (EMA/RSI/ATR/سوئینگ) روی کندل‌های همان نماد و تایم‌فریم انتخابی از Yahoo Finance.</li>' +
     '</ul></section>' +
     '<section class="about-sec"><div class="about-h"><span style="color:var(--violet)">' + icon('sliders', 16) + '</span><h2 class="about-t">این فایل</h2></div>' +
     '<p class="about-p">تولید: ' + faDateLong(gen) + ' — ' + faTime(gen) + ' تهران. این فایل را می‌توانید با ایمیل یا پیام‌رسان برای خودتان یا دیگران بفرستید و روی هر گوشی با مرورگر باز کنید. انتخاب‌ها (ترتیب آیکون‌ها، فیلترها) در همان دستگاه ذخیره می‌شود.</p></section>' +
