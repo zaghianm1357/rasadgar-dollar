@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, CandlestickChart, LoaderCircle, RefreshCw } from "lucide-react";
+import { AlertTriangle, CandlestickChart, ExternalLink, LoaderCircle, RefreshCw } from "lucide-react";
 
 /* ---------- تنظیمات چارت ---------- */
 
@@ -197,6 +197,16 @@ export function ChartApp() {
       });
   }, [buildWidget]);
 
+  /* ورود به حساب تریدینگ‌ویو — ویجت رایگان لاگین ندارد؛ سایت اصلی با همان نماد باز می‌شود */
+  const openWithAccount = useCallback(() => {
+    const url = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(symRef.current)}`;
+    try {
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      /* پاپ‌آپ بلاک شده */
+    }
+  }, []);
+
   return (
     <div className="flex h-full flex-col px-3 pb-1.5">
       {/* انتخاب نماد */}
@@ -221,25 +231,38 @@ export function ChartApp() {
         ))}
       </div>
 
-      {/* انتخاب تایم‌فریم */}
-      <div
-        className="no-scrollbar flex flex-none items-center gap-1.5 overflow-x-auto pb-2"
-        data-testid="chart-intervals"
-      >
-        {INTERVAL_PRESETS.map((p) => (
-          <button
-            key={p.value}
-            type="button"
-            onClick={() => applyChange(symRef.current, p.value)}
-            className={`flex-none rounded-full border px-2.5 py-1 text-[10px] font-bold transition-colors ${
-              interval === p.value
-                ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-200"
-                : "border-border/70 bg-card/60 text-muted-foreground hover:bg-white/10"
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
+      {/* انتخاب تایم‌فریم + ورود به حساب (دکمه همیشه قابل دیدن) */}
+      <div className="flex flex-none items-center gap-1.5 pb-2">
+        <div
+          className="no-scrollbar flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto"
+          data-testid="chart-intervals"
+        >
+          {INTERVAL_PRESETS.map((p) => (
+            <button
+              key={p.value}
+              type="button"
+              onClick={() => applyChange(symRef.current, p.value)}
+              className={`flex-none rounded-full border px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                interval === p.value
+                  ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-200"
+                  : "border-border/70 bg-card/60 text-muted-foreground hover:bg-white/10"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={openWithAccount}
+          aria-label="باز کردن چارت کامل تریدینگ‌ویو در تب جدید برای ورود به حساب کاربری"
+          title="ویجت داخلی لاگین ندارد — با حساب خودتان در سایت اصلی وارد شوید"
+          data-testid="chart-login"
+          className="flex flex-none items-center gap-1 rounded-full border border-sky-500/50 bg-sky-500/15 px-2.5 py-1 text-[10px] font-extrabold text-sky-200 transition-colors hover:bg-sky-500/25"
+        >
+          <ExternalLink className="h-3 w-3" />
+          ورود به حساب
+        </button>
       </div>
 
       {/* ناحیه چارت — پر کردن کل فضای باقی‌مانده بدون اسکرول اضافه */}
@@ -273,9 +296,9 @@ export function ChartApp() {
         )}
       </div>
 
-      <p className="flex items-center justify-center gap-1 pt-1.5 text-center text-[9px] text-muted-foreground/70">
-        <CandlestickChart className="h-3 w-3" />
-        منبع: TradingView — می‌توانید نماد و ابزارهای ترسیم را داخل خود چارت هم تغییر دهید
+      <p className="flex items-center justify-center gap-1 pt-1.5 text-center text-[9px] leading-4 text-muted-foreground/70">
+        <CandlestickChart className="h-3 w-3 flex-none" />
+        رسم‌ها و اندیکاتورهای داخل ویجت ذخیره نمی‌شوند — برای ذخیره با حساب خودتان از دکمه «ورود به حساب» استفاده کنید
       </p>
     </div>
   );

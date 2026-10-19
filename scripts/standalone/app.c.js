@@ -483,11 +483,18 @@ function renderChartApp() {
   }
   appScroll.innerHTML = '<div class="chart-wrap">' +
     '<div class="chart-chips no-scrollbar" data-chart-syms>' + chartChipRowHTML(CHART_SYMS, 'sym') + '</div>' +
-    '<div class="chart-chips no-scrollbar" data-chart-tfs>' + chartChipRowHTML(CHART_TFS, 'tf') + '</div>' +
+    '<div class="chart-tfrow">' +
+      '<div class="chart-chips no-scrollbar" data-chart-tfs>' + chartChipRowHTML(CHART_TFS, 'tf') + '</div>' +
+      '<button type="button" class="cchip tv-login" id="tv_login_btn" title="ویجت داخلی لاگین ندارد — با حساب خودتان در سایت اصلی وارد شوید">' + icon('ext', 12) + 'ورود به حساب</button>' +
+    '</div>' +
     '<div id="tv_chart"><div class="tv-state tv-loading">در حال بارگذاری چارت TradingView…</div></div>' +
-    '<p class="chart-note">ویجت رسمی Advanced Chart از TradingView — تغییر نماد و تایم‌فریم از دکمه‌های بالا یا داخل خود چارت؛ بدون نیاز به API key یا حساب کاربری. نمایش چارت نیازمند اتصال اینترنت است.</p>' +
+    '<p class="chart-note">رسم‌ها و اندیکاتورهای داخل ویجت ذخیره نمی‌شوند — برای ذخیره با حساب خودتان از دکمه «ورود به حساب» استفاده کنید. نمایش چارت نیازمند اتصال اینترنت است.</p>' +
     '</div>';
   bindChartChips();
+  var lb = appScroll.querySelector('#tv_login_btn');
+  if (lb) lb.addEventListener('click', function () {
+    try { window.open('https://www.tradingview.com/chart/?symbol=' + encodeURIComponent(S_CHART.sym), '_blank', 'noopener'); } catch (e) {}
+  });
   chartEnsureAuto();
 }
 
