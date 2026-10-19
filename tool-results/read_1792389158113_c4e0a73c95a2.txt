@@ -1,0 +1,866 @@
+     1→/* ================= اپ‌های تمام‌صفحه ================= */
+     2→
+     3→/* ---------- وضعیت اپ اخبار ---------- */
+     4→var NEWS_TAB_KEY = 'sd_news_tab_v1';
+     5→var S_NEWS = { tab: 'today', filter: 'all' };
+     6→try {
+     7→  var _t = lsGet(NEWS_TAB_KEY);
+     8→  if (_t && ['today', 'tomorrow', 'week', 'all'].indexOf(_t) >= 0) S_NEWS.tab = _t;
+     9→} catch (e) {}
+    10→
+    11→var IMPACT_META = {
+    12→  High: { label: 'اهمیت بالا', cls: 'impH', ic: 'flame' },
+    13→  Medium: { label: 'اهمیت متوسط', cls: 'impM', ic: 'sigM' },
+    14→  Low: { label: 'اهمیت کم', cls: 'impL', ic: 'sigL' },
+    15→  Holiday: { label: 'تعطیلات', cls: 'impO', ic: 'calOff' }
+    16→};
+    17→var DIR_META = {
+    18→  bullish: { label: 'افزایشی — تقویت دلار', cls: 'bull', ic: 'trendUp' },
+    19→  bearish: { label: 'کاهشی — تضعیف دلار', cls: 'bear', ic: 'trendDown' },
+    20→  mixed: { label: 'تأثیر دووجهی', cls: 'neut', ic: 'moveH' },
+    21→  neutral: { label: 'بدون تأثیر مستقیم', cls: 'na', ic: 'minus' }
+    22→};
+    23→var CMP_TEXT = {
+    24→  above: 'پیش‌بینی بالاتر از مقدار قبلی است → سناریوی «داده قوی‌تر» محتمل‌تر',
+    25→  below: 'پیش‌بینی پایین‌تر از مقدار قبلی است → سناریوی «داده ضعیف‌تر» محتمل‌تر',
+    26→  equal: 'پیش‌بینی برابر مقدار قبلی است → دو سناریو هم‌وزن'
+    27→};
+    28→function dirChipHTML(v) {
+    29→  if (v === 'bullish') return '<span class="chip bull">' + icon('trendUp', 12) + 'افزایش</span>';
+    30→  if (v === 'bearish') return '<span class="chip bear">' + icon('trendDown', 12) + 'کاهش</span>';
+    31→  if (v === 'mixed') return '<span class="chip neut">' + icon('moveH', 12) + 'دووجهی</span>';
+    32→  return '<span class="chip na">' + icon('minus', 12) + 'خنثی</span>';
+    33→}
+    34→function probLineHTML(label, up) {
+    35→  if (up == null) return '';
+    36→  var upPct = Math.round(up * 100), dn = 100 - upPct;
+    37→  if (upPct >= dn) {
+    38→    return '<p class="prob-l"><span class="prob-k">' + label + ':</span><b class="prob-up">افزایش ' + faDigits(upPct) + '٪</b><span class="prob-alt">/ کاهش ' + faDigits(dn) + '٪</span></p>';
+    39→  }
+    40→  return '<p class="prob-l"><span class="prob-k">' + label + ':</span><b class="prob-dn">کاهش ' + faDigits(dn) + '٪</b><span class="prob-alt">/ افزایش ' + faDigits(upPct) + '٪</span></p>';
+    41→}
+    42→function vchipHTML(label, value, hi) {
+    43→  return '<div class="vchip' + (hi ? ' hi' : '') + '"><span class="vchip-k">' + label + '</span><span class="vchip-v">' + faDigits(value) + '</span></div>';
+    44→}
+    45→function impactTableHTML(e) {
+    46→  var out = e.outlook;
+    47→  var prob = '';
+    48→  if (out && out.xauUp != null && out.djiUp != null) {
+    49→    prob = '<div class="aimp-prob">' +
+    50→      '<span class="prob-t">احتمال برآوردی (بر اساس پیش‌بینی)</span>' +
+    51→      probLineHTML('طلا', out.xauUp) +
+    52→      probLineHTML('داوجونز', out.djiUp) +
+    53→      (out.cmp ? '<span class="prob-note">' + CMP_TEXT[out.cmp] + ' — برآورد تقریبی، نه سیگنال معاملاتی.</span>' : '') +
+    54→      '</div>';
+    55→  } else {
+    56→    prob = '<div class="aimp-prob"><span class="prob-note">برای این خبر پیش‌بینی عددی ثبت نشده؛ احتمال‌دهی مقدور نیست.</span></div>';
+    57→  }
+    58→  return '<div class="aimp">' +
+    59→    '<div class="aimp-h">' + icon('table', 14) + '<span>تأثیر بر نمادها</span></div>' +
+    60→    '<table class="aimp-tbl"><thead><tr>' +
+    61→    '<th>نماد</th><th>خبر بالاتر از انتظار</th><th>خبر پایین‌تر از انتظار</th>' +
+    62→    '</tr></thead><tbody>' +
+    63→    '<tr><td><div class="a-name">طلا</div><div class="a-mono">XAUUSD</div></td><td>' + dirChipHTML(e.xauAbove) + '</td><td>' + dirChipHTML(e.xauBelow) + '</td></tr>' +
+    64→    '<tr><td><div class="a-name">داوجونز</div><div class="a-mono">DJ30</div></td><td>' + dirChipHTML(e.djiAbove) + '</td><td>' + dirChipHTML(e.djiBelow) + '</td></tr>' +
+    65→    '</tbody></table>' + prob + '</div>';
+    66→}
+    67→function eventCardHTML(e) {
+    68→  var impact = IMPACT_META[e.impact] || IMPACT_META.Low;
+    69→  var dir = e.direction ? DIR_META[e.direction] : null;
+    70→  var t = e.dateISO ? new Date(e.dateISO).getTime() : null;
+    71→  var isReleased = t != null && t <= Date.now();
+    72→  var warn = (!isReleased && t != null && (e.impact === 'High' || e.impact === 'Medium') && t - Date.now() < 3600000)
+    73→    ? '<p class="ev-warn">' + icon('alert', 14) + 'این خبر مهم کمتر از یک ساعت دیگر منتشر می‌شود؛ احتمال نوسان شدید در دلار، طلا و داو وجود دارد.</p>'
+    74→    : '';
+    75→  var vals = (e.previous || e.forecast || e.actual)
+    76→    ? '<div class="vchips">' + vchipHTML('قبلی', e.previous, false) + vchipHTML('پیش‌بینی', e.forecast, false) + vchipHTML('واقعی', e.actual, !!e.actual) + '</div>'
+    77→    : '';
+    78→  return '<article class="ev">' +
+    79→    '<div class="ev-top">' +
+    80→    '<span dir="ltr" class="ev-time">' + (e.dateISO ? faTime(new Date(e.dateISO)) : 'هم‌روز') + '</span>' +
+    81→    '<span class="chip ' + impact.cls + '">' + icon(impact.ic, 12) + impact.label + '</span>' +
+    82→    (isReleased
+    83→      ? '<span class="chip st">' + icon('checkCircle', 12) + 'منتشر شد</span>'
+    84→      : (t != null ? '<span class="chip st">' + icon('hourglass', 12) + 'در انتظار انتشار</span>' : '')) +
+    85→    (dir ? '<span class="chip ' + dir.cls + ' ms-auto">' + icon(dir.ic, 14) + dir.label + '</span>' : '') +
+    86→    '</div>' +
+    87→    '<div style="display:flex;flex-direction:column;gap:8px;min-width:0">' +
+    88→    (e.titleFa
+    89→      ? '<h3 class="ev-title">' + e.titleFa + '</h3>'
+    90→      : '<h3 class="ev-title" style="color:var(--mutedfg)">' + icon('langs', 16) + ' در نوبت ترجمه هوشمند...</h3>') +
+    91→    '<p dir="ltr" class="ev-en">' + e.title + '</p>' +
+    92→    (e.explanationFa ? '<div class="ev-exp"><p>' + e.explanationFa + '</p></div>' : '') +
+    93→    vals +
+    94→    '</div>' +
+    95→    impactTableHTML(e) +
+    96→    warn +
+    97→    '</article>';
+    98→}
+    99→function statCardHTML(icname, accent, k, v, s) {
+   100→  return '<div class="card stat">' +
+   101→    '<span class="tile ' + accent + '">' + icon(icname, 16) + '</span>' +
+   102→    '<div style="min-width:0;flex:1"><p class="stat-k">' + k + '</p><p class="stat-v">' + v + '</p>' + (s ? '<p class="stat-s">' + s + '</p>' : '') + '</div>' +
+   103→    '</div>';
+   104→}
+   105→function cdLong(msLeft) {
+   106→  var totalMin = Math.max(0, Math.floor(msLeft / 60000));
+   107→  var h = Math.floor(totalMin / 60), m = totalMin % 60;
+   108→  if (h === 0) return faDigits(m) + ' دقیقه دیگر';
+   109→  if (m === 0) return faDigits(h) + ' ساعت دیگر';
+   110→  return faDigits(h) + ' ساعت و ' + faDigits(m) + ' دقیقه دیگر';
+   111→}
+   112→function dayLabel(key) {
+   113→  var tKey = todayKeyInTehran();
+   114→  var p = key.split('-');
+   115→  var d = new Date(+p[0], +p[1] - 1, +p[2], 12);
+   116→  if (key === tKey) return 'امروز — ' + faDateLong(d);
+   117→  if (key === addDaysToKey(tKey, 1)) return 'فردا — ' + faDateLong(d);
+   118→  return faDateLong(d);
+   119→}
+   120→function newsGroups() {
+   121→  var tKey = todayKeyInTehran();
+   122→  var map = {}, order = [];
+   123→  var evs = news.events || [];
+   124→  for (var i = 0; i < evs.length; i++) {
+   125→    var e = evs[i];
+   126→    var f = S_NEWS.filter;
+   127→    var ok = f === 'all' || (f === 'High' ? e.impact === 'High' : f === 'Medium' ? e.impact === 'Medium' : (e.impact === 'Low' || e.impact === 'Holiday'));
+   128→    if (!ok) continue;
+   129→    var k = e.dateISO ? dateKeyInTehran(new Date(e.dateISO)) : tKey;
+   130→    if (!map[k]) { map[k] = []; order.push(k); }
+   131→    map[k].push(e);
+   132→  }
+   133→  order.sort();
+   134→  if (S_NEWS.tab === 'today') order = order.filter(function (k) { return k === tKey; });
+   135→  else if (S_NEWS.tab === 'tomorrow') order = order.filter(function (k) { return k === addDaysToKey(tKey, 1); });
+   136→  else if (S_NEWS.tab === 'week') {
+   137→    var a = addDaysToKey(tKey, -6), b = addDaysToKey(tKey, 6);
+   138→    order = order.filter(function (k) { return k >= a && k <= b; });
+   139→  }
+   140→  order.forEach(function (k) {
+   141→    map[k].sort(function (x, y) {
+   142→      return (x.dateISO ? new Date(x.dateISO).getTime() : -1) - (y.dateISO ? new Date(y.dateISO).getTime() : -1);
+   143→    });
+   144→  });
+   145→  return order.map(function (k) { return [k, map[k]]; });
+   146→}
+   147→function renderNewsApp() {
+   148→  var groups = newsGroups();
+   149→  var c = todayCounts();
+   150→  var nx = nextHighEvent();
+   151→  var gen = GEN_ISO ? new Date(GEN_ISO) : new Date();
+   152→  var tabs = [['today', 'امروز'], ['tomorrow', 'فردا'], ['week', 'این هفته'], ['all', 'همه']];
+   153→  var chips = [['all', 'همه'], ['High', 'خیلی مهم'], ['Medium', 'متوسط'], ['low', 'کم‌اهمیت']];
+   154→  var html = '<div class="app-pad">';
+   155→
+   156→  if (news.digest) {
+   157→    html += '<div class="card card-p digest">' +
+   158→      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' + icon('sparkles', 16) + '<h2 class="digest-t">خلاصه روزانه هوشمند</h2></div>' +
+   159→      '<p class="digest-p">' + news.digest + '</p></div>';
+   160→  }
+   161→
+   162→  html += '<div class="stats">' +
+   163→    statCardHTML('calDays', 'p', 'اخبار امروز (USD)', faDigits(c.count) + ' خبر', faDigits(c.high) + ' خبر با اهمیت بالا') +
+   164→    statCardHTML('flame', 'a', 'تا خبر مهم بعدی', nx ? cdLong(new Date(nx.dateISO).getTime() - Date.now()) : 'خبر مهمی نیست', nx ? (nx.titleFa || nx.title) : '') +
+   165→    statCardHTML('radio', 'n', 'وضعیت داده', 'اسنپ‌شات داخل فایل', 'تولید فایل: ' + faDateLong(gen) + ' — ' + faTime(gen)) +
+   166→    '</div>';
+   167→
+   168→  html += '<div style="display:flex;flex-direction:column;gap:10px">' +
+   169→    '<div class="tabs-list">' + tabs.map(function (t) {
+   170→      return '<button type="button" class="tab' + (S_NEWS.tab === t[0] ? ' on' : '') + '" data-tab="' + t[0] + '">' + t[1] + '</button>';
+   171→    }).join('') + '</div>' +
+   172→    '<div class="fchips">' + chips.map(function (f) {
+   173→      var on = (settings.highOnly ? 'High' : S_NEWS.filter) === f[0];
+   174→      return '<button type="button" class="fchip' + (on ? ' on' : '') + '" data-filter="' + f[0] + '" aria-pressed="' + on + '">' + f[1] + '</button>';
+   175→    }).join('') + '</div></div>';
+   176→
+   177→  if ((news.pendingTranslation || 0) > 0) {
+   178→    html += '<div class="pending-note">' + icon('langs', 16) + '<span>' + faDigits(news.pendingTranslation) + ' خبر در نوبت ترجمه هوشمند بود در لحظه تولید فایل.</span></div>';
+   179→  }
+   180→
+   181→  if (!groups.length) {
+   182→    html += '<div class="empty">' + icon('inbox', 28) +
+   183→      '<p>' + (S_NEWS.tab === 'today' ? 'برای امروز خبر USD ثبت نشده است (مثلاً روزهای تعطیلی بازار).' : 'در این بازه خبری برای نمایش نیست. بازه یا فیلتر را تغییر دهید.') + '</p>' +
+   184→      (S_NEWS.tab === 'today' ? '<button type="button" class="btn" data-goweek>' + icon('calDays', 14) + 'مشاهده این هفته</button>' : '') +
+   185→      '</div>';
+   186→  } else {
+   187→    groups.forEach(function (g) {
+   188→      html += '<section style="display:flex;flex-direction:column;gap:10px">' +
+   189→        '<div class="day-h"><h2>' + dayLabel(g[0]) + '</h2><span class="day-line"></span><span class="day-n">' + faDigits(g[1].length) + ' خبر</span></div>' +
+   190→        g[1].map(eventCardHTML).join('') +
+   191→        '</section>';
+   192→    });
+   193→  }
+   194→
+   195→  html += '<p style="text-align:center;font-size:9px;color:rgba(160,170,180,.7);margin:0">داده‌های خبری ثابت‌اند (اسنپ‌شات ' + faDateLong(gen) + ') — قیمت‌ها از مرکز کنترل قابل بروزرسانی زنده‌اند.</p>';
+   196→  html += '</div>';
+   197→  appScroll.innerHTML = html;
+   198→
+   199→  var tabsEls = appScroll.querySelectorAll('[data-tab]');
+   200→  for (var i = 0; i < tabsEls.length; i++) {
+   201→    (function (b) {
+   202→      b.addEventListener('click', function () {
+   203→        S_NEWS.tab = b.dataset.tab;
+   204→        lsSet(NEWS_TAB_KEY, S_NEWS.tab);
+   205→        renderNewsApp();
+   206→        appScroll.scrollTop = 0;
+   207→      });
+   208→    })(tabsEls[i]);
+   209→  }
+   210→  var chipEls = appScroll.querySelectorAll('[data-filter]');
+   211→  for (var j = 0; j < chipEls.length; j++) {
+   212→    (function (b) {
+   213→      b.addEventListener('click', function () {
+   214→        if (settings.highOnly) { settings.highOnly = false; saveSettings(); }
+   215→        S_NEWS.filter = b.dataset.filter;
+   216→        renderNewsApp();
+   217→      });
+   218→    })(chipEls[j]);
+   219→  }
+   220→  var gw = appScroll.querySelector('[data-goweek]');
+   221→  if (gw) gw.addEventListener('click', function () { S_NEWS.tab = 'week'; lsSet(NEWS_TAB_KEY, 'week'); renderNewsApp(); });
+   222→}
+   223→
+   224→/* ---------- پیشنهاد معامله ---------- */
+   225→var SUG = { st: '1h', en: '5m' };
+   226→function validEntries(st) {
+   227→  return ['5m', '15m', '1h', '4h'].filter(function (tf) { return TF_MINUTES[tf] <= TF_MINUTES[st]; });
+   228→}
+   229→function effectiveEntry() {
+   230→  var v = validEntries(SUG.st);
+   231→  return v.indexOf(SUG.en) >= 0 ? SUG.en : v[v.length - 1];
+   232→}
+   233→function msRow(symKey, tf) { return row(symKey, tf); }
+   234→function getVerdict(stT, enT) {
+   235→  if (!stT || !enT) return { key: 'wait', reason: 'داده یکی از دو تایم‌فریم ناکافی است' };
+   236→  if (stT === 'bullish' && enT === 'bullish') return { key: 'buy', reason: 'ساختار و ورود هر دو صعودی‌اند' };
+   237→  if (stT === 'bearish' && enT === 'bearish') return { key: 'sell', reason: 'ساختار و ورود هر دو نزولی‌اند' };
+   238→  if (stT === 'neutral' || enT === 'neutral') return { key: 'wait', reason: 'یکی از دو تایم‌فریم خنثی است' };
+   239→  return { key: 'wait', reason: 'جهت ساختار و ورود مخالف هم است' };
+   240→}
+   241→function sugChipHTML(label, t) {
+   242→  var cls = t ? trendChipCls(t) : 'na';
+   243→  var ic = t ? trendIcon(t) : 'minus';
+   244→  var txt = t ? trendText(t) : 'ناکافی';
+   245→  return '<span class="chip ' + cls + '">' + icon(ic, 12) + label + ': ' + txt + '</span>';
+   246→}
+   247→function sugCardHTML(name, mono, symKey) {
+   248→  var enTf = effectiveEntry();
+   249→  var stRow = row(symKey, SUG.st), enRow = row(symKey, enTf);
+   250→  var v = getVerdict(stRow ? stRow.trend : null, enRow ? enRow.trend : null);
+   251→  var meta = v.key === 'buy'
+   252→    ? { label: 'پیشنهاد خرید', cls: 'sugB', ic: 'trendUp' }
+   253→    : v.key === 'sell'
+   254→      ? { label: 'پیشنهاد فروش', cls: 'sugS', ic: 'trendDown' }
+   255→      : { label: 'صبر کنید', cls: 'sugW', ic: 'hourglass' };
+   256→  return '<div class="sug-card">' +
+   257→    '<div class="sug-card-top"><div style="min-width:0"><div style="font-size:12px;font-weight:700">' + name + '</div><div class="sym-mono">' + mono + '</div></div>' +
+   258→    '<span class="chip ' + meta.cls + '">' + icon(meta.ic, 14) + meta.label + '</span></div>' +
+   259→    '<div class="sug-chips">' +
+   260→    sugChipHTML('ساختار ' + TF_LONG[SUG.st], stRow ? stRow.trend : null) +
+   261→    sugChipHTML('ورود ' + TF_LONG[enTf], enRow ? enRow.trend : null) +
+   262→    '</div>' +
+   263→    '<p class="sug-reason">' + v.reason + '</p>' +
+   264→    '</div>';
+   265→}
+   266→function sugBoxHTML() {
+   267→  var enTf = effectiveEntry();
+   268→  var stOpts = TF_ORDER.map(function (tf) { return '<option value="' + tf + '"' + (SUG.st === tf ? ' selected' : '') + '>' + TF_LONG[tf] + '</option>'; }).join('');
+   269→  var enOpts = validEntries(SUG.st).map(function (tf) { return '<option value="' + tf + '"' + (enTf === tf ? ' selected' : '') + '>' + TF_LONG[tf] + '</option>'; }).join('');
+   270→  return '<div class="sug">' +
+   271→    '<div class="sug-head">' + icon('crosshair', 16) + '<span class="sug-t">پیشنهاد معامله</span><span class="sug-s">ترکیب تایم‌فریم ساختار و تایم‌فریم ورود</span></div>' +
+   272→    '<div class="sug-sels">' +
+   273→    '<div><span class="sel-k">تایم‌فریم ساختار</span><select class="sel" data-sug-st aria-label="تایم‌فریم ساختار">' + stOpts + '</select></div>' +
+   274→    '<div><span class="sel-k">تایم‌فریم ورود</span><select class="sel" data-sug-en aria-label="تایم‌فریم ورود">' + enOpts + '</select></div>' +
+   275→    '</div>' +
+   276→    '<p class="sug-logic">هر دو هم‌جهت صعودی ← خرید | هر دو هم‌جهت نزولی ← فروش | مخالف یا خنثی ← صبر کنید</p>' +
+   277→    '<div class="sug-cards">' + sugCardHTML('طلا', 'XAUUSD', 'xau') + sugCardHTML('داوجونز', 'DJI', 'dji') + '</div>' +
+   278→    '</div>';
+   279→}
+   280→function bindSug() {
+   281→  var st = appScroll.querySelector('[data-sug-st]'), en = appScroll.querySelector('[data-sug-en]');
+   282→  if (st) st.addEventListener('change', function () {
+   283→    SUG.st = st.value;
+   284→    if (validEntries(SUG.st).indexOf(SUG.en) < 0) {
+   285→      var ok = validEntries(SUG.st);
+   286→      SUG.en = ok[ok.length - 1];
+   287→    }
+   288→    var slot = appScroll.querySelector('.sug-slot');
+   289→    if (slot) { slot.innerHTML = sugBoxHTML(); bindSug(); }
+   290→  });
+   291→  if (en) en.addEventListener('change', function () { SUG.en = en.value; var slot = appScroll.querySelector('.sug-slot'); if (slot) { slot.innerHTML = sugBoxHTML(); bindSug(); } });
+   292→}
+   293→
+   294→/* ---------- اپ ساختار بازار ---------- */
+   295→function symHeadHTML(key, title, mono) {
+   296→  var sym = ms[key];
+   297→  var ch = sym ? sym.changePct : null;
+   298→  return '<div class="sym-head"><div style="min-width:0"><div class="sym-n">' + title + '</div><div class="sym-mono">' + mono + '</div></div>' +
+   299→    '<div style="display:flex;flex-direction:column;align-items:flex-end">' +
+   300→    (sym && sym.price != null ? '<span class="sym-p">' + faNum(sym.price) + '</span>' : '<span style="font-size:10px;color:var(--mutedfg)">—</span>') +
+   301→    (ch != null && sym && sym.price != null ? '<span class="sym-c ' + chgCls(ch) + '">' + faDigits((ch > 0 ? '+' : '') + ch.toFixed(2) + '%') + '</span>' : '') +
+   302→    '</div></div>';
+   303→}
+   304→function tfPillHTML(t) {
+   305→  if (!t) return '<span class="tf-pill na">' + icon('minus', 14) + 'ناکافی</span>';
+   306→  return '<span class="tf-pill ' + trendChipCls(t) + '">' + icon(trendIcon(t), 14) + trendText(t) + '</span>';
+   307→}
+   308→function tfCellHTML(r) {
+   309→  var strength = r && r.trend && r.trend !== 'neutral' && r.strength > 0
+   310→    ? '<span class="tf-str">قدرت ' + faDigits(r.strength) + '٪</span>' : '';
+   311→  var desc = r && r.trend != null
+   312→    ? '<span class="tf-desc">' + (r.ma === 'bullish' ? 'EMA صعودی' : r.ma === 'bearish' ? 'EMA نزولی' : r.ma === 'neutral' ? 'EMA خنثی' : '—') + ' · ' +
+   313→      (r.swing === 'bullish' ? 'سقف/کف بالاتر' : r.swing === 'bearish' ? 'سقف/کف پایین‌تر' : r.swing === 'neutral' ? 'ساختار مخلوط' : '—') + '</span>'
+   314→    : '';
+   315→  return '<td><div class="tf-cell">' + tfPillHTML(r ? r.trend : null) + strength + desc + '</div></td>';
+   316→}
+   317→function summaryHTML(symKey) {
+   318→  var sym = ms[symKey];
+   319→  if (!sym) return '';
+   320→  var b = 0, s = 0, n = 0;
+   321→  sym.rows.forEach(function (r) {
+   322→    if (r.trend === 'bullish') b++; else if (r.trend === 'bearish') s++; else if (r.trend === 'neutral') n++;
+   323→  });
+   324→  if (b + s + n === 0) return '';
+   325→  var dominant = b + s === 0 ? 'بدون روند غالب' : b === s ? 'روند مخلوط' : b > s ? 'غالب: صعودی' : 'غالب: نزولی';
+   326→  return '<p class="sum-line">جمع‌بندی: <b class="b">' + faDigits(b) + ' صعودی</b> · <b class="s">' + faDigits(s) + ' نزولی</b> · <b class="n">' + faDigits(n) + ' خنثی</b> — ' + dominant + '</p>';
+   327→}
+   328→function renderStructureApp() {
+   329→  var rows = '';
+   330→  for (var i = 0; i < TF_ORDER.length; i++) {
+   331→    var tf = TF_ORDER[i];
+   332→    rows += '<tr><td class="tf">' + TF_LONG[tf] + '</td>' + tfCellHTML(row('xau', tf)) + tfCellHTML(row('dji', tf)) + '</tr>';
+   333→  }
+   334→  var gen = GEN_ISO ? new Date(GEN_ISO) : new Date();
+   335→  appScroll.innerHTML = '<div class="app-pad">' +
+   336→    '<div class="card card-p" style="padding:12px 14px"><div class="ms-head">' +
+   337→    '<span class="tile p">' + icon('activity', 18) + '</span>' +
+   338→    '<div style="min-width:0;flex:1"><h2 class="ms-head-t">ساختار بازار (چند تایم‌فریمی)</h2><p class="ms-head-s">ترکیب میانگین متحرک EMA۲۰/۵۰ و سقف/کف‌های سوئینگ — ۶ تایم‌فریم</p></div>' +
+   339→    '<span class="badge snap" data-ms-badge>' + (priceState.mode === 'live' ? 'قیمت زنده' : 'اسنپ‌شات فایل') + '</span>' +
+   340→    '<button type="button" class="iconbtn" data-act="refresh-prices" aria-label="بروزرسانی قیمت‌ها"><span data-price-spin style="display:inline-flex">' + icon('refresh', 16) + '</span></button>' +
+   341→    '</div></div>' +
+   342→    '<div class="sym-heads">' + symHeadHTML('xau', 'طلا', 'XAUUSD · GC=F') + symHeadHTML('dji', 'داوجونز', 'DJI · ^DJI') + '</div>' +
+   343→    '<table class="ms-tbl"><thead><tr><th>تایم‌فریم</th><th>طلا — XAUUSD</th><th>داوجونز — DJI</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+   344→    '<div style="display:flex;flex-direction:column;gap:4px">' + summaryHTML('xau') + summaryHTML('dji') + '</div>' +
+   345→    '<div class="sug-slot">' + sugBoxHTML() + '</div>' +
+   346→    '<p class="ms-note">روش تحلیل: رابطه EMA۲۰ و EMA۵۰ + موقعیت قیمت (امتیاز میانگین متحرک) به‌همراه مقایسه آخرین سقف‌ها و کف‌های سوئینگ HH/HL در برابر LH/LL (امتیاز ساختار) — مجموع ≥۲ صعودی، ≤−۲ نزولی، بین این دو خنثی. داده ساختار تا لحظه تولید فایل (' + faDateLong(gen) + ' — ' + faTime(gen) + ') است؛ دکمه بروزرسانی فقط قیمت‌های لحظه‌ای را تازه می‌کند. پیشنهاد معامله صرفاً ترکیب ساده جهت دو تایم‌فریم است و به هیچ عنوان سیگنال معاملاتی یا توصیه سرمایه‌گذاری نیست.</p>' +
+   347→    '</div>';
+   348→  bindSug();
+   349→  var rb = appScroll.querySelector('[data-act="refresh-prices"]');
+   350→  if (rb) rb.addEventListener('click', function () { refreshPrices(); });
+   351→}
+   352→
+   353→/* ---------- اپ پیشنهاد معامله (مستقل) ---------- */
+   354→function renderSuggestionApp() {
+   355→  appScroll.innerHTML = '<div class="app-pad">' +
+   356→    '<div class="sug-slot">' + sugBoxHTML() + '</div>' +
+   357→    '<p class="ms-note">این اپ همان منطق پیشنهاد معامله داخل اپ «ساختار بازار» است — ترکیب جهت تایم‌فریم ساختار و تایم‌فریم ورود. داده‌ها اسنپ‌شات لحظه تولید فایل‌اند؛ پیشنهاد معامله سیگنال معاملاتی نیست.</p>' +
+   358→    '</div>';
+   359→  bindSug();
+   360→}
+   361→
+   362→/* ---------- اپ چارت TradingView ---------- */
+   363→var CHART_KEY = 'sd_chart_v1';
+   364→var CHART_SYMS = [
+   365→  ['OANDA:XAUUSD', 'طلا — XAUUSD'],
+   366→  ['OANDA:XAGUSD', 'نقره — XAGUSD'],
+   367→  ['OANDA:EURUSD', 'یورو/دلار — EURUSD'],
+   368→  ['BINANCE:BTCUSDT', 'بیت‌کوین — BTC']
+   369→];
+   370→var CHART_TFS = [['5', '۵ دقیقه'], ['15', '۱۵ دقیقه'], ['60', '۱ ساعته'], ['240', '۴ ساعته'], ['D', 'روزانه']];
+   371→var S_CHART = { sym: 'OANDA:XAUUSD', tf: '15' };
+   372→try {
+   373→  var _c = JSON.parse(lsGet(CHART_KEY) || 'null');
+   374→  if (_c && typeof _c.sym === 'string' && _c.sym && typeof _c.tf === 'string') S_CHART = { sym: _c.sym, tf: _c.tf };
+   375→} catch (e) {}
+   376→function validChartTf(t) {
+   377→  for (var i = 0; i < CHART_TFS.length; i++) if (CHART_TFS[i][0] === t) return t;
+   378→  return '15';
+   379→}
+   380→S_CHART.tf = validChartTf(S_CHART.tf);
+   381→
+   382→var TV_JS_SRC = 'https://s3.tradingview.com/tv.js';
+   383→var _tvPromise = null;
+   384→var chartLoaded = { key: null };
+   385→function tvReady() { return !!(window.TradingView && window.TradingView.widget); }
+   386→function ensureTVScript() {
+   387→  if (tvReady()) return Promise.resolve();
+   388→  if (_tvPromise) return _tvPromise;
+   389→  _tvPromise = new Promise(function (resolve, reject) {
+   390→    var s = document.createElement('script');
+   391→    s.src = TV_JS_SRC;
+   392→    s.async = true;
+   393→    s.onload = function () { tvReady() ? resolve() : reject(new Error('tv-broken')); };
+   394→    s.onerror = function () { reject(new Error('tv-network')); };
+   395→    document.head.appendChild(s);
+   396→    setTimeout(function () { if (!tvReady()) reject(new Error('tv-timeout')); }, 15000);
+   397→  });
+   398→  _tvPromise.catch(function () { _tvPromise = null; }); /* اجازه تلاش مجدد */
+   399→  return _tvPromise;
+   400→}
+   401→function chartShowError(el) {
+   402→  chartLoaded.key = null;
+   403→  el.innerHTML = '<div class="tv-state tv-error">' +
+   404→    '<span class="tv-err-ic">' + icon('wifi', 24) + '</span>' +
+   405→    '<p class="tv-err-t">اتصال به TradingView برقرار نشد</p>' +
+   406→    '<p class="tv-err-s">چارت به سرورهای TradingView وصل نمی‌شود؛ اتصال اینترنت یا VPN را بررسی کنید و دوباره تلاش کنید.</p>' +
+   407→    '<button type="button" class="btn" data-tv-retry>' + icon('refresh', 14) + 'تلاش مجدد</button>' +
+   408→    '</div>';
+   409→  var rb = el.querySelector('[data-tv-retry]');
+   410→  if (rb) rb.addEventListener('click', function () { window.loadChart(S_CHART.sym, S_CHART.tf); });
+   411→}
+   412→/* ساخت مجدد ویجت با نماد/تایم‌فریم جدید — از هر جای ابزار قابل صدازدن است: loadChart('OANDA:XAUUSD','60') */
+   413→function loadChart(symbol, interval) {
+   414→  var el = document.getElementById('tv_chart');
+   415→  if (!el) return; /* صفحه چارت باز نیست */
+   416→  S_CHART.sym = symbol || 'OANDA:XAUUSD';
+   417→  S_CHART.tf = validChartTf(interval || '15');
+   418→  lsSet(CHART_KEY, JSON.stringify(S_CHART));
+   419→  syncChartChips();
+   420→  aiSyncStale();
+   421→  var frame = S_CHART.sym + '@' + S_CHART.tf;
+   422→  if (chartLoaded.key === frame && el.querySelector('iframe')) return;
+   423→  chartLoaded.key = null;
+   424→  el.innerHTML = '<div class="tv-state tv-loading">در حال بارگذاری چارت TradingView…</div>';
+   425→  ensureTVScript().then(function () {
+   426→    el = document.getElementById('tv_chart');
+   427→    if (!el) return;
+   428→    el.innerHTML = ''; /* پاک کردن محتوای قبلی */
+   429→    new window.TradingView.widget({
+   430→      container_id: 'tv_chart',
+   431→      autosize: true,
+   432→      symbol: S_CHART.sym,
+   433→      interval: S_CHART.tf,
+   434→      theme: 'dark',
+   435→      timezone: 'Asia/Tehran',
+   436→      locale: 'en',
+   437→      allow_symbol_change: true,
+   438→      hide_side_toolbar: false
+   439→    });
+   440→    chartLoaded.key = S_CHART.sym + '@' + S_CHART.tf;
+   441→  }).catch(function () {
+   442→    el = document.getElementById('tv_chart');
+   443→    if (el) chartShowError(el);
+   444→  });
+   445→}
+   446→window.loadChart = loadChart;
+   447→function chartChipRowHTML(list, kind) {
+   448→  var cur = kind === 'sym' ? S_CHART.sym : S_CHART.tf;
+   449→  return list.map(function (it) {
+   450→    return '<button type="button" class="cchip' + (it[0] === cur ? ' on' : '') + '" data-ckind="' + kind + '" data-cval="' + it[0] + '">' + it[1] + '</button>';
+   451→  }).join('');
+   452→}
+   453→function syncChartChips() {
+   454→  var chips = appScroll.querySelectorAll('.cchip');
+   455→  for (var i = 0; i < chips.length; i++) {
+   456→    var c = chips[i];
+   457→    var on = c.dataset.cval === (c.dataset.ckind === 'sym' ? S_CHART.sym : S_CHART.tf);
+   458→    c.classList.toggle('on', on);
+   459→  }
+   460→}
+   461→function bindChartChips() {
+   462→  var chips = appScroll.querySelectorAll('.cchip');
+   463→  for (var i = 0; i < chips.length; i++) {
+   464→    (function (b) {
+   465→      b.addEventListener('click', function () {
+   466→        if (b.dataset.ckind === 'sym') S_CHART.sym = b.dataset.cval;
+   467→        else S_CHART.tf = b.dataset.cval;
+   468→        window.loadChart(S_CHART.sym, S_CHART.tf);
+   469→      });
+   470→    })(chips[i]);
+   471→  }
+   472→}
+   473→function chartEnsureAuto() {
+   474→  if (chartLoaded.key === S_CHART.sym + '@' + S_CHART.tf && appScroll.querySelector('#tv_chart iframe')) return;
+   475→  requestAnimationFrame(function () {
+   476→    requestAnimationFrame(function () { window.loadChart(S_CHART.sym, S_CHART.tf); });
+   477→  });
+   478→}
+   479→
+   480→/* ---------- تحلیل هوشمند محلی (الگوریتمی — کندل‌های همان نماد/تایم‌فریم از Yahoo) ---------- */
+   481→var CHART_YAHOO = {
+   482→  'OANDA:XAUUSD': { y: 'GC=F', name: 'طلا — XAUUSD' },
+   483→  'OANDA:XAGUSD': { y: 'SI=F', name: 'نقره — XAGUSD' },
+   484→  'OANDA:EURUSD': { y: 'EURUSD=X', name: 'یورو/دلار' },
+   485→  'BINANCE:BTCUSDT': { y: 'BTC-USD', name: 'بیت‌کوین' }
+   486→};
+   487→var CHART_ITV = {
+   488→  '5': { i: '5m', r: '5d', label: '۵ دقیقه', lb: 3, atr: [0.06, 0.15] },
+   489→  '15': { i: '15m', r: '5d', label: '۱۵ دقیقه', lb: 3, atr: [0.1, 0.25] },
+   490→  '60': { i: '1h', r: '3mo', label: '۱ ساعته', lb: 3, atr: [0.18, 0.45] },
+   491→  '240': { i: '1h', r: '6mo', label: '۴ ساعته', lb: 3, agg: 4, atr: [0.3, 0.8] },
+   492→  'D': { i: '1d', r: '1y', label: 'روزانه', lb: 2, atr: [0.7, 1.6] }
+   493→};
+   494→var AI_TTL = 15 * 60 * 1000;
+   495→var AI_CACHE = {};
+   496→var AI_BUSY = false;
+   497→var AI_STATE = { key: null, text: '', at: null };
+   498→function aiKey() { return S_CHART.sym + '@' + S_CHART.tf; }
+   499→function aiTfLabel() { var c = CHART_ITV[S_CHART.tf]; return c ? c.label : S_CHART.tf; }
+   500→function aiPx(v) {
+   501→  var d = v >= 10 ? 2 : 4;
+   502→  return faDigits(Number(v).toLocaleString('en-US', { maximumFractionDigits: d })).replace(/,/g, '٬');
+   503→}
+   504→function fetchYahooOHLC(cfg, itv) {
+   505→  var u = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(cfg.y) + '?interval=' + itv.i + '&range=' + itv.r;
+   506→  var i = 0;
+   507→  function attempt() {
+   508→    if (i >= PROXIES.length) return Promise.reject(new Error('proxy-fail'));
+   509→    var p = PROXIES[i++];
+   510→    return fetchJSON(p(u), 11000).then(function (j) {
+   511→      var r = j && j.chart && j.chart.result && j.chart.result[0];
+   512→      var q = r && r.indicators && r.indicators.quote && r.indicators.quote[0];
+   513→      if (!r || !q || !q.close || !r.timestamp || q.close.length < 60) throw new Error('bad-payload');
+   514→      var px = { t: [], o: [], h: [], l: [], c: [] };
+   515→      for (var k = 0; k < q.close.length; k++) {
+   516→        if (q.close[k] == null || q.open[k] == null || q.high[k] == null || q.low[k] == null) continue;
+   517→        px.t.push(r.timestamp[k]); px.o.push(q.open[k]); px.h.push(q.high[k]); px.l.push(q.low[k]); px.c.push(q.close[k]);
+   518→      }
+   519→      if (px.c.length < 60) throw new Error('thin');
+   520→      return px;
+   521→    }).catch(function () { return attempt(); });
+   522→  }
+   523→  return attempt();
+   524→}
+   525→function aggBars(px, n) {
+   526→  var out = { t: [], o: [], h: [], l: [], c: [] }, key = null;
+   527→  for (var i = 0; i < px.c.length; i++) {
+   528→    var d = new Date(px.t[i] * 1000);
+   529→    var b = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), Math.floor(d.getUTCHours() / n));
+   530→    if (b !== key) {
+   531→      key = b;
+   532→      out.t.push(px.t[i]); out.o.push(px.o[i]); out.h.push(px.h[i]); out.l.push(px.l[i]); out.c.push(px.c[i]);
+   533→    } else {
+   534→      var j = out.c.length - 1;
+   535→      out.h[j] = Math.max(out.h[j], px.h[i]);
+   536→      out.l[j] = Math.min(out.l[j], px.l[i]);
+   537→      out.c[j] = px.c[i];
+   538→    }
+   539→  }
+   540→  return out;
+   541→}
+   542→function emaLast(vals, n) {
+   543→  if (!vals || vals.length < n + 5) return null;
+   544→  var k = 2 / (n + 1), sum = 0;
+   545→  for (var i = 0; i < n; i++) sum += vals[i];
+   546→  var e = sum / n;
+   547→  for (var i = n; i < vals.length; i++) e = vals[i] * k + e * (1 - k);
+   548→  return e;
+   549→}
+   550→function rsiLast(c, n) {
+   551→  if (!c || c.length < n + 1) return null;
+   552→  var g = 0, l = 0, d, i;
+   553→  for (i = 1; i <= n; i++) { d = c[i] - c[i - 1]; if (d > 0) g += d; else l -= d; }
+   554→  var ag = g / n, al = l / n;
+   555→  for (i = n + 1; i < c.length; i++) {
+   556→    d = c[i] - c[i - 1];
+   557→    ag = (ag * (n - 1) + (d > 0 ? d : 0)) / n;
+   558→    al = (al * (n - 1) + (d < 0 ? -d : 0)) / n;
+   559→  }
+   560→  if (al === 0) return ag === 0 ? 50 : 100;
+   561→  return 100 - 100 / (1 + ag / al);
+   562→}
+   563→function atrPct(h, l, c, n) {
+   564→  if (!c || c.length < n + 1) return null;
+   565→  var trs = [], i;
+   566→  for (i = 1; i < c.length; i++) trs.push(Math.max(h[i] - l[i], Math.abs(h[i] - c[i - 1]), Math.abs(l[i] - c[i - 1])));
+   567→  var a = 0;
+   568→  for (i = 0; i < n; i++) a += trs[i];
+   569→  a /= n;
+   570→  for (i = n; i < trs.length; i++) a = (a * (n - 1) + trs[i]) / n;
+   571→  return a / c[c.length - 1] * 100;
+   572→}
+   573→function findSwings(h, l, lb) {
+   574→  var hs = [], ls = [], i, k, ph, pl;
+   575→  for (i = lb; i < h.length - lb; i++) {
+   576→    ph = true; pl = true;
+   577→    for (k = 1; k <= lb; k++) {
+   578→      if (h[i] < h[i - k] || h[i] < h[i + k]) ph = false;
+   579→      if (l[i] > l[i - k] || l[i] > l[i + k]) pl = false;
+   580→      if (!ph && !pl) break;
+   581→    }
+   582→    if (ph) hs.push({ i: i, v: h[i] });
+   583→    if (pl) ls.push({ i: i, v: l[i] });
+   584→  }
+   585→  return { hs: hs, ls: ls };
+   586→}
+   587→function buildAiText(px, itv) {
+   588→  var c = px.c, n = c.length, last = c[n - 1], i;
+   589→  var e20 = emaLast(c, 20), e50 = emaLast(c, 50);
+   590→  var rsi = rsiLast(c, 14);
+   591→  var atr = atrPct(px.h, px.l, c, 14);
+   592→  var sw = findSwings(px.h, px.l, itv.lb);
+   593→  var sh = sw.hs.length ? sw.hs[sw.hs.length - 1] : null;
+   594→  var shp = sw.hs.length > 1 ? sw.hs[sw.hs.length - 2] : null;
+   595→  var sl = sw.ls.length ? sw.ls[sw.ls.length - 1] : null;
+   596→  var slp = sw.ls.length > 1 ? sw.ls[sw.ls.length - 2] : null;
+   597→  var look = Math.min(20, n), hh = -Infinity, ll = Infinity, bull = 0;
+   598→  for (i = n - look; i < n; i++) {
+   599→    if (px.h[i] > hh) hh = px.h[i];
+   600→    if (px.l[i] < ll) ll = px.l[i];
+   601→    if (c[i] >= px.o[i]) bull++;
+   602→  }
+   603→  var ratio = Math.round(bull / look * 100);
+   604→  var maScore = 0;
+   605→  if (e20 != null) maScore += last > e20 ? 1 : -1;
+   606→  if (e20 != null && e50 != null) maScore += e20 > e50 ? 1 : -1;
+   607→  var swScore = 0;
+   608→  if (sh && shp) swScore += sh.v > shp.v ? 1 : -1;
+   609→  if (sl && slp) swScore += sl.v > slp.v ? 1 : -1;
+   610→  var total = maScore + swScore;
+   611→  var dir = total >= 2 ? 'صعودی' : total <= -2 ? 'نزولی' : 'خنثی';
+   612→  var strg = Math.round(Math.abs(total) / 4 * 100);
+   613→  var e20txt = e20 == null ? '' : 'قیمت ' + (last > e20 ? 'بالای' : 'زیرِ') + ' EMA۲۰' + (e50 == null ? '' : ' و ' + (last > e50 ? 'بالای' : 'زیرِ') + ' EMA۵۰') + ' معامله می‌شود؛';
+   614→  var rsiTxt = rsi == null ? '' : ' شاخص قدرت نسبی (RSI۱۴) روی ' + faDigits(String(Math.round(rsi))) + ' است' + (rsi >= 70 ? ' — ناحیه اشباع خرید؛ احتمال تعدیل کوتاه‌مدت بیشتر می‌شود.' : rsi <= 30 ? ' — ناحیه اشباع فروش؛ احتمال واکنش صعودی بیشتر می‌شود.' : ' — ناحیه نرمال؛ فشار یک‌طرفه شدید نیست.');
+   615→  var bosTxt = 'شکست ساختاری (BOS) جدیدی ثبت نشده است؛ رفتار قیمت داخل محدوده سقف/کف سوئینگ است.';
+   616→  if (sh && last > sh.v) bosTxt = 'قیمت بالای آخرین سقف سوئینگ (' + aiPx(sh.v) + ') معامله می‌شود — BOS صعودی؛ تا زمانی که زیر آن برنگردد، ساختار صعودی معتبر است.';
+   617→  else if (sl && last < sl.v) bosTxt = 'قیمت زیر آخرین کف سوئینگ (' + aiPx(sl.v) + ') معامله می‌شود — BOS نزولی؛ تا بازگشت بالای آن، ساختار نزولی معتبر است.';
+   618→  var stTxt = 'ترکیب سقف/کف‌های سوئینگ بی‌جهت است.';
+   619→  if (sh && shp && sl && slp) {
+   620→    if (sh.v > shp.v && sl.v > slp.v) stTxt = 'سقف‌ها و کف‌های بالاتر (HH/HL) — ساختار تداومی صعودی.';
+   621→    else if (sh.v < shp.v && sl.v < slp.v) stTxt = 'سقف‌ها و کف‌های پایین‌تر (LH/LL) — ساختار تداومی نزولی.';
+   622→    else if (sh.v > shp.v) stTxt = 'سقف بالاتر ولی کف پایین‌تر — انبساط دامنه و بی‌تصمیمی.';
+   623→    else stTxt = 'سقف پایین‌تر ولی کف بالاتر — فشردگی و آماده شدن برای حرکت جهت‌دار.';
+   624→  }
+   625→  var res = aiPx(hh), sup = aiPx(ll);
+   626→  var sec1 = '<p class="ai-sec"><b>جمع‌بندی:</b> چارچوب روند در تایم‌فریم ' + aiTfLabel() + ' ' + dir + ' است (قدرت ساختار ' + faDigits(String(strg)) + '٪). ' + e20txt + rsiTxt + ' ' + bosTxt + '</p>';
+   627→  var sec2 = '<p class="ai-sec"><b>سطوح کلیدی:</b> مقاومت‌های نزدیک: ' + (sh ? aiPx(sh.v) + ' (آخرین سقف سوئینگ) و ' : '') + res + ' (سقف ۲۰ کندل اخیر) — حمایت‌های نزدیک: ' + (sl ? aiPx(sl.v) + ' (آخرین کف سوئینگ) و ' : '') + sup + ' (کف ۲۰ کندل اخیر). ' + stTxt + '</p>';
+   628→  var sec3 = '<p class="ai-sec"><b>سناریوها:</b> تثبیت بالای ' + res + ' → تداوم مسیر صعودی و باز شدن سمت قیمت‌های بالاتر؛ از دست رفتن ' + sup + ' → تداوم فشار فروش و ورود به عمق رِنج. بین این دو سطح، رفتار دوطرفه و رِنجی محتمل‌ترین حالت است.</p>';
+   629→  var volTxt = 'معمولی';
+   630→  if (atr != null && itv.atr) volTxt = atr < itv.atr[0] ? 'پایین' : atr > itv.atr[1] ? 'بالا' : 'معمولی';
+   631→  var sec4 = '<p class="ai-sec"><b>ریسک:</b> میانگین دامنه نوسان (ATR۱۴) حدود ' + (atr == null ? '—' : faDigits(atr.toFixed(2)) + '٪') + ' قیمت است — نوسان ' + volTxt + '؛ ' + faDigits(String(ratio)) + '٪ از ۲۰ کندل اخیر صعودی بسته شده‌اند. در تایم‌فریم‌های کوچک‌تر سیگنال‌ها نویز بیشتری دارند؛ تایید با تایم‌فریم بالاتر توصیه می‌شود.</p>';
+   632→  return sec1 + sec2 + sec3 + sec4;
+   633→}
+   634→function aiBody() { var p = document.getElementById('ai_panel'); return p ? p.querySelector('.ai-body') : null; }
+   635→function aiSyncHeader() {
+   636→  var p = document.getElementById('ai_panel');
+   637→  if (!p) return;
+   638→  var t = p.querySelector('.ai-head .t');
+   639→  var cfg = CHART_YAHOO[S_CHART.sym];
+   640→  if (t) t.textContent = 'تحلیل هوش مصنوعی — ' + (cfg ? cfg.name : S_CHART.sym) + ' · ' + aiTfLabel();
+   641→}
+   642→function aiRenderLoading() {
+   643→  var b = aiBody();
+   644→  if (!b) return;
+   645→  b.innerHTML = '<div class="ai-state"><span class="spin" style="display:inline-flex">' + icon('refresh', 18) + '</span>در حال دریافت کندل‌ها و محاسبه تحلیل…<span style="font-size:9px;font-weight:400">معمولاً ۳ تا ۱۰ ثانیه — منبع داده: Yahoo Finance</span></div>';
+   646→  var at = document.getElementById('ai_at');
+   647→  if (at) at.textContent = '';
+   648→}
+   649→function aiRenderError(msg) {
+   650→  var b = aiBody();
+   651→  if (!b) return;
+   652→  b.innerHTML = '<div class="ai-state"><span style="display:inline-flex;color:var(--red)">' + icon('wifi', 20) + '</span>' + msg + '<button type="button" class="btn" data-ai-retry>' + icon('refresh', 13) + 'تلاش مجدد</button></div>';
+   653→  var rb = b.querySelector('[data-ai-retry]');
+   654→  if (rb) rb.addEventListener('click', function () { runAi(true); });
+   655→}
+   656→function aiRenderText() {
+   657→  var b = aiBody();
+   658→  if (!b || !AI_STATE.text) return;
+   659→  var cur = aiKey();
+   660→  var stale = AI_STATE.key !== cur;
+   661→  var at = document.getElementById('ai_at');
+   662→  if (at) at.textContent = !stale && AI_STATE.at ? faTime(new Date(AI_STATE.at)) : '';
+   663→  b.innerHTML = (stale ? '<p class="ai-stale">این تحلیل مربوط به نماد/تایم‌فریم قبلی است — دکمه «تحلیل هوشمند» را دوباره بزنید</p>' : '') + AI_STATE.text;
+   664→  b.scrollTop = 0;
+   665→}
+   666→function setAiBusy(b) {
+   667→  var btn = document.getElementById('ai_btn');
+   668→  if (!btn) return;
+   669→  btn.disabled = b;
+   670→  var ic = btn.querySelector('svg');
+   671→  if (ic) ic.classList.toggle('spin', b);
+   672→}
+   673→function runAi(force) {
+   674→  var p = document.getElementById('ai_panel');
+   675→  if (!p || AI_BUSY) return;
+   676→  var key = aiKey();
+   677→  var cached = AI_CACHE[key];
+   678→  if (!force && cached && (Date.now() - cached.at) < AI_TTL) {
+   679→    AI_STATE = { key: key, text: cached.text, at: cached.at };
+   680→    aiRenderText();
+   681→    return;
+   682→  }
+   683→  var cfg = CHART_YAHOO[S_CHART.sym];
+   684→  var itv = CHART_ITV[S_CHART.tf];
+   685→  if (!cfg || !itv) { aiRenderError('این نماد در موتور تحلیل پشتیبانی نمی‌شود.'); return; }
+   686→  AI_BUSY = true;
+   687→  setAiBusy(true);
+   688→  aiRenderLoading();
+   689→  fetchYahooOHLC(cfg, itv).then(function (px) {
+   690→    if (itv.agg) px = aggBars(px, itv.agg);
+   691→    var text = buildAiText(px, itv);
+   692→    AI_CACHE[key] = { at: Date.now(), text: text };
+   693→    AI_BUSY = false;
+   694→    setAiBusy(false);
+   695→    AI_STATE = { key: key, text: text, at: Date.now() };
+   696→    aiRenderText();
+   697→  }).catch(function () {
+   698→    AI_BUSY = false;
+   699→    setAiBusy(false);
+   700→    aiRenderError('دریافت کندل‌ها از Yahoo Finance ممکن نشد — اتصال اینترنت را بررسی کنید و دوباره تلاش کنید (پروکسی‌های عمومی گاهی موقتاً محدود می‌شوند).');
+   701→  });
+   702→}
+   703→function aiSyncStale() {
+   704→  var p = document.getElementById('ai_panel');
+   705→  if (!p || p.hidden) return;
+   706→  aiSyncHeader();
+   707→  if (AI_BUSY) return;
+   708→  aiRenderText();
+   709→}
+   710→function renderChartApp() {
+   711→  if (appScroll.querySelector('#tv_chart')) { /* باز شدن مجدد — ویجت قبلی حفظ شود */
+   712→    syncChartChips();
+   713→    chartEnsureAuto();
+   714→    return;
+   715→  }
+   716→  appScroll.innerHTML = '<div class="chart-wrap">' +
+   717→    '<div class="chart-chips no-scrollbar" data-chart-syms>' + chartChipRowHTML(CHART_SYMS, 'sym') + '</div>' +
+   718→    '<div class="chart-tfrow">' +
+   719→      '<div class="chart-chips no-scrollbar" data-chart-tfs>' + chartChipRowHTML(CHART_TFS, 'tf') + '</div>' +
+   720→      '<button type="button" class="cchip ai-btn" id="ai_btn" title="تحلیل الگوریتمی همان نماد و تایم‌فریم انتخابی">' + icon('sparkles', 12) + 'تحلیل هوشمند</button>' +
+   721→      '<button type="button" class="cchip tv-login" id="tv_login_btn" title="ویجت داخلی لاگین ندارد — با حساب خودتان در سایت اصلی وارد شوید">' + icon('ext', 12) + 'ورود به حساب</button>' +
+   722→    '</div>' +
+   723→    '<div id="tv_chart"><div class="tv-state tv-loading">در حال بارگذاری چارت TradingView…</div></div>' +
+   724→    '<div id="ai_panel" hidden>' +
+   725→      '<div class="ai-head"><span style="display:inline-flex;flex:none">' + icon('sparkles', 13) + '</span><span class="t">تحلیل هوش مصنوعی</span><span class="at" id="ai_at"></span>' +
+   726→      '<button type="button" class="ai-rf" data-ai-refresh title="بروزرسانی تحلیل">' + icon('refresh', 11) + '</button>' +
+   727→      '<button type="button" class="ai-x" data-ai-close aria-label="بستن تحلیل">' + icon('x', 12) + '</button></div>' +
+   728→      '<div class="ai-body"><div class="ai-state">برای شروع، دکمه «تحلیل هوشمند» را بزنید</div></div>' +
+   729→      '<p class="ai-foot">موتور تحلیل: الگوریتم محلی (EMA/RSI/ATR/سوئینگ) روی کندل‌های Yahoo Finance — صرفاً اطلاع‌رسانی است و توصیه معاملاتی نیست.</p>' +
+   730→    '</div>' +
+   731→    '<p class="chart-note">رسم‌ها و اندیکاتورهای داخل ویجت ذخیره نمی‌شوند — برای ذخیره با حساب خودتان از دکمه «ورود به حساب» استفاده کنید. «تحلیل هوشمند» کندل‌های همان نماد و تایم‌فریم را از Yahoo Finance می‌گیرد (نیازمند اینترنت)؛ در نسخه وب ابزار، همین بخش با هوش مصنوعی مولد ارائه می‌شود.</p>' +
+   732→    '</div>';
+   733→  bindChartChips();
+   734→  var lb = appScroll.querySelector('#tv_login_btn');
+   735→  if (lb) lb.addEventListener('click', function () {
+   736→    try { window.open('https://www.tradingview.com/chart/?symbol=' + encodeURIComponent(S_CHART.sym), '_blank', 'noopener'); } catch (e) {}
+   737→  });
+   738→  var ab = appScroll.querySelector('#ai_btn');
+   739→  if (ab) ab.addEventListener('click', function () {
+   740→    var p = document.getElementById('ai_panel');
+   741→    if (!p) return;
+   742→    p.hidden = false;
+   743→    aiSyncHeader();
+   744→    runAi(false);
+   745→  });
+   746→  var rf = appScroll.querySelector('[data-ai-refresh]');
+   747→  if (rf) rf.addEventListener('click', function () { runAi(true); });
+   748→  var xc = appScroll.querySelector('[data-ai-close]');
+   749→  if (xc) xc.addEventListener('click', function () {
+   750→    var p = document.getElementById('ai_panel');
+   751→    if (p) p.hidden = true;
+   752→  });
+   753→  chartEnsureAuto();
+   754→}
+   755→
+   756→/* ---------- اپ درباره ---------- */
+   757→function renderAboutApp() {
+   758→  var gen = GEN_ISO ? new Date(GEN_ISO) : new Date();
+   759→  appScroll.innerHTML = '<div class="app-pad">' +
+   760→    '<section class="about-sec"><div class="about-h"><span style="color:var(--primary)">' + icon('info', 16) + '</span><h2 class="about-t">رصدگر دلار — نسخه فایل مستقل</h2></div>' +
+   761→    '<p class="about-p">این فایل، خروجی تک‌فایلیِ ابزار پایش اخبار اقتصادی USD و ساختار بازار طلا و داو جونز است؛ بدون نیاز به نصب یا سرور. داده‌های اخبار، ترجمه‌ها، تحلیل تأثیر و ساختار بازار تا لحظه تولید فایل داخل آن ذخیره شده و قیمت‌ها (در صورت اتصال اینترنت) از طریق مراکز کنترل قابل بروزرسانی زنده‌اند.</p></section>' +
+   762→    '<section class="about-sec"><div class="about-h"><span style="color:var(--amber)">' + icon('hand', 16) + '</span><h2 class="about-t">حرکات لمسی</h2></div>' +
+   763→    '<ul style="display:flex;flex-direction:column;gap:6px;font-size:11px;line-height:20px;color:var(--mutedfg);margin:0;padding:0;list-style:none">' +
+   764→    '<li>• نگه‌داشتن هر آیکون (حدود نیم ثانیه) → حالت لرزش؛ سپس آیکون‌ها را بکشید تا جابه‌جا شوند و «پایان» را بزنید.</li>' +
+   765→    '<li>• دکمه ☰ در گوشه بالا-چپ (یا داخل هر اپ) → منوی جانبی دسترسی سریع به همه اپ‌ها و مراکز.</li>' +
+   766→    '<li>• دکمه برگشت (→) در بالای هر اپ، نوار پایین، یا دکمه برگشت خود گوشی → بازگشت به صفحه قبل.</li>' +
+   767→    '<li>• کشیدن به چپ/راست → جابه‌جایی بین صفحات با پارالاکس کاغذدیواری.</li>' +
+   768→    '<li>• کشیدن از بالای صفحه → مرکز اعلان‌ها (تغییر جهت بازار و وضعیت سامانه).</li>' +
+   769→    '<li>• کشیدن از پایین صفحه → مرکز کنترل (کلیدها و بروزرسانی قیمت‌ها).</li>' +
+   770→    '<li>• لمس آیکون اپ → باز شدن با انیمیشن بزرگ‌نمایی از همان آیکون؛ نوار پایین → بازگشت.</li>' +
+   771→    '</ul></section>' +
+   772→    '<section class="about-sec"><div class="about-h"><span style="color:var(--sky)">' + icon('layers', 16) + '</span><h2 class="about-t">منابع داده و روش تحلیل</h2></div>' +
+   773→    '<ul style="display:flex;flex-direction:column;gap:6px;font-size:11px;line-height:20px;color:var(--mutedfg);margin:0;padding:0;list-style:none">' +
+   774→    '<li>• اخبار اقتصادی USD: ForexFactory با ترجمه و تحلیل تأثیر هوش مصنوعی (در لحظه تولید فایل).</li>' +
+   775→    '<li>• قیمت طلا (فیوچرز COMEX — همبستگی نزدیک به XAUUSD) و داو جونز: Yahoo Finance — بروزرسانی زنده اختیاری.</li>' +
+   776→    '<li>• ساختار بازار: ترکیب EMA۲۰/۵۰ و سقف/کف‌های سوئینگ در ۶ تایم‌فریم + تایم‌فریم ورود ۵ دقیقه.</li>' +
+   777→    '<li>• چارت تریدینگ‌ویو + «تحلیل هوشمند»: ویجت رسمی TradingView و موتور تحلیل الگوریتمی محلی (EMA/RSI/ATR/سوئینگ) روی کندل‌های همان نماد و تایم‌فریم انتخابی از Yahoo Finance.</li>' +
+   778→    '</ul></section>' +
+   779→    '<section class="about-sec"><div class="about-h"><span style="color:var(--violet)">' + icon('sliders', 16) + '</span><h2 class="about-t">این فایل</h2></div>' +
+   780→    '<p class="about-p">تولید: ' + faDateLong(gen) + ' — ' + faTime(gen) + ' تهران. این فایل را می‌توانید با ایمیل یا پیام‌رسان برای خودتان یا دیگران بفرستید و روی هر گوشی با مرورگر باز کنید. انتخاب‌ها (ترتیب آیکون‌ها، فیلترها) در همان دستگاه ذخیره می‌شود.</p></section>' +
+   781→    '<p class="about-foot">این ابزار صرفاً اطلاع‌رسانی است و توصیه سرمایه‌گذاری محسوب نمی‌شود.</p>' +
+   782→    '</div>';
+   783→}
+   784→
+   785→/* ---------- مسیریاب اپ‌ها ---------- */
+   786→function renderApp(id, keep) {
+   787→  if (appTitle) appTitle.textContent = APPS[id] ? APPS[id].label : 'رصدگر دلار';
+   788→  if (id === 'news') renderNewsApp();
+   789→  else if (id === 'structure') renderStructureApp();
+   790→  else if (id === 'suggestion') renderSuggestionApp();
+   791→  else if (id === 'chart') renderChartApp();
+   792→  else renderAboutApp();
+   793→  appScroll.scrollTop = 0;
+   794→}
+   795→
+   796→/* ---------- رویدادهای مشترک ---------- */
+   797→page1.addEventListener('pointerdown', function (e) {
+   798→  var btn = e.target.closest('[data-icon]');
+   799→  if (!btn) return;
+   800→  page1IconPointerDown(btn.dataset.icon, e);
+   801→});
+   802→page1.addEventListener('pointermove', function (e) {
+   803→  if (!S.wiggle && !S.press) return;
+   804→  var id = S.drag ? S.drag.id : (S.press ? S.press.id : null);
+   805→  if (!id) return;
+   806→  page1IconPointerMove(id, e);
+   807→});
+   808→page1.addEventListener('pointerup', function (e) {
+   809→  if (S.drag) page1IconPointerUp(S.drag.id);
+   810→  else if (S.press) page1IconPointerUp(S.press.id);
+   811→});
+   812→page1.addEventListener('pointercancel', function () {
+   813→  if (S.drag) page1IconPointerUp(S.drag.id);
+   814→  cancelLongPress();
+   815→});
+   816→page1.addEventListener('click', function (e) {
+   817→  var btn = e.target.closest('[data-icon]');
+   818→  if (btn) { page1IconClick(btn.dataset.icon); return; }
+   819→  var bc = e.target.closest('[data-banner-close]');
+   820→  if (bc) {
+   821→    var changes = ms && ms.changes ? ms.changes : [];
+   822→    lsSet(DISMISS_KEY, changesSignature(changes));
+   823→    var b = page1.querySelector('[data-banner]');
+   824→    if (b) b.remove();
+   825→  }
+   826→});
+   827→dockIn.addEventListener('click', function (e) {
+   828→  var b = e.target.closest('[data-app]');
+   829→  if (b) { openApp(b.dataset.app, b); return; }
+   830→  var a = e.target.closest('[data-act]');
+   831→  if (a) { if (a.dataset.act === 'nc') openNC(); else if (a.dataset.act === 'cc') openCC(); }
+   832→});
+   833→
+   834→/* ---------- تنظیم انیمیشن‌ها ---------- */
+   835→function applyAnim() { device.classList.toggle('no-anim', !settings.anim); }
+   836→
+   837→/* ---------- راه‌اندازی ---------- */
+   838→function homeTick() {
+   839→  updateCountdown();
+   840→  updateTodayCount();
+   841→}
+   842→function boot() {
+   843→  try { if (history.state && history.state.sd) history.replaceState(null, ''); } catch (e) {}
+   844→  renderStatusRight();
+   845→  tickClock();
+   846→  setInterval(tickClock, 1000);
+   847→  renderPage1();
+   848→  renderPage2();
+   849→  renderDock();
+   850→  renderDots();
+   851→  onPageScroll();
+   852→  applyAnim();
+   853→  _lastCdId = (nextHighEvent() || {}).id || 'none';
+   854→  _lastTcKey = (function () { var c = todayCounts(); return c.count + ':' + c.high; })();
+   855→  setInterval(homeTick, 30000);
+   856→  applyAutoPrice();
+   857→  if (!lsGet(HINT_KEY)) {
+   858→    var hint = $('#hint');
+   859→    hint.hidden = false;
+   860→    lsSet(HINT_KEY, '1');
+   861→    setTimeout(function () { hint.hidden = true; }, 9200);
+   862→  }
+   863→  window.addEventListener('resize', onPageScroll);
+   864→}
+   865→boot();
+   866→

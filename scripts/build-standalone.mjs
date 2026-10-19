@@ -39,6 +39,8 @@ const js = [
   readFileSync(BASE + '/app.a.js', 'utf8'),
   readFileSync(BASE + '/app.b.js', 'utf8'),
   readFileSync(BASE + '/app.c.js', 'utf8'),
+  readFileSync(BASE + '/app.d.js', 'utf8'),
+  readFileSync(BASE + '/app.e.js', 'utf8'),
 ].join('\n');
 const wrapped = '(function(){\n' + js + '\n})();';
 

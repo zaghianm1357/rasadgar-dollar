@@ -136,10 +136,23 @@ function widgetPulse(el) {
   el.classList.add('wpulse');
 }
 
+/* ---------- لوگوی BIG TRADER ---------- */
+function bigTraderHeaderHTML() {
+  return '<div class="bt-hero" data-nogesture>' +
+    '<span class="bt-logo-ic">' + icon('briefcase', 20) + '</span>' +
+    '<div style="min-width:0;flex:1">' +
+    '<p class="bt-logo-t" dir="ltr">BIG TRADER</p>' +
+    '<p class="bt-logo-s">دستیار هوشمند معامله‌گری · رصدگر دلار</p>' +
+    '</div>' +
+    '<span class="bt-live">پایش زنده</span>' +
+    '</div>';
+}
+
 /* ---------- صفحه ۱ ---------- */
 var _lastCdId = null, _lastTcKey = '';
 function renderPage1() {
   page1.innerHTML =
+    bigTraderHeaderHTML() +
     bannerHTML() +
     '<div class="grid2">' +
     priceWidgetHTML('xau', 'طلا — XAUUSD') +
@@ -392,8 +405,8 @@ function renderDrawer() {
   drawerPanel.innerHTML =
     '<div class="grabber"></div>' +
     '<div class="drawer-head">' +
-    '<span class="drawer-logo">' + icon('dollar', 22) + '</span>' +
-    '<div style="min-width:0;flex:1"><p class="drawer-t">رصدگر دلار</p><p class="drawer-s">منوی دسترسی سریع — نسخه فایل مستقل</p></div>' +
+    '<span class="drawer-logo bt-drawer-logo">' + icon('briefcase', 22) + '</span>' +
+    '<div style="min-width:0;flex:1"><p class="drawer-t" dir="ltr">BIG TRADER</p><p class="drawer-s">رصدگر دلار — منوی دسترسی سریع</p></div>' +
     '<button type="button" class="nc-close" data-drawer-close aria-label="بستن منو">' + icon('x', 16) + '</button>' +
     '</div>' +
     '<div class="drawer-sec-t">اپ‌ها</div>' + apps +

@@ -31,7 +31,7 @@ function saveSettings() { lsSet(SETTINGS_KEY, JSON.stringify(settings)); }
 var GRID_KEY = 'sd_grid_order_v1';
 var HINT_KEY = 'sd_hint_v1';
 var DISMISS_KEY = 'sd_banner_dismiss_v1';
-var DEFAULT_ORDER = ['news', 'structure', 'suggestion', 'chart', 'about'];
+var DEFAULT_ORDER = ['news', 'structure', 'suggestion', 'chart', 'trader', 'about'];
 
 /* ---------- توابع تاریخ تهران ---------- */
 var TEHRAN = 'Asia/Tehran';
@@ -101,7 +101,11 @@ var IC = {
   menu: '<line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/>',
   arrowBack: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
   chevL: '<polyline points="15 18 9 12 15 6"/>',
-  candles: '<path d="M9 5v4"/><rect width="4" height="6" x="7" y="9" rx="1"/><path d="M9 15v2"/><path d="M17 3v2"/><rect width="4" height="8" x="15" y="5" rx="1"/><path d="M17 19v2"/><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M13 11h8"/>'
+  candles: '<path d="M9 5v4"/><rect width="4" height="6" x="7" y="9" rx="1"/><path d="M9 15v2"/><path d="M17 3v2"/><rect width="4" height="8" x="15" y="5" rx="1"/><path d="M17 19v2"/><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M13 11h8"/>',
+  briefcase: '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+  gauge: '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+  book: '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
+  copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'
 };
 function icon(n, sz, cls) {
   return '<svg class="ic ' + (cls || '') + '" style="width:' + (sz || 16) + 'px;height:' + (sz || 16) + 'px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + IC[n] + '</svg>';
@@ -184,6 +188,7 @@ var APPS = {
   structure: { label: 'ساختار بازار', cls: 'g-structure', ic: 'activity' },
   suggestion: { label: 'پیشنهاد معامله', cls: 'g-suggestion', ic: 'crosshair' },
   chart: { label: 'چارت تریدینگ‌ویو', cls: 'g-chart', ic: 'candles' },
+  trader: { label: 'دستیار معامله‌گر', cls: 'g-trader', ic: 'briefcase' },
   about: { label: 'درباره', cls: 'g-about', ic: 'info' }
 };
 var TF_LONG = { '5m': '۵ دقیقه', '15m': '۱۵ دقیقه', '1h': '۱ ساعته', '4h': '۴ ساعته', '1d': 'روزانه', '1wk': 'هفتگی', '1mo': 'ماهانه' };

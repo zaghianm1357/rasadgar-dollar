@@ -774,7 +774,7 @@ function renderAboutApp() {
     '<li>• اخبار اقتصادی USD: ForexFactory با ترجمه و تحلیل تأثیر هوش مصنوعی (در لحظه تولید فایل).</li>' +
     '<li>• قیمت طلا (فیوچرز COMEX — همبستگی نزدیک به XAUUSD) و داو جونز: Yahoo Finance — بروزرسانی زنده اختیاری.</li>' +
     '<li>• ساختار بازار: ترکیب EMA۲۰/۵۰ و سقف/کف‌های سوئینگ در ۶ تایم‌فریم + تایم‌فریم ورود ۵ دقیقه.</li>' +
-    '<li>• چارت تریدینگ‌ویو + «تحلیل هوشمند»: ویجت رسمی TradingView و موتور تحلیل الگوریتمی محلی (EMA/RSI/ATR/سوئینگ) روی کندل‌های همان نماد و تایم‌فریم انتخابی از Yahoo Finance.</li>' +
+    '<li>• چارت تریدینگ‌ویو + «تحلیل هوشمند» + دستیار معامله‌گر (BIG TRADER): امتیاز اطمینان، پلن معامله، سناریوی خبری، واگرایی DXY و ژورنال رفتاری.</li>' +
     '</ul></section>' +
     '<section class="about-sec"><div class="about-h"><span style="color:var(--violet)">' + icon('sliders', 16) + '</span><h2 class="about-t">این فایل</h2></div>' +
     '<p class="about-p">تولید: ' + faDateLong(gen) + ' — ' + faTime(gen) + ' تهران. این فایل را می‌توانید با ایمیل یا پیام‌رسان برای خودتان یا دیگران بفرستید و روی هر گوشی با مرورگر باز کنید. انتخاب‌ها (ترتیب آیکون‌ها، فیلترها) در همان دستگاه ذخیره می‌شود.</p></section>' +
@@ -789,6 +789,7 @@ function renderApp(id, keep) {
   else if (id === 'structure') renderStructureApp();
   else if (id === 'suggestion') renderSuggestionApp();
   else if (id === 'chart') renderChartApp();
+  else if (id === 'trader') renderTraderApp();
   else renderAboutApp();
   appScroll.scrollTop = 0;
 }

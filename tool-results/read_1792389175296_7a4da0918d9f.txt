@@ -1,0 +1,578 @@
+     1→'use strict';
+     2→/* ================= رصدگر دلار — نسخه فایل مستقل =================
+     3→ * تک‌فایل آفلاین‌پسند: داده‌ها از اسنپ‌شات داخل فایل + تلاش اختیاری
+     4→ * بروزرسانی زنده قیمت‌ها از طریق پروکسی‌های عمومی CORS.
+     5→ * ================================================================ */
+     6→
+     7→/* ---------- داده اسنپ‌شات ---------- */
+     8→var SNAP_EL = document.getElementById('sd-snapshot');
+     9→var SNAP_RAW = SNAP_EL.textContent;
+    10→var SNAP = JSON.parse(SNAP_RAW);
+    11→var GEN_ISO = SNAP.generatedAt;
+    12→var news = SNAP.news;
+    13→var ms = SNAP.market;
+    14→
+    15→/* ---------- ذخیره‌سازی محلی ---------- */
+    16→function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    17→function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+    18→
+    19→var SETTINGS_KEY = 'sd_settings_v1';
+    20→var settings = { highOnly: false, autoPrice: false, anim: true };
+    21→try {
+    22→  var _s = JSON.parse(lsGet(SETTINGS_KEY) || 'null');
+    23→  if (_s && typeof _s === 'object') {
+    24→    if (typeof _s.highOnly === 'boolean') settings.highOnly = _s.highOnly;
+    25→    if (typeof _s.autoPrice === 'boolean') settings.autoPrice = _s.autoPrice;
+    26→    if (typeof _s.anim === 'boolean') settings.anim = _s.anim;
+    27→  }
+    28→} catch (e) {}
+    29→function saveSettings() { lsSet(SETTINGS_KEY, JSON.stringify(settings)); }
+    30→
+    31→var GRID_KEY = 'sd_grid_order_v1';
+    32→var HINT_KEY = 'sd_hint_v1';
+    33→var DISMISS_KEY = 'sd_banner_dismiss_v1';
+    34→var DEFAULT_ORDER = ['news', 'structure', 'suggestion', 'chart', 'about'];
+    35→
+    36→/* ---------- توابع تاریخ تهران ---------- */
+    37→var TEHRAN = 'Asia/Tehran';
+    38→var _keyFmt = new Intl.DateTimeFormat('en-CA', { timeZone: TEHRAN, year: 'numeric', month: '2-digit', day: '2-digit' });
+    39→function dateKeyInTehran(d) { return _keyFmt.format(d); }
+    40→function todayKeyInTehran() { return dateKeyInTehran(new Date()); }
+    41→function addDaysToKey(key, days) {
+    42→  var p = key.split('-');
+    43→  return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2] + days)).toISOString().slice(0, 10);
+    44→}
+    45→function faTime(d) {
+    46→  return new Intl.DateTimeFormat('fa-IR', { timeZone: TEHRAN, hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+    47→}
+    48→function faDateLong(d) {
+    49→  return new Intl.DateTimeFormat('fa-IR', { timeZone: TEHRAN, weekday: 'long', day: 'numeric', month: 'long' }).format(d);
+    50→}
+    51→var _FA = '۰۱۲۳۴۵۶۷۸۹';
+    52→function faDigits(v) {
+    53→  if (v === null || v === undefined || v === '') return '—';
+    54→  return String(v)
+    55→    .replace(/(\d)\.(\d)/g, '$1٫$2')
+    56→    .replace(/[0-9]/g, function (c) { return _FA[+c]; })
+    57→    .replace(/%/g, '٪');
+    58→}
+    59→function faNum(n) {
+    60→  if (n === null || n === undefined || isNaN(n)) return '—';
+    61→  return faDigits(n.toLocaleString('en-US', { maximumFractionDigits: 2 })).replace(/,/g, '٬');
+    62→}
+    63→
+    64→/* ---------- آیکون‌ها (SVG) ---------- */
+    65→var IC = {
+    66→  newspaper: '<path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/>',
+    67→  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+    68→  crosshair: '<circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/>',
+    69→  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+    70→  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    71→  sliders: '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
+    72→  flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+    73→  trendUp: '<path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/>',
+    74→  trendDown: '<path d="M22 17 13.5 8.5 8.5 13.5 2 7"/><path d="M16 17h6v-6"/>',
+    75→  moveH: '<polyline points="18 8 22 12 18 16"/><polyline points="6 8 2 12 6 16"/><line x1="2" y1="12" x2="22" y2="12"/>',
+    76→  minus: '<line x1="5" y1="12" x2="19" y2="12"/>',
+    77→  check: '<path d="M20 6 9 17l-5-5"/>',
+    78→  checkCircle: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>',
+    79→  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    80→  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    81→  calDays: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+    82→  sparkles: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>',
+    83→  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+    84→  wifi: '<path d="M5 13a10 10 0 0 1 14 0"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 20 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>',
+    85→  battery: '<rect width="16" height="10" x="2" y="7" rx="2" ry="2"/><line x1="22" y1="11" x2="22" y2="13"/><rect width="10" height="6" x="5" y="9" rx="1" fill="currentColor" stroke="none"/>',
+    86→  signal: '<path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/>',
+    87→  alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    88→  inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+    89→  langs: '<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>',
+    90→  radio: '<circle cx="12" cy="12" r="2"/><path d="M4.93 19.07a10 10 0 0 1 0-14.14"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M7.76 16.24a6 6 0 0 1 0-8.48"/><path d="M16.24 7.76a6 6 0 0 1 0 8.48"/>',
+    91→  db: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>',
+    92→  table: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/><path d="M3 9h18"/><path d="M3 15h18"/>',
+    93→  hourglass: '<path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>',
+    94→  dollar: '<line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+    95→  hand: '<path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="m7 15-1.76-1.76a2 2 0 0 0-2.83 2.82l3.6 3.6C7.5 21.14 9.2 22 12 22h2a8 8 0 0 0 8-8V7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v4"/>',
+    96→  layers: '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+    97→  sigM: '<path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16" opacity=".35"/>',
+    98→  sigL: '<path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8" opacity=".35"/><path d="M17 20V8" opacity=".35"/><path d="M22 4v16" opacity=".35"/>',
+    99→  calOff: '<path d="M4.2 4.2A2 2 0 0 0 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 1.8-1.2"/><path d="M21 15V6a2 2 0 0 0-2-2H9"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h7"/><path d="M21 10h-5"/><path d="m2 2 20 20"/>',
+   100→  ext: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+   101→  menu: '<line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/>',
+   102→  arrowBack: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+   103→  chevL: '<polyline points="15 18 9 12 15 6"/>',
+   104→  candles: '<path d="M9 5v4"/><rect width="4" height="6" x="7" y="9" rx="1"/><path d="M9 15v2"/><path d="M17 3v2"/><rect width="4" height="8" x="15" y="5" rx="1"/><path d="M17 19v2"/><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M13 11h8"/>'
+   105→};
+   106→function icon(n, sz, cls) {
+   107→  return '<svg class="ic ' + (cls || '') + '" style="width:' + (sz || 16) + 'px;height:' + (sz || 16) + 'px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + IC[n] + '</svg>';
+   108→}
+   109→function buzz() { try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {} }
+   110→
+   111→/* ---------- وضعیت پوسته ---------- */
+   112→var S = {
+   113→  gridOrder: (function () {
+   114→    var order = DEFAULT_ORDER.slice();
+   115→    try {
+   116→      var raw = lsGet(GRID_KEY);
+   117→      if (raw) {
+   118→        var arr = JSON.parse(raw);
+   119→        if (Array.isArray(arr)) {
+   120→          /* ادغام سازگار با نسخه قبل: ترتیب ذخیره‌شده حفظ و اپ‌های جدید به انتها اضافه می‌شوند */
+   121→          var merged = [];
+   122→          for (var i = 0; i < arr.length; i++)
+   123→            if (DEFAULT_ORDER.indexOf(arr[i]) >= 0 && merged.indexOf(arr[i]) < 0) merged.push(arr[i]);
+   124→          for (var j = 0; j < order.length; j++)
+   125→            if (merged.indexOf(order[j]) < 0) merged.push(order[j]);
+   126→          if (merged.length === order.length) return merged;
+   127→        }
+   128→      }
+   129→    } catch (e) {}
+   130→    return order;
+   131→  })(),
+   132→  wiggle: false,
+   133→  drag: null,
+   134→  app: null,          // { id, rect }
+   135→  appPhase: 'closed', // closed | opening | open | closing
+   136→  ncOpen: false, ncProgress: 0,
+   137→  ccOpen: false, ccProgress: 0,
+   138→  drawerOpen: false, drawerProgress: 0,
+   139→  page: 0,
+   140→  gesture: null,
+   141→  press: null
+   142→};
+   143→
+   144→/* ---------- لایه‌های تاریخچه — پشتیبانی از دکمه برگشت خود گوشی ----------
+   145→ * باز شدن هر لایه (اپ/منو/مراکز) یک ورودی history اضافه می‌کند؛
+   146→ * دکمه برگشت گوشی یا سوایپ برگشت iOS بالاترین لایه را می‌بندد.
+   147→ */
+   148→var lastPushed = null;
+   149→function pushLayer(name) {
+   150→  lastPushed = name;
+   151→  try { history.pushState({ sd: name }, ''); } catch (e) { lastPushed = null; }
+   152→}
+   153→function topOpenLayer() {
+   154→  if (S.drawerOpen) return 'drawer';
+   155→  if (S.ncOpen) return 'nc';
+   156→  if (S.ccOpen) return 'cc';
+   157→  if (S.app && S.appPhase !== 'closing') return 'app';
+   158→  return null;
+   159→}
+   160→function closeByName(name) {
+   161→  if (name === 'drawer') closeDrawerNow();
+   162→  else if (name === 'app') closeApp();
+   163→  else if (name === 'nc') closeNC();
+   164→  else if (name === 'cc') closeCC();
+   165→}
+   166→function closeLayerUI(name) {
+   167→  if (!name) return;
+   168→  if (lastPushed === name) {
+   169→    lastPushed = null;
+   170→    try { history.back(); } catch (e) { closeByName(name); }
+   171→  } else {
+   172→    closeByName(name);
+   173→  }
+   174→}
+   175→window.addEventListener('popstate', function () {
+   176→  lastPushed = null;
+   177→  var t = topOpenLayer();
+   178→  if (t) closeByName(t);
+   179→});
+   180→
+   181→/* ---------- برچسب‌ها ---------- */
+   182→var APPS = {
+   183→  news: { label: 'اخبار دلار', cls: 'g-news', ic: 'newspaper' },
+   184→  structure: { label: 'ساختار بازار', cls: 'g-structure', ic: 'activity' },
+   185→  suggestion: { label: 'پیشنهاد معامله', cls: 'g-suggestion', ic: 'crosshair' },
+   186→  chart: { label: 'چارت تریدینگ‌ویو', cls: 'g-chart', ic: 'candles' },
+   187→  about: { label: 'درباره', cls: 'g-about', ic: 'info' }
+   188→};
+   189→var TF_LONG = { '5m': '۵ دقیقه', '15m': '۱۵ دقیقه', '1h': '۱ ساعته', '4h': '۴ ساعته', '1d': 'روزانه', '1wk': 'هفتگی', '1mo': 'ماهانه' };
+   190→var TF_SHORT = { '5m': '۵د', '15m': '۱۵د', '1h': '۱س', '4h': '۴س', '1d': 'روز', '1wk': 'هفته', '1mo': 'ماه' };
+   191→var TF_ORDER = ['15m', '1h', '4h', '1d', '1wk', '1mo'];
+   192→var TF_MINUTES = { '5m': 5, '15m': 15, '1h': 60, '4h': 240, '1d': 1440, '1wk': 10080, '1mo': 43200 };
+   193→var SYMBOL_LABEL = { xau: 'طلا', dji: 'داوجونز' };
+   194→function trendText(t) { return t === 'bullish' ? 'صعودی' : t === 'bearish' ? 'نزولی' : 'خنثی'; }
+   195→function trendChipCls(t) { return t === 'bullish' ? 'bull' : t === 'bearish' ? 'bear' : 'neut'; }
+   196→function trendIcon(t) { return t === 'bullish' ? 'trendUp' : t === 'bearish' ? 'trendDown' : 'moveH'; }
+   197→
+   198→/* ---------- ارجاع‌های DOM ---------- */
+   199→function $(s) { return document.querySelector(s); }
+   200→var device = $('#device'), wall = $('#wall'), pages = $('#pages');
+   201→var page1 = $('#page1-inner'), page2 = $('#page2-inner');
+   202→var dotsEl = $('#dots'), dockIn = $('#dock-in');
+   203→var ncLayer = $('#nc-layer'), ncBack = $('#nc-back'), ncSheet = $('#nc-sheet');
+   204→var ccLayer = $('#cc-layer'), ccBack = $('#cc-back'), ccSheet = $('#cc-sheet');
+   205→var sheet = $('#app-sheet'), appScroll = $('#app-scroll');
+   206→var appTitle = $('#app-title');
+   207→var drawerLayer = $('#drawer-layer'), drawerBack = $('#drawer-back'), drawerPanel = $('#drawer-panel');
+   208→var ghost = $('#drag-ghost'), sbClock = $('#sb-clock');
+   209→
+   210→/* ---------- صفحات، پارالاکس، نقطه‌ها ---------- */
+   211→function onPageScroll() {
+   212→  var maxAbs = pages.scrollWidth - pages.clientWidth;
+   213→  var p = maxAbs > 0 ? Math.min(1, Math.abs(pages.scrollLeft) / maxAbs) : 0;
+   214→  wall.style.transform = 'translateX(' + ((0.5 - p) * 44).toFixed(1) + 'px) scale(1.08)';
+   215→  var np = Math.round(p * 1);
+   216→  if (np !== S.page) { S.page = np; renderDots(); }
+   217→}
+   218→function renderDots() {
+   219→  var h = '';
+   220→  for (var i = 0; i < 2; i++) h += '<button type="button" class="dot' + (S.page === i ? ' on' : '') + '" data-page="' + i + '" aria-label="صفحه ' + faDigits(i + 1) + '"></button>';
+   221→  dotsEl.innerHTML = h;
+   222→}
+   223→dotsEl.addEventListener('click', function (e) {
+   224→  var b = e.target.closest('[data-page]');
+   225→  if (!b) return;
+   226→  var maxAbs = pages.scrollWidth - pages.clientWidth;
+   227→  pages.scrollTo({ left: +b.dataset.page === 0 ? 0 : -maxAbs, behavior: 'smooth' });
+   228→});
+   229→pages.addEventListener('scroll', onPageScroll, { passive: true });
+   230→
+   231→/* ---------- نوار وضعیت ---------- */
+   232→function renderStatusRight() {
+   233→  $('#sb-right').innerHTML =
+   234→    icon('signal', 14) + icon('wifi', 14) +
+   235→    '<button type="button" class="sb-batt" id="sb-batt" aria-label="باز کردن مرکز کنترل">' + icon('battery', 20) + '</button>' +
+   236→    '<button type="button" class="sb-menu" id="sb-menu" aria-label="باز کردن منوی جانبی">' + icon('menu', 18) + '</button>';
+   237→  $('#sb-batt').addEventListener('click', function (e) { e.stopPropagation(); openCC(); });
+   238→  $('#sb-menu').addEventListener('click', function (e) { e.stopPropagation(); openDrawer(); });
+   239→}
+   240→function tickClock() { sbClock.textContent = faTime(new Date()); }
+   241→sbClock.addEventListener('click', function (e) { e.stopPropagation(); openNC(); });
+   242→
+   243→/* ---------- مرکز اعلان‌ها / کنترل ---------- */
+   244→function showNC() { renderNC(); S.ncOpen = true; setNC(1); }
+   245→function showCC() { renderCC(); S.ccOpen = true; setCC(1); }
+   246→function commitNC() { if (S.ncOpen) return; showNC(); pushLayer('nc'); }
+   247→function commitCC() { if (S.ccOpen) return; showCC(); pushLayer('cc'); }
+   248→function setNC(v) { S.ncProgress = Math.max(0, Math.min(1, v)); applyCenter(ncLayer, ncBack, ncSheet, S.ncProgress, true); }
+   249→function setCC(v) { S.ccProgress = Math.max(0, Math.min(1, v)); applyCenter(ccLayer, ccBack, ccSheet, S.ccProgress, false); }
+   250→function applyCenter(layer, back, panel, progress, fromTop) {
+   251→  layer.style.pointerEvents = progress > 0 ? 'auto' : 'none';
+   252→  back.style.opacity = progress;
+   253→  panel.style.transform = fromTop
+   254→    ? 'translateY(' + ((progress - 1) * 100).toFixed(2) + '%)'
+   255→    : 'translateY(' + ((1 - progress) * 100).toFixed(2) + '%)';
+   256→  if (progress === 0 || progress === 1) panel.classList.add('spring');
+   257→  else panel.classList.remove('spring');
+   258→}
+   259→function openNC() { commitNC(); }
+   260→function closeNC() { S.ncOpen = false; setNC(0); }
+   261→function openCC() { commitCC(); }
+   262→function closeCC() { S.ccOpen = false; setCC(0); }
+   263→
+   264→/* ---------- منوی جانبی ---------- */
+   265→function setDrawer(v) {
+   266→  S.drawerProgress = Math.max(0, Math.min(1, v));
+   267→  drawerLayer.classList.toggle('on', S.drawerProgress > 0);
+   268→  drawerBack.style.opacity = S.drawerProgress;
+   269→  drawerPanel.style.transform = 'translateX(' + ((1 - S.drawerProgress) * 108).toFixed(2) + '%)';
+   270→  if (S.drawerProgress === 0 || S.drawerProgress === 1) drawerPanel.classList.add('spring');
+   271→  else drawerPanel.classList.remove('spring');
+   272→}
+   273→function openDrawer() {
+   274→  if (S.drawerOpen) return;
+   275→  if (S.ncOpen) closeNC();
+   276→  if (S.ccOpen) closeCC();
+   277→  renderDrawer();
+   278→  S.drawerOpen = true;
+   279→  setDrawer(1);
+   280→  buzz();
+   281→  pushLayer('drawer');
+   282→}
+   283→function closeDrawerNow() { S.drawerOpen = false; setDrawer(0); }
+   284→function navFromDrawer(kind, id) {
+   285→  /* بستن منو بدون تغییر تاریخچه — ورودی منو با replaceState به مقصد تبدیل می‌شود */
+   286→  S.drawerOpen = false;
+   287→  setDrawer(0);
+   288→  var name = kind === 'app' ? 'app' : kind;
+   289→  try { history.replaceState({ sd: name }, ''); lastPushed = name; } catch (e) {}
+   290→  buzz();
+   291→  if (kind === 'app') openApp(id, null, true);
+   292→  else if (kind === 'nc') showNC();
+   293→  else if (kind === 'cc') showCC();
+   294→}
+   295→drawerBack.addEventListener('click', function () { closeLayerUI('drawer'); });
+   296→drawerPanel.addEventListener('click', function (e) {
+   297→  var x = e.target.closest('[data-drawer-close]');
+   298→  if (x) { closeLayerUI('drawer'); return; }
+   299→  var nav = e.target.closest('[data-dnav]');
+   300→  if (nav) { navFromDrawer(nav.dataset.dnav, nav.dataset.id); return; }
+   301→  var act = e.target.closest('[data-dact]');
+   302→  if (act && act.dataset.dact === 'refresh-prices') refreshPrices();
+   303→});
+   304→ncBack.addEventListener('click', closeNC);
+   305→ccBack.addEventListener('click', closeCC);
+   306→
+   307→/* حرکات کشیدن از بالا/پایین روی سطح قاب */
+   308→device.addEventListener('pointerdown', function (e) {
+   309→  if (S.wiggle || S.drag || S.gesture || S.drawerOpen || S.ncOpen || S.ccOpen) return;
+   310→  if (e.target.closest('[data-nogesture]')) return;
+   311→  var rect = device.getBoundingClientRect();
+   312→  var y = e.clientY - rect.top;
+   313→  var inApp = !!S.app && S.appPhase !== 'closing';
+   314→  if (y < 46 || y > rect.height - 44) {
+   315→    /* لمس دکمه‌ها در نوار وضعیت/نوار خانه → کلیک مستقیم؛ حرکت شروع نشود تا setPointerCapture کلیک را نبلعد */
+   316→    if (e.target.closest('button,[role="button"],a,select,input,textarea')) return;
+   317→  }
+   318→  if (y < 46) {
+   319→    S.gesture = { type: 'nc', startY: e.clientY, id: e.pointerId };
+   320→    try { device.setPointerCapture(e.pointerId); } catch (err) {}
+   321→  } else if (y > rect.height - 44) {
+   322→    S.gesture = { type: inApp ? 'close-app' : 'cc', startY: e.clientY, id: e.pointerId };
+   323→    try { device.setPointerCapture(e.pointerId); } catch (err) {}
+   324→  }
+   325→});
+   326→device.addEventListener('pointermove', function (e) {
+   327→  var g = S.gesture;
+   328→  if (!g || e.pointerId !== g.id) return;
+   329→  var dy = e.clientY - g.startY;
+   330→  if (g.type === 'nc') setNC(dy / 150);
+   331→  else if (g.type === 'cc') setCC(-dy / 170);
+   332→});
+   333→device.addEventListener('pointerup', function (e) {
+   334→  var g = S.gesture;
+   335→  S.gesture = null;
+   336→  if (!g || e.pointerId !== g.id) return;
+   337→  if (g.type === 'nc') { if (S.ncProgress > 0.4) { S.ncOpen = false; commitNC(); } else { S.ncOpen = false; setNC(0); } }
+   338→  else if (g.type === 'cc') { if (S.ccProgress > 0.4) { S.ccOpen = false; commitCC(); } else { S.ccOpen = false; setCC(0); } }
+   339→  else if (g.type === 'close-app') { if (e.clientY - g.startY < -36 && S.app && S.appPhase !== 'closing') closeLayerUI('app'); }
+   340→});
+   341→device.addEventListener('pointercancel', function () {
+   342→  S.gesture = null;
+   343→  setNC(S.ncOpen ? 1 : 0);
+   344→  setCC(S.ccOpen ? 1 : 0);
+   345→});
+   346→
+   347→/* ---------- اجرای اپ با انیمیشن بزرگ‌نمایی (FLIP) ---------- */
+   348→function applySheetGeom(animate) {
+   349→  var spring = 'transform .42s cubic-bezier(.32,.72,0,1), border-radius .42s cubic-bezier(.32,.72,0,1)';
+   350→  if (S.app && S.appPhase !== 'open') {
+   351→    var r = S.app.rect;
+   352→    sheet.style.transition = animate ? spring : 'none';
+   353→    sheet.style.transform = 'translate(' + r.x + 'px,' + r.y + 'px) scale(' + (r.w / r.dw).toFixed(4) + ',' + (r.h / r.dh).toFixed(4) + ')';
+   354→    sheet.style.borderRadius = '22px';
+   355→  } else {
+   356→    sheet.style.transition = spring;
+   357→    sheet.style.transform = 'none';
+   358→    sheet.style.borderRadius = '0px';
+   359→  }
+   360→}
+   361→function openApp(id, srcEl, noPush) {
+   362→  if (!srcEl) { srcEl = dockIn.querySelector('[data-app="' + id + '"]'); }
+   363→  var d = device.getBoundingClientRect();
+   364→  var r = srcEl ? srcEl.getBoundingClientRect() : d;
+   365→  buzz();
+   366→  S.app = {
+   367→    id: id,
+   368→    rect: { x: r.left - d.left, y: r.top - d.top, w: r.width, h: r.height, dw: d.width, dh: d.height }
+   369→  };
+   370→  S.appPhase = 'opening';
+   371→  renderApp(id);
+   372→  sheet.hidden = false;
+   373→  applySheetGeom(false);
+   374→  requestAnimationFrame(function () {
+   375→    requestAnimationFrame(function () { S.appPhase = 'open'; applySheetGeom(true); });
+   376→  });
+   377→  if (!noPush) pushLayer('app');
+   378→}
+   379→function closeApp() {
+   380→  if (!S.app || S.appPhase === 'closing') return;
+   381→  S.appPhase = 'closing';
+   382→  applySheetGeom(true);
+   383→  setTimeout(function () { sheet.hidden = true; S.app = null; S.appPhase = 'closed'; }, 430);
+   384→}
+   385→$('#homebar').addEventListener('click', function () { if (S.app) closeLayerUI('app'); else if (S.ccOpen) closeLayerUI('cc'); else openCC(); });
+   386→$('#app-homebar').addEventListener('click', function () { closeLayerUI('app'); });
+   387→$('#app-homebar').addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+   388→$('#app-back').addEventListener('click', function () { closeLayerUI('app'); });
+   389→$('#app-menu').addEventListener('click', function (e) { e.stopPropagation(); openDrawer(); });
+   390→window.addEventListener('keydown', function (e) {
+   391→  if (e.key !== 'Escape') return;
+   392→  if (S.drawerOpen) closeLayerUI('drawer');
+   393→  else if (S.ncOpen) closeLayerUI('nc');
+   394→  else if (S.ccOpen) closeLayerUI('cc');
+   395→  else if (S.app) closeLayerUI('app');
+   396→});
+   397→
+   398→/* ---------- حالت لرزش و جابه‌جایی آیکون‌ها ---------- */
+   399→var LONG_PRESS_MS = 450;
+   400→function cancelLongPress() { if (S.press && S.press.timer) clearTimeout(S.press.timer); }
+   401→function iconGridEl() { return page1.querySelector('.icongrid'); }
+   402→function renderIconGhost(id, x, y) {
+   403→  ghost.hidden = false;
+   404→  ghost.style.left = x + 'px';
+   405→  ghost.style.top = y + 'px';
+   406→  ghost.innerHTML = iconVisHTML(id, 52) + '<span class="ghost-label">' + APPS[id].label + '</span>';
+   407→}
+   408→function page1IconPointerDown(id, e) {
+   409→  e.stopPropagation();
+   410→  if (S.wiggle) {
+   411→    S.drag = { id: id, x: e.clientX, y: e.clientY };
+   412→    renderIconGhost(id, e.clientX, e.clientY);
+   413→    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+   414→  } else {
+   415→    var self = e.currentTarget;
+   416→    S.press = {
+   417→      id: id, startX: e.clientX, startY: e.clientY, longFired: false,
+   418→      timer: setTimeout(function () {
+   419→        S.wiggle = true;
+   420→        if (S.press) S.press.longFired = true;
+   421→        buzz();
+   422→        refreshWiggleUI();
+   423→      }, LONG_PRESS_MS)
+   424→    };
+   425→    try { self.setPointerCapture(e.pointerId); } catch (err) {}
+   426→  }
+   427→}
+   428→function page1IconPointerMove(id, e) {
+   429→  if (S.wiggle) {
+   430→    if (!S.drag || S.drag.id !== id) return;
+   431→    S.drag.x = e.clientX; S.drag.y = e.clientY;
+   432→    renderIconGhost(id, e.clientX, e.clientY);
+   433→    var order = S.gridOrder;
+   434→    var target = -1;
+   435→    for (var i = 0; i < order.length; i++) {
+   436→      var el = iconGridEl().querySelector('[data-icon="' + order[i] + '"] .icon-vis');
+   437→      if (!el) continue;
+   438→      var r = el.getBoundingClientRect();
+   439→      if (e.clientX >= r.left && e.clientX <= r.right) { target = i; break; }
+   440→    }
+   441→    var cur = order.indexOf(id);
+   442→    if (target >= 0 && target !== cur) {
+   443→      var next = order.slice();
+   444→      next.splice(cur, 1);
+   445→      next.splice(target, 0, id);
+   446→      S.gridOrder = next;
+   447→      renderIconsGrid();
+   448→    }
+   449→    return;
+   450→  }
+   451→  var p = S.press;
+   452→  if (p && p.id === id) {
+   453→    if (Math.hypot(e.clientX - p.startX, e.clientY - p.startY) > 10) cancelLongPress();
+   454→  }
+   455→}
+   456→function page1IconPointerUp(id) {
+   457→  cancelLongPress();
+   458→  if (S.drag) {
+   459→    lsSet(GRID_KEY, JSON.stringify(S.gridOrder));
+   460→    S.drag = null;
+   461→    ghost.hidden = true;
+   462→    buzz();
+   463→  }
+   464→}
+   465→function page1IconClick(id) {
+   466→  if (S.press && S.press.longFired) { S.press.longFired = false; return; }
+   467→  if (S.wiggle) return;
+   468→  var el = iconGridEl().querySelector('[data-icon="' + id + '"]');
+   469→  openApp(id, el);
+   470→}
+   471→$('#wiggle-done').addEventListener('click', function () {
+   472→  S.wiggle = false;
+   473→  lsSet(GRID_KEY, JSON.stringify(S.gridOrder));
+   474→  refreshWiggleUI();
+   475→});
+   476→function refreshWiggleUI() {
+   477→  $('#wiggle-done').hidden = !S.wiggle;
+   478→  renderIconsGrid();
+   479→}
+   480→
+   481→/* ---------- بروزرسانی زنده قیمت‌ها (پروکسی عمومی — تلاش نهاایی) ---------- */
+   482→var priceState = { mode: 'snapshot', lastTry: null, trying: false, okAt: null };
+   483→var PROXIES = [
+   484→  function (u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+   485→  function (u) { return 'https://corsproxy.io/?url=' + encodeURIComponent(u); },
+   486→  function (u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }
+   487→];
+   488→function fetchJSON(url, timeoutMs) {
+   489→  return new Promise(function (resolve, reject) {
+   490→    var ctrl = new AbortController();
+   491→    var t = setTimeout(function () { ctrl.abort(); reject(new Error('timeout')); }, timeoutMs || 9000);
+   492→    fetch(url, { signal: ctrl.signal })
+   493→      .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+   494→      .then(function (j) { clearTimeout(t); resolve(j); })
+   495→      .catch(function (err) { clearTimeout(t); reject(err); });
+   496→  });
+   497→}
+   498→function fetchYahooPrice(sym) {
+   499→  var u = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(sym) + '?range=1d&interval=1m';
+   500→  var i = 0;
+   501→  function attempt() {
+   502→    if (i >= PROXIES.length) return Promise.resolve(null);
+   503→    var p = PROXIES[i++];
+   504→    return fetchJSON(p(u), 9000).then(function (j) {
+   505→      var r = j && j.chart && j.chart.result && j.chart.result[0];
+   506→      if (!r || !r.meta || typeof r.meta.regularMarketPrice !== 'number') throw new Error('bad payload');
+   507→      var meta = r.meta;
+   508→      return { price: meta.regularMarketPrice, prev: (meta.chartPreviousClose != null ? meta.chartPreviousClose : meta.previousClose) || null };
+   509→    }).catch(function () { return attempt(); });
+   510→  }
+   511→  return attempt();
+   512→}
+   513→function refreshPrices() {
+   514→  if (priceState.trying) return Promise.resolve(false);
+   515→  priceState.trying = true;
+   516→  setPriceBusy(true);
+   517→  return Promise.all([fetchYahooPrice('GC=F'), fetchYahooPrice('^DJI')])
+   518→    .then(function (rs) {
+   519→      var ax = rs[0], ad = rs[1], ok = false;
+   520→      if (ax && ms.xau) {
+   521→        ms.xau.price = ax.price;
+   522→        if (ax.prev) { ms.xau.prevClose = ax.prev; ms.xau.changePct = (ax.price - ax.prev) / ax.prev * 100; }
+   523→        ok = true;
+   524→      }
+   525→      if (ad && ms.dji) {
+   526→        ms.dji.price = ad.price;
+   527→        if (ad.prev) { ms.dji.prevClose = ad.prev; ms.dji.changePct = (ad.price - ad.prev) / ad.prev * 100; }
+   528→        ok = true;
+   529→      }
+   530→      priceState.lastTry = new Date();
+   531→      priceState.trying = false;
+   532→      setPriceBusy(false);
+   533→      if (ok) {
+   534→        priceState.mode = 'live';
+   535→        priceState.okAt = new Date();
+   536→        updatePriceWidgets(true);
+   537→        updateStatusUI();
+   538→        if (S.app && S.app.id === 'structure' && S.appPhase === 'open') renderApp('structure', true);
+   539→      } else {
+   540→        priceState.mode = 'offline';
+   541→        updateStatusUI();
+   542→      }
+   543→      return ok;
+   544→    })
+   545→    .catch(function () { priceState.trying = false; setPriceBusy(false); priceState.mode = 'offline'; updateStatusUI(); return false; });
+   546→}
+   547→function restoreSnapshot() {
+   548→  try {
+   549→    var snap = JSON.parse(SNAP_RAW);
+   550→    news = snap.news; ms = snap.market;
+   551→    priceState.mode = 'snapshot';
+   552→    updatePriceWidgets(true);
+   553→    updateStatusUI();
+   554→    if (S.app && S.appPhase === 'open') renderApp(S.app.id, true);
+   555→  } catch (e) {}
+   556→}
+   557→var _autoPriceTimer = null;
+   558→function applyAutoPrice() {
+   559→  if (_autoPriceTimer) { clearInterval(_autoPriceTimer); _autoPriceTimer = null; }
+   560→  if (settings.autoPrice) {
+   561→    _autoPriceTimer = setInterval(function () {
+   562→      if (document.visibilityState === 'visible') refreshPrices();
+   563→    }, 15 * 60 * 1000);
+   564→  }
+   565→}
+   566→function setPriceBusy(busy) {
+   567→  var b1 = document.getElementById('cc-refresh-prices');
+   568→  if (b1) b1.disabled = busy;
+   569→  var spins = document.querySelectorAll('[data-price-spin]');
+   570→  for (var i = 0; i < spins.length; i++) spins[i].classList.toggle('spin', busy);
+   571→  updateStatusUI();
+   572→}
+   573→function priceModeLabel() {
+   574→  if (priceState.mode === 'live') return 'قیمت زنده';
+   575→  if (priceState.mode === 'offline') return 'بروزرسانی ناموفق';
+   576→  return 'اسنپ‌شات فایل';
+   577→}
+   578→

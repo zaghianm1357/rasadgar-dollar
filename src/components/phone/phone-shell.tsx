@@ -24,6 +24,7 @@ import {
   ChevronLeft,
   RefreshCw,
   DollarSign,
+  Briefcase,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { faTime } from "@/lib/tehran";
@@ -45,10 +46,11 @@ import { TradeSuggestion } from "@/components/dashboard/trade-suggestion";
 import { NewsApp } from "./apps/news-app";
 import { AboutApp } from "./apps/about-app";
 import { ChartApp } from "./apps/chart-app";
+import { TraderApp } from "./apps/trader-app";
 
 /* ---------- تعریف اپ‌ها ---------- */
 
-type AppId = "news" | "structure" | "suggestion" | "chart" | "about";
+type AppId = "news" | "structure" | "suggestion" | "chart" | "trader" | "about";
 
 const APPS: Record<
   AppId,
@@ -58,10 +60,11 @@ const APPS: Record<
   structure: { label: "ساختار بازار", icon: Activity, cls: "from-sky-500 to-indigo-700" },
   suggestion: { label: "پیشنهاد معامله", icon: Crosshair, cls: "from-violet-500 to-fuchsia-700" },
   chart: { label: "چارت تریدینگ‌ویو", icon: CandlestickChart, cls: "from-amber-500 to-orange-700" },
+  trader: { label: "دستیار معامله‌گر", icon: Briefcase, cls: "from-yellow-400 to-amber-700" },
   about: { label: "درباره", icon: Info, cls: "from-zinc-500 to-zinc-700" },
 };
 
-const DEFAULT_GRID_ORDER: AppId[] = ["news", "structure", "suggestion", "chart", "about"];
+const DEFAULT_GRID_ORDER: AppId[] = ["news", "structure", "suggestion", "chart", "trader", "about"];
 const GRID_ORDER_KEY = "home_grid_order_v1";
 const SHELL_HINT_KEY = "shell_hint_v1";
 const LONG_PRESS_MS = 450;
@@ -516,6 +519,7 @@ function Shell() {
     if (app.id === "news") return <NewsApp />;
     if (app.id === "about") return <AboutApp />;
     if (app.id === "chart") return <ChartApp />;
+    if (app.id === "trader") return <TraderApp />;
     if (app.id === "structure")
       return (
         <div className="p-4">
@@ -608,6 +612,22 @@ function Shell() {
         {/* صفحه ۱ — ویجت‌ها و آیکون‌ها */}
         <section className="no-scrollbar h-full w-full shrink-0 snap-center overflow-y-auto">
           <div className="flex min-h-full flex-col gap-3 px-4 pb-4 pt-3">
+            {/* سربرگ اصلی — لوگوی BIG TRADER */}
+            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2" data-testid="bt-header-logo">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-700 shadow-lg shadow-black/40">
+                  <Briefcase className="h-5 w-5 text-white" />
+                </span>
+                <div className="min-w-0 leading-tight">
+                  <p dir="ltr" className="truncate bg-gradient-to-l from-amber-200 via-amber-400 to-orange-400 bg-clip-text text-[17px] font-black tracking-wide text-transparent">
+                    BIG TRADER
+                  </p>
+                  <p className="truncate text-[9px] font-bold text-muted-foreground">دستیار هوشمند معامله‌گری · رصدگر دلار</p>
+                </div>
+              </div>
+              <span className="flex-none rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-300">پایش زنده</span>
+            </div>
+
             <TrendChangeBanner data={ms} />
 
             <div className="grid grid-cols-2 gap-2.5">
@@ -714,7 +734,7 @@ function Shell() {
           </button>
           <button
             type="button"
-            onClick={() => (ncOpen ? closeNC() : openNC())}
+            onClick={() => (ncOpen ? closeLayerUI("nc") : openNC())}
             onPointerDown={(e) => e.stopPropagation()}
             className="flex flex-col items-center"
             aria-label="مرکز اعلان‌ها"
@@ -725,7 +745,7 @@ function Shell() {
           </button>
           <button
             type="button"
-            onClick={() => (ccOpen ? closeCC() : openCC())}
+            onClick={() => (ccOpen ? closeLayerUI("cc") : openCC())}
             onPointerDown={(e) => e.stopPropagation()}
             className="flex flex-col items-center"
             aria-label="مرکز کنترل"
