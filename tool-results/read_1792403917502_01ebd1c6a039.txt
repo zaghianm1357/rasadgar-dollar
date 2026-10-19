@@ -1,0 +1,817 @@
+     1→/**
+     2→ * موتور اسکلپ — پورت منطق اندیکاتور Pine «SBW + OB xATR + 4H Setup + Div»
+     3→ * (فایل ارسالی کاربر: SBW_OB_4H_Setup_Div_v6.pine) به TypeScript خالص.
+     4→ *
+     5→ * اجزا (با مقادیر پیش‌فرض خود اندیکاتور):
+     6→ *  ۱) سوئینگ‌ها (پیوت ۵ کندلی) و موج شکست (Swing Break Wave) نرمال‌شده با ATR
+     7→ *  ۲) اوردر بلاک‌ها با فیلتر FVG (جابه‌جایی پرقدرت) و قاعده Mitigation با Close
+     8→ *  ۳) ستاپ ۴ساعته: برخورد به سقف/کف کندل بسته‌شدهٔ ۴ساعته → شکست ساختار (پیوت ۳ کندلی)
+     9→ *     → بازگشت به ناحیهٔ شکست (Retest) → تأیید الگوی کندلی (انگالف یا دوجی+کی‌بار)
+    10→ *  ۴) واگرایی چندابزاری (RSI/MACD/Stoch/CCI/MFI — توافق حداقل ۳ از ۵)
+    11→ *
+    12→ * خروجی: سیگنال‌ها + وضعیت ستاپ + سطوح مهم — فقط اطلاع‌رسانی محاسبه‌شده از داده،
+    13→ * نه سیگنال قطعی و نه توصیه معاملاتی.
+    14→ */
+    15→
+    16→export interface ScalpBar {
+    17→  t: number; // ثانیهٔ یونیکس
+    18→  o: number;
+    19→  h: number;
+    20→  l: number;
+    21→  c: number;
+    22→}
+    23→
+    24→/* ---------- پارامترها (مطابق ورودی‌های پیش‌فرض اندیکاتور) ---------- */
+    25→const SWING_LEN = 5; // Pivot Length (Left/Right) برای سوئینگ/موج
+    26→const PIVOT_LEN = 3; // طول پیوت ۱دقیقه‌ای → پیوت تایم‌فریم ورود برای شکست ساختار
+    27→const RETR_PCT = 23; // درصد اصلاح پایان موج
+    28→const ATR_LEN = 14;
+    29→const OB_LOOK = 20; // جستجوی کندل OB
+    30→const OB_FVG_REQ = true; // الزام FVG پس از OB
+    31→const OB_MAX_ZONES = 12; // حداکثر زون در هر سمت
+    32→const DOJI_BODY_PCT = 10; // حداکثر بدنهٔ دوجی (٪ دامنه)
+    33→const KEYBAR_BODY_PCT = 70; // حداقل بدنهٔ کی‌بار (٪ دامنه)
+    34→const KEYBAR_ATR_MULT = 1; // حداقل بدنهٔ کی‌بار برابر ATR
+    35→const H4_SEC = 4 * 3600;
+    36→/** سیگنال تا این تعداد کندلِ بسته‌شدهٔ آخر «تازه» محسوب می‌شود */
+    37→export const SCALP_FRESH_BARS = 3;
+    38→
+    39→export interface ScalpZone {
+    40→  side: "supply" | "demand";
+    41→  top: number;
+    42→  bot: number;
+    43→  live: boolean;
+    44→  createdIdx: number;
+    45→  tappedIdx: number | null;
+    46→  fadedIdx: number | null;
+    47→}
+    48→
+    49→export interface ScalpSignal {
+    50→  side: "buy" | "sell";
+    51→  kind: "setup4h" | "ob-tap";
+    52→  idx: number;
+    53→  t: number;
+    54→  price: number;
+    55→  zoneLo: number;
+    56→  zoneHi: number;
+    57→  obConfluence: boolean;
+    58→  patternFa: string;
+    59→}
+    60→
+    61→export interface ScalpDivergence {
+    62→  recentBull: boolean;
+    63→  recentBear: boolean;
+    64→  lastSide: "bull" | "bear" | null;
+    65→  lastVotes: number | null;
+    66→  lastHidden: boolean;
+    67→  lastBarsAgo: number | null;
+    68→  noteFa: string;
+    69→}
+    70→
+    71→export interface ScalpLevel {
+    72→  label: string;
+    73→  value: number;
+    74→  kind: "resistance" | "support" | "zone";
+    75→  zoneLo?: number;
+    76→  zoneHi?: number;
+    77→}
+    78→
+    79→export interface ScalpSuggestion {
+    80→  side: "buy" | "sell";
+    81→  entryLo: number;
+    82→  entryHi: number;
+    83→  sl: number;
+    84→  tp1: number;
+    85→  tp2: number;
+    86→  kind: "setup4h" | "ob-tap";
+    87→  reasonFa: string;
+    88→  signalBarsAgo: number;
+    89→}
+    90→
+    91→export interface ScalpResult {
+    92→  ok: true;
+    93→  bars: number;
+    94→  lastClose: number;
+    95→  lastT: number;
+    96→  atr: number | null;
+    97→  atrPct: number | null;
+    98→  /** سقف/کف آخرین کندل بسته‌شدهٔ ۴ساعته */
+    99→  h4High: number | null;
+   100→  h4Low: number | null;
+   101→  swingHigh: number | null;
+   102→  swingLow: number | null;
+   103→  swingHighBroken: boolean;
+   104→  swingLowBroken: boolean;
+   105→  /** وضعیت ستاپ ۴ساعته */
+   106→  setup: {
+   107→    sell: "armed" | "retest" | "idle";
+   108→    buy: "armed" | "retest" | "idle";
+   109→    sellZone: { lo: number; hi: number } | null;
+   110→    buyZone: { lo: number; hi: number } | null;
+   111→    /** true = دادهٔ ۴ساعته کافی نبود و ستاپ محاسبه نشد */
+   112→    unavailable: boolean;
+   113→  };
+   114→  wave: {
+   115→    active: "bear" | "bull" | null;
+   116→    nAtr: number | null;
+   117→    retrLevel: number | null;
+   118→  };
+   119→  supplyZones: ScalpZone[]; // زون‌های فروش زنده (نزدیک‌ترین اول)
+   120→  demandZones: ScalpZone[];
+   121→  signals: ScalpSignal[]; // زمان‌مرتب — آخرین در انتها
+   122→  divergence: ScalpDivergence;
+   123→  suggestion: ScalpSuggestion | null;
+   124→  /** کیفیت بدنهٔ کندل‌ها پایین است (open=close) — خروجی‌های مبتنی بر بدنه نامعتبرند */
+   125→  degraded: boolean;
+   126→  notesFa: string[];
+   127→}
+   128→
+   129→/* ---------- ابزارهای پایه ---------- */
+   130→
+   131→function atrSeries(bars: ScalpBar[], len: number): number[] {
+   132→  const out: number[] = new Array(bars.length).fill(NaN);
+   133→  if (bars.length < len + 1) return out;
+   134→  const trs: number[] = [bars[0].h - bars[0].l];
+   135→  for (let i = 1; i < bars.length; i++) {
+   136→    trs.push(
+   137→      Math.max(
+   138→        bars[i].h - bars[i].l,
+   139→        Math.abs(bars[i].h - bars[i - 1].c),
+   140→        Math.abs(bars[i].l - bars[i - 1].c),
+   141→      ),
+   142→    );
+   143→  }
+   144→  let a = 0;
+   145→  for (let i = 0; i < len; i++) a += trs[i];
+   146→  out[len] = a / len;
+   147→  for (let i = len + 1; i < bars.length; i++) {
+   148→    a = (a * (len - 1) + trs[i]) / len;
+   149→    out[i] = a;
+   150→  }
+   151→  return out;
+   152→}
+   153→
+   154→function rma(values: number[], len: number): number[] {
+   155→  const out: number[] = new Array(values.length).fill(NaN);
+   156→  let sum = 0;
+   157→  let prev = NaN;
+   158→  for (let i = 0; i < values.length; i++) {
+   159→    if (i < len) {
+   160→      sum += values[i];
+   161→      if (i === len - 1) {
+   162→        prev = sum / len;
+   163→        out[i] = prev;
+   164→      }
+   165→    } else {
+   166→      prev = (prev * (len - 1) + values[i]) / len;
+   167→      out[i] = prev;
+   168→    }
+   169→  }
+   170→  return out;
+   171→}
+   172→
+   173→function rsiSeries(c: number[], len = 14): number[] {
+   174→  const ch: number[] = [0];
+   175→  for (let i = 1; i < c.length; i++) ch.push(c[i] - c[i - 1]);
+   176→  const gains = ch.map((d) => (d > 0 ? d : 0));
+   177→  const losses = ch.map((d) => (d < 0 ? -d : 0));
+   178→  const ag = rma(gains, len);
+   179→  const al = rma(losses, len);
+   180→  const out: number[] = c.map(() => NaN);
+   181→  for (let i = 0; i < c.length; i++) {
+   182→    if (isNaN(ag[i]) || isNaN(al[i])) continue;
+   183→    out[i] = al[i] === 0 ? (ag[i] === 0 ? 50 : 100) : 100 - 100 / (1 + ag[i] / al[i]);
+   184→  }
+   185→  return out;
+   186→}
+   187→
+   188→function macdHistSeries(c: number[], fast = 12, slow = 26, sig = 9): number[] {
+   189→  const ema = (len: number): number[] => {
+   190→    const k = 2 / (len + 1);
+   191→    const out: number[] = [];
+   192→    let e = c[0];
+   193→    for (let i = 0; i < c.length; i++) {
+   194→      e = i === 0 ? c[0] : c[i] * k + e * (1 - k);
+   195→      out.push(e);
+   196→    }
+   197→    return out;
+   198→  };
+   199→  const f = ema(fast);
+   200→  const s = ema(slow);
+   201→  const line = f.map((v, i) => v - s[i]);
+   202→  const k = 2 / (sig + 1);
+   203→  let se = line[0];
+   204→  return line.map((v, i) => {
+   205→    se = i === 0 ? v : v * k + se * (1 - k);
+   206→    return v - se;
+   207→  });
+   208→}
+   209→
+   210→function stochSeries(bars: ScalpBar[], len = 14): number[] {
+   211→  const out: number[] = bars.map(() => NaN);
+   212→  for (let i = len - 1; i < bars.length; i++) {
+   213→    let hh = -Infinity;
+   214→    let ll = Infinity;
+   215→    for (let j = i - len + 1; j <= i; j++) {
+   216→      if (bars[j].h > hh) hh = bars[j].h;
+   217→      if (bars[j].l < ll) ll = bars[j].l;
+   218→    }
+   219→    out[i] = hh === ll ? 50 : ((bars[i].c - ll) / (hh - ll)) * 100;
+   220→  }
+   221→  return out;
+   222→}
+   223→
+   224→function cciSeries(bars: ScalpBar[], len = 20): number[] {
+   225→  const tp = bars.map((b) => (b.h + b.l + b.c) / 3);
+   226→  const out: number[] = bars.map(() => NaN);
+   227→  for (let i = len - 1; i < bars.length; i++) {
+   228→    let mean = 0;
+   229→    for (let j = i - len + 1; j <= i; j++) mean += tp[j];
+   230→    mean /= len;
+   231→    let dev = 0;
+   232→    for (let j = i - len + 1; j <= i; j++) dev += Math.abs(tp[j] - mean);
+   233→    dev /= len;
+   234→    out[i] = dev === 0 ? 0 : (tp[i] - mean) / (0.015 * dev);
+   235→  }
+   236→  return out;
+   237→}
+   238→
+   239→function mfiSeries(bars: ScalpBar[], len = 14): number[] {
+   240→  const tp = bars.map((b) => (b.h + b.l + b.c) / 3);
+   241→  const out: number[] = bars.map(() => NaN);
+   242→  for (let i = len; i < bars.length; i++) {
+   243→    let pos = 0;
+   244→    let neg = 0;
+   245→    for (let j = i - len + 1; j <= i; j++) {
+   246→      const flow = tp[j] * bars[j].c;
+   247→      if (tp[j] > tp[j - 1]) pos += flow;
+   248→      else if (tp[j] < tp[j - 1]) neg += flow;
+   249→    }
+   250→    out[i] = neg === 0 ? 100 : pos === 0 ? 0 : 100 - 100 / (1 + pos / neg);
+   251→  }
+   252→  return out;
+   253→}
+   254→
+   255→interface Pivot {
+   256→  idx: number; // اندیس کندل پیوت
+   257→  price: number;
+   258→}
+   259→
+   260→/** پیوت‌های تأییدشده — پیوت در کندل idx وقتی تأیید می‌شود که idx+right پردازش شود */
+   261→function pivots(highs: number[], lows: number[], left: number, right: number) {
+   262→  const highsP: Pivot[] = [];
+   263→  const lowsP: Pivot[] = [];
+   264→  for (let i = left; i < highs.length - right; i++) {
+   265→    let isH = true;
+   266→    let isL = true;
+   267→    for (let k = 1; k <= left; k++) {
+   268→      if (highs[i - k] >= highs[i]) isH = false;
+   269→      if (lows[i - k] <= lows[i]) isL = false;
+   270→    }
+   271→    for (let k = 1; k <= right; k++) {
+   272→      if (highs[i + k] >= highs[i]) isH = false;
+   273→      if (lows[i + k] <= lows[i]) isL = false;
+   274→    }
+   275→    if (isH) highsP.push({ idx: i, price: highs[i] });
+   276→    if (isL) lowsP.push({ idx: i, price: lows[i] });
+   277→  }
+   278→  return { highsP, lowsP };
+   279→}
+   280→
+   281→function rp(v: number): number {
+   282→  if (!isFinite(v)) return 0;
+   283→  if (v >= 1000) return Math.round(v * 100) / 100;
+   284→  if (v >= 10) return Math.round(v * 100) / 100;
+   285→  return Math.round(v * 100000) / 100000;
+   286→}
+   287→
+   288→/* ---------- موتور اصلی ---------- */
+   289→
+   290→export function runScalpEngine(
+   291→  bars: ScalpBar[],
+   292→  h4bars: ScalpBar[] | null,
+   293→  tfLabel = "",
+   294→): ScalpResult {
+   295→  const notesFa: string[] = [];
+   296→  const n = bars.length;
+   297→  const high = bars.map((b) => b.h);
+   298→  const low = bars.map((b) => b.l);
+   299→  const close = bars.map((b) => b.c);
+   300→  const open = bars.map((b) => b.o);
+   301→  const atr = atrSeries(bars, ATR_LEN);
+   302→
+   303→  /* --- ۴ساعته: نگاشت bucket → سقف/کف کندلِ بسته‌شدهٔ قبلی --- */
+   304→  const h4Map = new Map<number, { h: number; l: number }>();
+   305→  if (h4bars && h4bars.length >= 2) {
+   306→    for (const b of h4bars) {
+   307→      const k = Math.floor(b.t / H4_SEC);
+   308→      const ex = h4Map.get(k);
+   309→      if (!ex) h4Map.set(k, { h: b.h, l: b.l });
+   310→      else {
+   311→        ex.h = Math.max(ex.h, b.h);
+   312→        ex.l = Math.min(ex.l, b.l);
+   313→      }
+   314→    }
+   315→  }
+   316→  const h4Ready = h4Map.size >= 2;
+   317→  if (!h4Ready) notesFa.push("دادهٔ کندل‌های ۴ساعته کافی نبود؛ ستاپ ۴ساعته محاسبه نشد و فقط موج/OB/واگرایی فعال‌اند.");
+   318→
+   319→  /* --- پیوت‌ها برای واگرایی و شکست ساختار --- */
+   320→  const { highsP: divPivotHighs, lowsP: divPivotLows } = pivots(high, low, 5, 5);
+   321→  const { highsP: stPivotHighs, lowsP: stPivotLows } = pivots(high, low, PIVOT_LEN, PIVOT_LEN);
+   322→  let stLowPtr = 0;
+   323→  let stHighPtr = 0;
+   324→  let lastPivotLow: number | null = null;
+   325→  let lastPivotHigh: number | null = null;
+   326→
+   327→  /* --- وضعیت سوئینگ/موج --- */
+   328→  let swingHigh: number | null = null;
+   329→  let swingLow: number | null = null;
+   330→  let hiBroken = false;
+   331→  let loBroken = false;
+   332→  let swPtr = 0;
+   333→  let slPtr = 0;
+   334→
+   335→  interface WaveState {
+   336→    active: boolean;
+   337→    brkLvl: number;
+   338→    atrAtBrk: number;
+   339→    extreme: number;
+   340→    startIdx: number;
+   341→  }
+   342→  let bear: WaveState | null = null;
+   343→  let bull: WaveState | null = null;
+   344→
+   345→  /* --- زون‌های OB --- */
+   346→  const supply: ScalpZone[] = [];
+   347→  const demand: ScalpZone[] = [];
+   348→  const overlap = (arr: ScalpZone[], t: number, b: number) =>
+   349→    arr.some((z) => z.live && z.top > b && t > z.bot);
+   350→
+   351→  /* --- ستاپ ۴ساعته --- */
+   352→  let curBucket: number | null = null;
+   353→  let sellArmed = false;
+   354→  let buyArmed = false;
+   355→  let sellWaiting = false;
+   356→  let buyWaiting = false;
+   357→  let sellZone: { lo: number; hi: number } | null = null;
+   358→  let buyZone: { lo: number; hi: number } | null = null;
+   359→  let h4HighNow: number | null = null;
+   360→  let h4LowNow: number | null = null;
+   361→
+   362→  /* --- واگرایی: سری‌های ابزارها --- */
+   363→  const rsi = rsiSeries(close, 14);
+   364→  const macdH = macdHistSeries(close);
+   365→  const stoch = stochSeries(bars, 14);
+   366→  const cci = cciSeries(bars, 20);
+   367→  const mfi = mfiSeries(bars, 14);
+   368→
+   369→  const signals: ScalpSignal[] = [];
+   370→  let lastDiv: { side: "bull" | "bear"; votes: number; hidden: boolean; idx: number } | null = null;
+   371→  let lastBullDivIdx: number | null = null;
+   372→  let lastBearDivIdx: number | null = null;
+   373→
+   374→  const oscVotesAt = (idx: number, prevIdx: number, dir: "bull" | "bear" | "hiddenBull" | "hiddenBear") => {
+   375→    const pairs: [number, number][] = [
+   376→      [rsi[idx], rsi[prevIdx]],
+   377→      [macdH[idx], macdH[prevIdx]],
+   378→      [stoch[idx], stoch[prevIdx]],
+   379→      [cci[idx], cci[prevIdx]],
+   380→      [mfi[idx], mfi[prevIdx]],
+   381→    ];
+   382→    let votes = 0;
+   383→    for (const [a, b] of pairs) {
+   384→      if (isNaN(a) || isNaN(b)) continue;
+   385→      if ((dir === "bull" && a > b) || (dir === "bear" && a < b) || (dir === "hiddenBull" && a < b) || (dir === "hiddenBear" && a > b)) votes++;
+   386→    }
+   387→    return votes;
+   388→  };
+   389→
+   390→  /* ================= حلقهٔ اصلی کندل‌ها ================= */
+   391→  for (let i = 0; i < n; i++) {
+   392→    const bar = bars[i];
+   393→    const atrVal = atr[i];
+   394→
+   395→    /* --- ۱) پیوت‌های سوئینگ (تأیید SWING_LEN کندل بعد) --- */
+   396→    while (swPtr < divPivotHighs.length && divPivotHighs[swPtr].idx + SWING_LEN <= i) {
+   397→      swingHigh = divPivotHighs[swPtr].price;
+   398→      hiBroken = false;
+   399→      swPtr++;
+   400→    }
+   401→    while (slPtr < divPivotLows.length && divPivotLows[slPtr].idx + SWING_LEN <= i) {
+   402→      swingLow = divPivotLows[slPtr].price;
+   403→      loBroken = false;
+   404→      slPtr++;
+   405→    }
+   406→
+   407→    /* --- ۲) پیوت‌های شکست ساختار (PIVOT_LEN) --- */
+   408→    while (stHighPtr < stPivotHighs.length && stPivotHighs[stHighPtr].idx + PIVOT_LEN <= i) {
+   409→      lastPivotHigh = stPivotHighs[stHighPtr].price;
+   410→      stHighPtr++;
+   411→    }
+   412→    while (stLowPtr < stPivotLows.length && stPivotLows[stLowPtr].idx + PIVOT_LEN <= i) {
+   413→      lastPivotLow = stPivotLows[stLowPtr].price;
+   414→      stLowPtr++;
+   415→    }
+   416→
+   417→    /* --- ۳) نگهداری زون‌های OB (لمس/تخفیف) — قبل از منطق شکست، مثل ترتیب Pine --- */
+   418→    let tapSellZone: ScalpZone | null = null;
+   419→    let tapBuyZone: ScalpZone | null = null;
+   420→    for (const z of supply) {
+   421→      if (!z.live) continue;
+   422→      const wickIn = bar.h >= z.bot;
+   423→      if (z.tappedIdx === null && wickIn) {
+   424→        z.tappedIdx = i;
+   425→        tapSellZone = z;
+   426→      }
+   427→      const mit = close[i] >= z.bot; // obMitRule = Close — مطابق Pine: بسته‌شدن بالای کفِ زون فروش
+   428→      if (mit) {
+   429→        z.live = false;
+   430→        z.fadedIdx = i;
+   431→      }
+   432→    }
+   433→    for (const z of demand) {
+   434→      if (!z.live) continue;
+   435→      const wickIn = bar.l <= z.top;
+   436→      if (z.tappedIdx === null && wickIn) {
+   437→        z.tappedIdx = i;
+   438→        tapBuyZone = z;
+   439→      }
+   440→      const mit = close[i] <= z.top; // بسته‌شدن زیر سقفِ زون خرید
+   441→      if (mit) {
+   442→        z.live = false;
+   443→        z.fadedIdx = i;
+   444→      }
+   445→    }
+   446→    if (tapSellZone)
+   447→      signals.push({ side: "sell", kind: "ob-tap", idx: i, t: bar.t, price: bar.c, zoneLo: tapSellZone.bot, zoneHi: tapSellZone.top, obConfluence: true, patternFa: "برخورد اول قیمت به زون فروش (OB)" });
+   448→    if (tapBuyZone)
+   449→      signals.push({ side: "buy", kind: "ob-tap", idx: i, t: bar.t, price: bar.c, zoneLo: tapBuyZone.bot, zoneHi: tapBuyZone.top, obConfluence: true, patternFa: "برخورد اول قیمت به زون خرید (OB)" });
+   450→
+   451→    /* --- ۴) ماشین حالت موج شکست --- */
+   452→    let loBreakAny = false;
+   453→    let hiBreakAny = false;
+   454→    if (swingLow !== null && !isNaN(atrVal) && atrVal > 0) {
+   455→      if (loBroken && close[i] > swingLow) loBroken = false;
+   456→      if (close[i] < swingLow) {
+   457→        if (!loBroken) {
+   458→          loBreakAny = true;
+   459→          if (!bear) bear = { active: true, brkLvl: swingLow, atrAtBrk: atrVal, extreme: bar.l, startIdx: i };
+   460→        }
+   461→        loBroken = true;
+   462→      }
+   463→    }
+   464→    if (swingHigh !== null && !isNaN(atrVal) && atrVal > 0) {
+   465→      if (hiBroken && close[i] < swingHigh) hiBroken = false;
+   466→      if (close[i] > swingHigh) {
+   467→        if (!hiBroken) {
+   468→          hiBreakAny = true;
+   469→          if (!bull) bull = { active: true, brkLvl: swingHigh, atrAtBrk: atrVal, extreme: bar.h, startIdx: i };
+   470→        }
+   471→        hiBroken = true;
+   472→      }
+   473→    }
+   474→    if (bear && bear.active) {
+   475→      if (bar.l < bear.extreme) bear.extreme = bar.l;
+   476→      if (i > bear.startIdx) {
+   477→        const rng = bear.brkLvl - bear.extreme;
+   478→        const retr = bear.extreme + rng * (RETR_PCT / 100);
+   479→        if (close[i] > retr) bear = null; // موج نزولی پایان یافت
+   480→      }
+   481→    }
+   482→    if (bull && bull.active) {
+   483→      if (bar.h > bull.extreme) bull.extreme = bar.h;
+   484→      if (i > bull.startIdx) {
+   485→        const rng = bull.extreme - bull.brkLvl;
+   486→        const retr = bull.extreme - rng * (RETR_PCT / 100);
+   487→        if (close[i] < retr) bull = null;
+   488→      }
+   489→    }
+   490→
+   491→    /* --- ۵) ساخت OB روی شکست تازهٔ سوئینگ --- */
+   492→    if (loBreakAny) {
+   493→      let oB: number | null = null;
+   494→      for (let k = 1; k <= OB_LOOK && i - k >= 0; k++) {
+   495→        if (close[i - k] > open[i - k]) {
+   496→          oB = k;
+   497→          break;
+   498→        }
+   499→      }
+   500→      if (oB !== null) {
+   501→        const zt = high[i - oB];
+   502→        const zb = low[i - oB];
+   503→        let fvg = !OB_FVG_REQ;
+   504→        if (OB_FVG_REQ && oB >= 2) {
+   505→          for (let a = 0; a <= oB - 2; a++) {
+   506→            if (low[i - a - 2] > high[i - a]) {
+   507→              fvg = true;
+   508→              break;
+   509→            }
+   510→          }
+   511→        }
+   512→        let left = false;
+   513→        let preMit = false;
+   514→        for (let k2 = oB - 1; k2 >= 0; k2--) {
+   515→          if (!left) {
+   516→            if (close[i - k2] < zb) left = true;
+   517→          } else if (close[i - k2] >= zb) {
+   518→            preMit = true;
+   519→            break;
+   520→          }
+   521→        }
+   522→        if (fvg && left && !preMit && !overlap(supply, zt, zb)) {
+   523→          supply.push({ side: "supply", top: zt, bot: zb, live: true, createdIdx: i, tappedIdx: null, fadedIdx: null });
+   524→          if (supply.length > OB_MAX_ZONES) supply.shift();
+   525→        }
+   526→      }
+   527→    }
+   528→    if (hiBreakAny) {
+   529→      let oU: number | null = null;
+   530→      for (let k = 1; k <= OB_LOOK && i - k >= 0; k++) {
+   531→        if (close[i - k] < open[i - k]) {
+   532→          oU = k;
+   533→          break;
+   534→        }
+   535→      }
+   536→      if (oU !== null) {
+   537→        const zt = high[i - oU];
+   538→        const zb = low[i - oU];
+   539→        let fvg = !OB_FVG_REQ;
+   540→        if (OB_FVG_REQ && oU >= 2) {
+   541→          for (let a = 0; a <= oU - 2; a++) {
+   542→            if (high[i - a - 2] < low[i - a]) {
+   543→              fvg = true;
+   544→              break;
+   545→            }
+   546→          }
+   547→        }
+   548→        let left = false;
+   549→        let preMit = false;
+   550→        for (let k2 = oU - 1; k2 >= 0; k2--) {
+   551→          if (!left) {
+   552→            if (close[i - k2] > zt) left = true;
+   553→          } else if (close[i - k2] <= zt) {
+   554→            preMit = true;
+   555→            break;
+   556→          }
+   557→        }
+   558→        if (fvg && left && !preMit && !overlap(demand, zt, zb)) {
+   559→          demand.push({ side: "demand", top: zt, bot: zb, live: true, createdIdx: i, tappedIdx: null, fadedIdx: null });
+   560→          if (demand.length > OB_MAX_ZONES) demand.shift();
+   561→        }
+   562→      }
+   563→    }
+   564→
+   565→    /* --- ۶) ستاپ ۴ساعته: برخورد ← شکست ← ریتست ← الگو --- */
+   566→    const ocBuy = demand.some((z) => z.live && bar.l <= z.top && bar.h >= z.bot);
+   567→    const ocSell = supply.some((z) => z.live && bar.l <= z.top && bar.h >= z.bot);
+   568→
+   569→    if (h4Ready) {
+   570→      const bucket = Math.floor(bar.t / H4_SEC);
+   571→      if (curBucket === null) curBucket = bucket;
+   572→      if (bucket !== curBucket) {
+   573→        // کندل ۴ساعتهٔ جدید → ریست وضعیت (مطابق new4h در Pine)
+   574→        curBucket = bucket;
+   575→        sellArmed = false;
+   576→        buyArmed = false;
+   577→        sellWaiting = false;
+   578→        buyWaiting = false;
+   579→        sellZone = null;
+   580→        buyZone = null;
+   581→      }
+   582→      // آخرین کندل ۴ساعتهٔ «بسته‌شده» قبل از bucket فعلی
+   583→      for (let b = bucket - 1; b >= bucket - 12; b--) {
+   584→        const e = h4Map.get(b);
+   585→        if (e) {
+   586→          h4HighNow = e.h;
+   587→          h4LowNow = e.l;
+   588→          break;
+   589→        }
+   590→      }
+   591→      /* مطابق Pine: وضعیت «مسلح» پیش از کندل فعلی ملاک شکست است (sellWasArmed) */
+   592→      const sellWasArmed = sellArmed;
+   593→      const buyWasArmed = buyArmed;
+   594→      if (h4HighNow !== null && bar.h >= h4HighNow) {
+   595→        sellArmed = true;
+   596→        sellWaiting = false;
+   597→        sellZone = null;
+   598→      }
+   599→      if (h4LowNow !== null && bar.l <= h4LowNow) {
+   600→        buyArmed = true;
+   601→        buyWaiting = false;
+   602→        buyZone = null;
+   603→      }
+   604→      // شکست ساختار با Close زیر آخرین پیوت کف (پیش از ریتست)
+   605→      if (sellWasArmed && !sellWaiting && lastPivotLow !== null && close[i] < lastPivotLow) {
+   606→        sellZone = { lo: bar.l, hi: bar.h };
+   607→        sellWaiting = true;
+   608→        sellArmed = false;
+   609→      }
+   610→      if (buyWasArmed && !buyWaiting && lastPivotHigh !== null && close[i] > lastPivotHigh) {
+   611→        buyZone = { lo: bar.l, hi: bar.h };
+   612→        buyWaiting = true;
+   613→        buyArmed = false;
+   614→      }
+   615→    }
+   616→
+   617→    /* --- ۷) الگوهای کندلی --- */
+   618→    const rng = bar.h - bar.l;
+   619→    const body = Math.abs(bar.c - bar.o);
+   620→    const prevBar = i > 0 ? bars[i - 1] : null;
+   621→    const isDojiPrev = prevBar
+   622→      ? prevBar.h - prevBar.l > 0 &&
+   623→        Math.abs(prevBar.c - prevBar.o) <= ((prevBar.h - prevBar.l) * DOJI_BODY_PCT) / 100
+   624→      : false;
+   625→    const bearEngulf = bar.c < bar.o && i > 0 && close[i - 1] > open[i - 1] && bar.o >= close[i - 1] && bar.c <= open[i - 1];
+   626→    const bullEngulf = bar.c > bar.o && i > 0 && close[i - 1] < open[i - 1] && bar.o <= close[i - 1] && bar.c >= open[i - 1];
+   627→    const isKeyBar = rng > 0 && body >= (rng * KEYBAR_BODY_PCT) / 100 && !isNaN(atrVal) && body >= atrVal * KEYBAR_ATR_MULT;
+   628→    const bullKey = isKeyBar && bar.c > bar.o;
+   629→    const bearKey = isKeyBar && bar.c < bar.o;
+   630→    const bullPattern = bullEngulf || (isDojiPrev && bullKey); // دوجیِ کندل قبل + کی‌بار فعلی (مطابق Pine)
+   631→    const bearPattern = bearEngulf || (isDojiPrev && bearKey);
+   632→    const bullPatternFa = bullEngulf ? "انگالف صعودی" : "دوجی + کی‌بار صعودی";
+   633→    const bearPatternFa = bearEngulf ? "انگالف نزولی" : "دوجی + کی‌بار نزولی";
+   634→
+   635→    /* --- ۸) ریتست + سیگنال ۴ساعته --- */
+   636→    if (sellWaiting && sellZone && bar.l <= sellZone.hi && bar.h >= sellZone.lo) {
+   637→      if (bearPattern) {
+   638→        signals.push({ side: "sell", kind: "setup4h", idx: i, t: bar.t, price: bar.c, zoneLo: sellZone.lo, zoneHi: sellZone.hi, obConfluence: ocSell, patternFa: bearPatternFa + (ocSell ? " + هم‌پوشانی OB" : "") });
+   639→        sellWaiting = false;
+   640→      }
+   641→    }
+   642→    if (buyWaiting && buyZone && bar.l <= buyZone.hi && bar.h >= buyZone.lo) {
+   643→      if (bullPattern) {
+   644→        signals.push({ side: "buy", kind: "setup4h", idx: i, t: bar.t, price: bar.c, zoneLo: buyZone.lo, zoneHi: buyZone.hi, obConfluence: ocBuy, patternFa: bullPatternFa + (ocBuy ? " + هم‌پوشانی OB" : "") });
+   645→        buyWaiting = false;
+   646→      }
+   647→    }
+   648→
+   649→    /* --- ۹) واگرایی (توافق ≥۳ از ۵ ابزار) --- */
+   650→    for (const p of divPivotHighs) {
+   651→      if (p.idx + 5 !== i) continue;
+   652→      const prev = [...divPivotHighs].reverse().find((q) => q.idx < p.idx);
+   653→      if (!prev) continue;
+   654→      const gap = p.idx - prev.idx;
+   655→      if (gap < 5 || gap > 60) continue;
+   656→      if (high[p.idx] > high[prev.idx]) {
+   657→        const votes = oscVotesAt(p.idx, prev.idx, "bear");
+   658→        if (votes >= 3) {
+   659→          lastDiv = { side: "bear", votes, hidden: false, idx: i };
+   660→          lastBearDivIdx = i;
+   661→        }
+   662→      } else {
+   663→        const votes = oscVotesAt(p.idx, prev.idx, "hiddenBear");
+   664→        if (votes >= 3) {
+   665→          lastDiv = { side: "bear", votes, hidden: true, idx: i };
+   666→          lastBearDivIdx = i;
+   667→        }
+   668→      }
+   669→    }
+   670→    for (const p of divPivotLows) {
+   671→      if (p.idx + 5 !== i) continue;
+   672→      const prev = [...divPivotLows].reverse().find((q) => q.idx < p.idx);
+   673→      if (!prev) continue;
+   674→      const gap = p.idx - prev.idx;
+   675→      if (gap < 5 || gap > 60) continue;
+   676→      if (low[p.idx] < low[prev.idx]) {
+   677→        const votes = oscVotesAt(p.idx, prev.idx, "bull");
+   678→        if (votes >= 3) {
+   679→          lastDiv = { side: "bull", votes, hidden: false, idx: i };
+   680→          lastBullDivIdx = i;
+   681→        }
+   682→      } else {
+   683→        const votes = oscVotesAt(p.idx, prev.idx, "hiddenBull");
+   684→        if (votes >= 3) {
+   685→          lastDiv = { side: "bull", votes, hidden: true, idx: i };
+   686→          lastBullDivIdx = i;
+   687→        }
+   688→      }
+   689→    }
+   690→  }
+   691→
+   692→  /* ================= جمع‌بندی خروجی ================= */
+   693→  const last = bars[n - 1];
+   694→  const lastAtr = isNaN(atr[n - 1]) ? null : atr[n - 1];
+   695→
+   696→  /* گیت کیفیت داده: کندل‌های بدون بدنه (open=close) → موتور OB/الگو/موج روی این داده معنا ندارد */
+   697→  const tail = bars.slice(-200);
+   698→  const bodyless = tail.filter((b) => b.o === b.c).length / tail.length;
+   699→  const degraded = bodyless > 0.6;
+   700→  if (degraded) {
+   701→    notesFa.push(
+   702→      `کیفیت داده: ${Math.round(bodyless * 100)}٪ از ۲۰۰ کندل اخیر این تایم‌فریم از منبع بدون بدنه‌اند (open=close) — زون‌های OB، الگوهای کندلی و موج روی این داده قابل محاسبه نیستند؛ تایم‌فریم بزرگ‌تر (۵ یا ۱۵ دقیقه) را انتخاب کنید.`,
+   703→    );
+   704→  }
+   705→  const lastDivIdx = lastDiv ? lastDiv.idx : null;
+   706→  const divRecent = lastDivIdx !== null && n - 1 - lastDivIdx <= 10;
+   707→
+   708→  const liveSupply = supply.filter((z) => z.live && z.bot > last.c).sort((a, b) => a.bot - b.bot).slice(0, 3);
+   709→  const liveDemand = demand.filter((z) => z.live && z.top < last.c).sort((a, b) => b.top - a.top).slice(0, 3);
+   710→
+   711→  let waveOut: ScalpResult["wave"] = { active: null, nAtr: null, retrLevel: null };
+   712→  if (bear && bear.active) {
+   713→    const rngB = bear.brkLvl - bear.extreme;
+   714→    waveOut = { active: "bear", nAtr: bear.atrAtBrk > 0 ? rngB / bear.atrAtBrk : null, retrLevel: bear.extreme + rngB * (RETR_PCT / 100) };
+   715→  } else if (bull && bull.active) {
+   716→    const rngU = bull.extreme - bull.brkLvl;
+   717→    waveOut = { active: "bull", nAtr: bull.atrAtBrk > 0 ? rngU / bull.atrAtBrk : null, retrLevel: bull.extreme - rngU * (RETR_PCT / 100) };
+   718→  }
+   719→
+   720→  /* پیشنهاد حدودی بر اساس تازه‌ترین سیگنال */
+   721→  let suggestion: ScalpSuggestion | null = null;
+   722→  const fresh = signals.filter((s) => n - 1 - s.idx <= SCALP_FRESH_BARS);
+   723→  const latest = fresh.length ? fresh[fresh.length - 1] : null;
+   724→  if (latest && lastAtr && lastAtr > 0) {
+   725→    const mid = (latest.zoneLo + latest.zoneHi) / 2;
+   726→    const slBuf = 0.5 * lastAtr;
+   727→    const risk = latest.side === "buy" ? mid - (latest.zoneLo - slBuf) : latest.zoneHi + slBuf - mid;
+   728→    if (risk > 0) {
+   729→      const pickTp = (dir: 1 | -1, minDist: number): number => {
+   730→        // نزدیک‌ترین سطح مخالف حداقل به فاصلهٔ minDist
+   731→        const cands: number[] = [];
+   732→        if (dir === 1) {
+   733→          for (const z of liveSupply) cands.push(z.bot, z.top);
+   734→          if (swingHigh !== null) cands.push(swingHigh);
+   735→          if (h4HighNow !== null) cands.push(h4HighNow);
+   736→          const ok = cands.filter((v) => v >= mid + minDist).sort((a, b) => a - b);
+   737→          return ok.length ? ok[0] : mid + 2 * minDist;
+   738→        }
+   739→        for (const z of liveDemand) cands.push(z.bot, z.top);
+   740→        if (swingLow !== null) cands.push(swingLow);
+   741→        if (h4LowNow !== null) cands.push(h4LowNow);
+   742→        const ok = cands.filter((v) => v <= mid - minDist).sort((a, b) => b - a);
+   743→        return ok.length ? ok[0] : mid - 2 * minDist;
+   744→      };
+   745→      const tp1 = pickTp(latest.side === "buy" ? 1 : -1, risk);
+   746→      const tp2 = pickTp(latest.side === "buy" ? 1 : -1, 2 * risk);
+   747→      suggestion = {
+   748→        side: latest.side,
+   749→        entryLo: rp(latest.zoneLo),
+   750→        entryHi: rp(latest.zoneHi),
+   751→        sl: rp(latest.side === "buy" ? latest.zoneLo - slBuf : latest.zoneHi + slBuf),
+   752→        tp1: rp(tp1),
+   753→        tp2: rp(tp2),
+   754→        kind: latest.kind,
+   755→        reasonFa:
+   756→          (latest.kind === "setup4h"
+   757→            ? `ستاپ ۴ساعته (${latest.patternFa}${latest.obConfluence ? " + هم‌پوشانی OB" : ""})`
+   758→            : latest.patternFa) +
+   759→          ` — سطوح و اهداف حدودی‌اند (ATR۱۴ تایم‌فریم: ${rp(lastAtr)})`,
+   760→        signalBarsAgo: n - 1 - latest.idx,
+   761→      };
+   762→    }
+   763→  }
+   764→
+   765→  let divNote = "واگرایی تازه‌ای در ۱۰ کندل اخیر ثبت نشده است.";
+   766→  if (lastDiv && divRecent) {
+   767→    const sideFa = lastDiv.side === "bull" ? "صعودی" : "نزولی";
+   768→    divNote = `واگرایی ${lastDiv.hidden ? "مخفی " : ""}${sideFa} با توافق ${lastDiv.votes}/۵ ابزار، ${n - 1 - lastDiv.idx} کندل پیش ثبت شده است.`;
+   769→  }
+   770→
+   771→  return {
+   772→    ok: true,
+   773→    bars: n,
+   774→    lastClose: last.c,
+   775→    lastT: last.t,
+   776→    atr: lastAtr,
+   777→    atrPct: lastAtr ? (lastAtr / last.c) * 100 : null,
+   778→    h4High: h4HighNow,
+   779→    h4Low: h4LowNow,
+   780→    swingHigh,
+   781→    swingLow,
+   782→    swingHighBroken: hiBroken,
+   783→    swingLowBroken: loBroken,
+   784→    setup: {
+   785→      sell: sellWaiting ? "retest" : sellArmed ? "armed" : "idle",
+   786→      buy: buyWaiting ? "retest" : buyArmed ? "armed" : "idle",
+   787→      sellZone,
+   788→      buyZone,
+   789→      unavailable: !h4Ready,
+   790→    },
+   791→    wave: waveOut,
+   792→    supplyZones: liveSupply.map((z) => ({ ...z, top: rp(z.top), bot: rp(z.bot) })),
+   793→    demandZones: liveDemand.map((z) => ({ ...z, top: rp(z.top), bot: rp(z.bot) })),
+   794→    signals: signals.slice(-6),
+   795→    divergence: {
+   796→      recentBull: divRecent && lastDiv?.side === "bull",
+   797→      recentBear: divRecent && lastDiv?.side === "bear",
+   798→      lastSide: lastDiv ? lastDiv.side : null,
+   799→      lastVotes: lastDiv ? lastDiv.votes : null,
+   800→      lastHidden: lastDiv ? lastDiv.hidden : false,
+   801→      lastBarsAgo: lastDivIdx !== null ? n - 1 - lastDivIdx : null,
+   802→      noteFa: divNote,
+   803→    },
+   804→    suggestion,
+   805→    degraded,
+   806→    notesFa,
+   807→  };
+   808→}
+   809→
+   810→/** برچسب فارسی وضعیت ستاپ برای کارت سیگنال */
+   811→export function setupStateFa(state: "armed" | "retest" | "idle", side: "buy" | "sell"): string {
+   812→  const sideFa = side === "buy" ? "خرید" : "فروش";
+   813→  if (state === "armed") return `ستاپ ${sideFa} مسلح شد — منتظر شکست ساختار`;
+   814→  if (state === "retest") return `شکست ثبت شد — در انتظار بازگشت به ناحیه و الگوی تأیید`;
+   815→  return "ستاپ فعالی در جریان نیست";
+   816→}
+   817→

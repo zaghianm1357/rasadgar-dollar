@@ -76,6 +76,8 @@ export interface ScalpLevel {
   zoneHi?: number;
 }
 
+export type SuggestionStatus = "active" | "far" | "tp1_reached" | "invalidated";
+
 export interface ScalpSuggestion {
   side: "buy" | "sell";
   entryLo: number;
@@ -86,6 +88,13 @@ export interface ScalpSuggestion {
   kind: "setup4h" | "ob-tap";
   reasonFa: string;
   signalBarsAgo: number;
+  /** وضعیت سیگنال نسبت به قیمت «فعلی» — نه لحظهٔ صدور */
+  status: SuggestionStatus;
+  statusFa: string;
+  /** فاصلهٔ فعلی قیمت تا نزدیک‌ترین لبهٔ ناحیه ورود (۰ = داخل ناحیه) */
+  dist: number;
+  /** فاصله بر حسب ATR تایم‌فریم */
+  distAtr: number | null;
 }
 
 export interface ScalpResult {
@@ -717,7 +726,7 @@ export function runScalpEngine(
     waveOut = { active: "bull", nAtr: bull.atrAtBrk > 0 ? rngU / bull.atrAtBrk : null, retrLevel: bull.extreme - rngU * (RETR_PCT / 100) };
   }
 
-  /* پیشنهاد حدودی بر اساس تازه‌ترین سیگنال */
+  /* پیشنهاد حدودی بر اساس تازه‌ترین سیگنال — با سنجش وضعیت نسبت به قیمت فعلی */
   let suggestion: ScalpSuggestion | null = null;
   const fresh = signals.filter((s) => n - 1 - s.idx <= SCALP_FRESH_BARS);
   const latest = fresh.length ? fresh[fresh.length - 1] : null;
@@ -744,11 +753,45 @@ export function runScalpEngine(
       };
       const tp1 = pickTp(latest.side === "buy" ? 1 : -1, risk);
       const tp2 = pickTp(latest.side === "buy" ? 1 : -1, 2 * risk);
+      const entryLo = latest.zoneLo;
+      const entryHi = latest.zoneHi;
+      const sl = latest.side === "buy" ? entryLo - slBuf : entryHi + slBuf;
+
+      /* وضعیت سیگنال نسبت به قیمتِ «فعلی» (نه لحظهٔ صدور) — پاسخ به «چرا قیمت دور از ناحیه است؟ */
+      const dist =
+        last.c >= entryLo && last.c <= entryHi
+          ? 0
+          : latest.side === "buy"
+            ? last.c < entryLo
+              ? entryLo - last.c
+              : last.c - entryHi
+            : last.c > entryHi
+              ? last.c - entryHi
+              : entryLo - last.c;
+      let status: SuggestionStatus = "active";
+      let statusFa = "فعال — قیمت در ناحیه یا نزدیک آن است";
+      if (latest.side === "buy" && last.c < sl) {
+        status = "invalidated";
+        statusFa = "ابطال شده — قیمت از حد ضرر عبور کرده است";
+      } else if (latest.side === "sell" && last.c > sl) {
+        status = "invalidated";
+        statusFa = "ابطال شده — قیمت از حد ضرر عبور کرده است";
+      } else if (latest.side === "buy" && last.c >= tp1) {
+        status = "tp1_reached";
+        statusFa = "هدف اول لمس شده — برای ورود جدید به تأیید تازه نیاز است";
+      } else if (latest.side === "sell" && last.c <= tp1) {
+        status = "tp1_reached";
+        statusFa = "هدف اول لمس شده — برای ورود جدید به تأیید تازه نیاز است";
+      } else if (dist > 1.2 * lastAtr) {
+        status = "far";
+        statusFa = "قیمت فعلی دور از ناحیه است — سیگنال مال لحظهٔ صدور بود؛ اجرا فقط با بازگشت قیمت به ناحیه";
+      }
+
       suggestion = {
         side: latest.side,
-        entryLo: rp(latest.zoneLo),
-        entryHi: rp(latest.zoneHi),
-        sl: rp(latest.side === "buy" ? latest.zoneLo - slBuf : latest.zoneHi + slBuf),
+        entryLo: rp(entryLo),
+        entryHi: rp(entryHi),
+        sl: rp(sl),
         tp1: rp(tp1),
         tp2: rp(tp2),
         kind: latest.kind,
@@ -758,6 +801,10 @@ export function runScalpEngine(
             : latest.patternFa) +
           ` — سطوح و اهداف حدودی‌اند (ATR۱۴ تایم‌فریم: ${rp(lastAtr)})`,
         signalBarsAgo: n - 1 - latest.idx,
+        status,
+        statusFa,
+        dist: rp(dist),
+        distAtr: lastAtr > 0 ? Math.round((dist / lastAtr) * 100) / 100 : null,
       };
     }
   }

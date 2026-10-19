@@ -6,8 +6,8 @@
  * ================================================================ */
 
 var SCALP_SYMS = {
-  xau: { y: 'GC=F', label: 'طلا (اونس) — XAUUSD', mono: 'XAUUSD · GC=F' },
-  xag: { y: 'SI=F', label: 'نقره — XAGUSD', mono: 'XAGUSD · SI=F' },
+  xau: { y: 'GC=F', label: 'طلا (اونس) — XAUUSD', mono: 'XAUUSD', spot: 'XAU' },
+  xag: { y: 'SI=F', label: 'نقره — XAGUSD', mono: 'XAGUSD', spot: 'XAG' },
   eurusd: { y: 'EURUSD=X', label: 'یورو/دلار — EURUSD', mono: 'EURUSD' },
   dji: { y: '^DJI', label: 'داوجونز — DJI', mono: 'DJI · ^DJI' },
   btc: { y: 'BTC-USD', label: 'بیت‌کوین — BTC', mono: 'BTCUSDT · BTC-USD' }
@@ -379,10 +379,21 @@ function scalpRun(bars, h4bars) {
       }
       var tp1 = pickTp(latest.side === 'buy' ? 1 : -1, risk);
       var tp2 = pickTp(latest.side === 'buy' ? 1 : -1, 2 * risk);
+      /* وضعیت سیگنال نسبت به قیمتِ «فعلی» (نه لحظهٔ صدور) */
+      var eLo = latest.zoneLo, eHi = latest.zoneHi;
+      var slV = latest.side === 'buy' ? eLo - buf : eHi + buf;
+      var distV = (last.c >= eLo && last.c <= eHi) ? 0 :
+        (latest.side === 'buy' ? (last.c < eLo ? eLo - last.c : last.c - eHi) : (last.c > eHi ? last.c - eHi : eLo - last.c));
+      var stV = 'active', stFa = 'فعال — قیمت در ناحیه یا نزدیک آن است';
+      if (latest.side === 'buy' ? last.c < slV : last.c > slV) { stV = 'invalidated'; stFa = 'ابطال شده — قیمت از حد ضرر عبور کرده است'; }
+      else if (latest.side === 'buy' ? last.c >= tp1 : last.c <= tp1) { stV = 'tp1_reached'; stFa = 'هدف اول لمس شده — برای ورود جدید به تأیید تازه نیاز است'; }
+      else if (distV > 1.2 * lastAtr) { stV = 'far'; stFa = 'قیمت فعلی دور از ناحیه است — سیگنال مال لحظهٔ صدور بود؛ اجرا فقط با بازگشت قیمت به ناحیه'; }
       sg = {
-        side: latest.side, entryLo: latest.zoneLo, entryHi: latest.zoneHi,
-        sl: latest.side === 'buy' ? latest.zoneLo - buf : latest.zoneHi + buf,
+        side: latest.side, entryLo: eLo, entryHi: eHi,
+        sl: slV,
         tp1: tp1, tp2: tp2, kind: latest.kind, barsAgo: n - 1 - latest.idx,
+        status: stV, statusFa: stFa, dist: Math.round(distV * 100) / 100,
+        distAtr: lastAtr > 0 ? Math.round(distV / lastAtr * 100) / 100 : null,
         reason: (latest.kind === 'setup4h' ? 'ستاپ ۴ساعته (' + latest.pat + ')' : latest.pat) + ' — سطوح و اهداف حدودی‌اند (ATR۱۴ تایم‌فریم: ' + scPx(lastAtr) + ')'
       };
     }
@@ -447,6 +458,69 @@ function scAgg4h(bars) {
   return keys.map(function (k) { return map[k]; });
 }
 
+/* ---------- کالیبراسیون اسپات (gold-api) ----------
+ * کندل‌های Yahoo برای طلا/نقره از بازار آتی است و نسبت به اسپاتِ چارت کاربر
+ * اختلاف دائمی دارد (طلا معمولا حدود ۲۰ دلار). برای هم‌ترازی سطوح با اسپات،
+ * قیمت لحظه‌ای اسپات گرفته شده و همهٔ سطوح مطلق با همان اختلاف جابه‌جا می‌شوند.
+ * gold-api.com بدون کلید کار می‌کند و Access-Control-Allow-Origin: * دارد؛
+ * در صورت شکست، از پروکسی‌های عمومی هم تلاش می‌شود. */
+function scFetchSpot(sym) {
+  var u = 'https://api.gold-api.com/price/' + sym;
+  function parse(j) {
+    var p = j && typeof j.price === 'number' ? j.price : parseFloat(j && j.price);
+    return isFinite(p) && p > 0 ? p : null;
+  }
+  return fetchJSON(u, 6000).then(function (j) {
+    var p = parse(j);
+    if (p !== null) return p;
+    throw new Error('bad-spot');
+  }).catch(function () {
+    var i = 0;
+    function attempt() {
+      if (i >= PROXIES.length) return Promise.resolve(null);
+      return fetchJSON(PROXIES[i++](u), 8000).then(parse).catch(attempt);
+    }
+    return attempt();
+  });
+}
+function scShiftEngine(e, d) {
+  function sh(v) { return typeof v === 'number' && isFinite(v) ? Math.round((v + d) * 100) / 100 : v; }
+  function shZone(z) { return z ? { lo: sh(z.lo), hi: sh(z.hi) } : z; }
+  function shArr(arr) {
+    if (!Array.isArray(arr)) return arr;
+    return arr.map(function (o) {
+      if (typeof o.zoneLo === 'number') return Object.assign({}, o, { price: sh(o.price), zoneLo: sh(o.zoneLo), zoneHi: sh(o.zoneHi) });
+      if (typeof o.top === 'number') return Object.assign({}, o, { top: sh(o.top), bot: sh(o.bot) });
+      return Object.assign({}, o, { o: sh(o.o), h: sh(o.h), l: sh(o.l), c: sh(o.c) });
+    });
+  }
+  if (e.suggestion) {
+    e.suggestion.entryLo = sh(e.suggestion.entryLo);
+    e.suggestion.entryHi = sh(e.suggestion.entryHi);
+    e.suggestion.sl = sh(e.suggestion.sl);
+    e.suggestion.tp1 = sh(e.suggestion.tp1);
+    e.suggestion.tp2 = sh(e.suggestion.tp2);
+  }
+  e.lastClose = sh(e.lastClose);
+  e.h4High = sh(e.h4High);
+  e.h4Low = sh(e.h4Low);
+  e.swingHigh = sh(e.swingHigh);
+  e.swingLow = sh(e.swingLow);
+  if (e.setup) { e.setup.sellZone = shZone(e.setup.sellZone); e.setup.buyZone = shZone(e.setup.buyZone); }
+  if (e.wave) e.wave.retrLevel = sh(e.wave.retrLevel);
+  e.supplyZones = shArr(e.supplyZones);
+  e.demandZones = shArr(e.demandZones);
+  e.signals = shArr(e.signals);
+  if (e.suggestion && typeof e.lastClose === 'number') {
+    var sg = e.suggestion, buy = sg.side === 'buy';
+    var dist = (e.lastClose >= sg.entryLo && e.lastClose <= sg.entryHi) ? 0 :
+      buy ? (e.lastClose < sg.entryLo ? sg.entryLo - e.lastClose : e.lastClose - sg.entryHi)
+          : (e.lastClose > sg.entryHi ? e.lastClose - sg.entryHi : sg.entryLo - e.lastClose);
+    sg.dist = Math.round(dist * 100) / 100;
+    sg.distAtr = typeof e.atr === 'number' && e.atr > 0 ? Math.round(dist / e.atr * 100) / 100 : null;
+  }
+}
+
 /* ---------- محاسبه + کش ---------- */
 function scKey() { return S_SCALP.sym + '@' + S_SCALP.tf; }
 function scalpCompute(force) {
@@ -465,13 +539,34 @@ function scalpCompute(force) {
     try {
       rw = trRangeComp(bars.map(function (b) { return b.h; }), bars.map(function (b) { return b.l; }), bars.map(function (b) { return b.c; }));
     } catch (e) { rw = null; }
-    var payload = {
-      ok: true, sym: S_SCALP.sym, symbolLabel: symCfg.label, symbolMono: symCfg.mono,
-      tf: S_SCALP.tf, tfLabel: tfCfg.label, engine: engine, rangeWarn: rw, at: Date.now()
-    };
-    SCALP_CACHE[key] = { at: Date.now(), payload: payload };
-    SCALP_BUSY = false;
-    return payload;
+    /* کالیبراسیون اسپات: حذف اختلاف دائمی آتی↔اسپات از همهٔ سطوح */
+    var basisInfo = null;
+    var spotP = symCfg.spot ? scFetchSpot(symCfg.spot) : Promise.resolve(null);
+    return spotP.then(function (spot) {
+      if (spot !== null && isFinite(engine.lastClose)) {
+        var basis = Math.round((spot - engine.lastClose) * 100) / 100;
+        if (Math.abs(basis) > 0.01) scShiftEngine(engine, basis);
+        basisInfo = {
+          applied: Math.abs(basis) > 0.01, spot: spot, futures: engine.lastClose - (Math.abs(basis) > 0.01 ? basis : 0), basis: basis,
+          note: 'کندل‌های منبع از بازار آتی (Yahoo) است؛ همهٔ سطوح با اختلاف لحظه‌ای آتی↔اسپات (' + (basis > 0 ? '+' : '') + scPx(basis) + ' دلار) کالیبره شدند تا با چارت اسپات هم‌تراز باشند.'
+        };
+      } else {
+        basisInfo = { applied: false, futures: engine.lastClose, note: 'کالیبراسیون اسپات انجام نشد (سرویس قیمت لحظه‌ای در دسترس نبود) — سطوح مستقیماً از بازار آتی هستند و با چارت اسپات اختلاف دارند (تاریخچهٔ معمول: حدود ۲۰ دلار برای طلا).' };
+      }
+      /* گیت تازگی داده */
+      var tfSec = { '1m': 60, '5m': 300, '15m': 900 }[S_SCALP.tf] || 300;
+      var lastAge = Math.max(0, Math.floor(Date.now() / 1000) - engine.lastT);
+      var stale = lastAge > Math.max(3 * tfSec, 900);
+      var payload = {
+        ok: true, sym: S_SCALP.sym, symbolLabel: symCfg.label, symbolMono: symCfg.mono,
+        tf: S_SCALP.tf, tfLabel: tfCfg.label, engine: engine, rangeWarn: rw, basis: basisInfo,
+        freshness: { lastAgeSec: lastAge, stale: stale, note: stale ? 'آخرین کندل منبع ' + faDigits(Math.round(lastAge / 60)) + ' دقیقه پیش است — بازار ممکن است بسته باشد یا فید تأخیر/قطعی داشته باشد؛ تا بازشدن فید، سیگنال‌ها به‌روز نیستند.' : null },
+        feedNote: 'کندل‌های اینترادی Yahoo ~۱۰ دقیقه تأخیر دارند؛ سطوح حدودی‌اند.', at: Date.now()
+      };
+      SCALP_CACHE[key] = { at: Date.now(), payload: payload };
+      SCALP_BUSY = false;
+      return payload;
+    });
   }).catch(function (err) {
     SCALP_BUSY = false;
     throw err;
@@ -486,12 +581,18 @@ function scStateChip(label, st) {
 }
 function scBodyHTML(d, fixed) {
   var e = d.engine, h = '';
+  if (d.freshness && d.freshness.stale)
+    h += '<div class="bt-warn red"><b>⚠ دادهٔ منبع به‌روز نیست</b><span>' + d.freshness.note + '</span></div>';
+  if (d.basis)
+    h += '<div class="sc-basis' + (d.basis.applied ? ' ok' : '') + '"><b>' + (d.basis.applied ? '✓ سطوح با اسپات هم‌تراز شدند (اختلاف آتی↔اسپات لحظه‌ای: ' + scPx(d.basis.basis) + ' دلار)' : '⚠ کالیبراسیون اسپات انجام نشد — سطوح بر اساس بازار آتی‌اند و با چارت اسپات اختلاف دارند') + '</b><span>' + d.basis.note + '</span></div>';
   if (e.degraded) h += '<div class="bt-warn">⚠ کیفیت داده این تایم‌فریم برای موتور اسکلپ کافی نیست — ' + e.notes[0] + '</div>';
   var sg = e.suggestion;
   if (sg) {
+    var stCls = sg.status === 'active' ? 'ok' : sg.status === 'far' ? 'warn' : 'bad';
     h += '<div class="sc-sig ' + (sg.side === 'buy' ? 'b' : 's') + '">' +
       '<div class="sc-sig-top"><b>' + icon(sg.side === 'buy' ? 'trendUp' : 'trendDown', 15) + (sg.side === 'buy' ? 'پیشنهاد خرید اسکلپ' : 'پیشنهاد فروش اسکلپ') + '</b>' +
       '<span class="chip na">' + (sg.kind === 'setup4h' ? 'ستاپ ۴ساعته' : 'برخورد اوردر بلاک') + ' · ' + faDigits(sg.barsAgo) + ' کندل پیش</span></div>' +
+      '<div class="sc-status ' + stCls + '">وضعیت نسبت به قیمت فعلی: ' + sg.statusFa + ' — <span dir="ltr">Δ ' + scPx(sg.dist) + (sg.distAtr !== null && sg.distAtr !== undefined ? ' (' + scPx(sg.distAtr) + '×ATR)' : '') + '</span></div>' +
       '<div class="sc-grid">' +
       '<span>ناحیه ورود (حدودی): <b dir="ltr">' + scPx(sg.entryLo) + ' – ' + scPx(sg.entryHi) + '</b></span>' +
       '<span>حد ضرر: <b class="r" dir="ltr">' + scPx(sg.sl) + '</b></span>' +
@@ -533,8 +634,8 @@ function scBodyHTML(d, fixed) {
     }
     h += '</div>';
   }
-  h += '<p class="sc-foot">' + d.symbolLabel + ' · تایم‌فریم ' + d.tfLabel + ' · قیمت آخرین کندل بسته‌شده: <span dir="ltr">' + scPx(e.lastClose) + '</span> · ATR۱۴: <span dir="ltr">' + scPx(e.atr) + '</span> · آخرین محاسبه: ' + faTime(new Date(d.at)) +
-    '<br>پورت الگوریتمی اندیکاتور کاربر روی کندل‌های Yahoo Finance — سطوح حدودی‌اند و سیگنال قطعی یا توصیه خرید/فروش نیستند؛ تایم‌فریم‌های کوچک نویز بیشتری دارند.</p>';
+  h += '<p class="sc-foot">' + d.symbolLabel + ' · تایم‌فریم ' + d.tfLabel + ' · قیمت آخرین کندل بسته‌شده (کالیبره به اسپات): <span dir="ltr">' + scPx(e.lastClose) + '</span> · ATR۱۴: <span dir="ltr">' + scPx(e.atr) + '</span> · آخرین محاسبه: ' + faTime(new Date(d.at)) +
+    '<br>' + (d.feedNote || '') + ' پورت الگوریتمی اندیکاتور کاربر روی کندل‌های Yahoo Finance — سطوح حدودی‌اند و سیگنال قطعی یا توصیه خرید/فروش نیستند؛ تایم‌فریم‌های کوچک نویز بیشتری دارند.</p>';
   return h;
 }
 function scSelectorsHTML(fixed) {

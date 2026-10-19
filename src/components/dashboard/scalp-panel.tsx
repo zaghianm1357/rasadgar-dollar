@@ -24,6 +24,16 @@ export interface ScalpResponse {
   rangeWarning?: RangeWarning;
   generatedAtISO?: string;
   cached?: boolean;
+  basis?: {
+    applied: boolean;
+    spot?: number;
+    futures?: number;
+    basis?: number;
+    source?: string;
+    note?: string;
+  } | null;
+  freshness?: { lastAgeSec: number; stale: boolean; lastBarISO: string; note: string | null } | null;
+  feedNote?: string;
 }
 
 const SYMBOLS: { k: string; label: string }[] = [
@@ -205,6 +215,27 @@ export function ScalpPanel({
 
       {data?.ok && e && (
         <>
+          {/* هشدار تازگی داده — کندل آخر منبع قدیمی است؟ */}
+          {data.freshness?.stale && (
+            <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-2 py-1.5" data-testid="scalp-stale">
+              <p className="text-[10.5px] font-black text-amber-200">⚠ دادهٔ منبع به‌روز نیست</p>
+              <p className="mt-0.5 text-[9.5px] leading-4 text-foreground/85">{data.freshness.note}</p>
+            </div>
+          )}
+          {/* کالیبراسیون اسپات — هم‌ترازی سطوح با چارت اسپات کاربر */}
+          {data.basis && (
+            <div
+              className={`rounded-lg border px-2 py-1.5 ${data.basis.applied ? "border-sky-500/40 bg-sky-500/10" : "border-amber-500/50 bg-amber-500/10"}`}
+              data-testid="scalp-basis"
+            >
+              <p className={`text-[10px] font-black ${data.basis.applied ? "text-sky-200" : "text-amber-200"}`}>
+                {data.basis.applied
+                  ? `✓ سطوح با اسپات هم‌تراز شدند (اختلاف آتی↔اسپات لحظه‌ای: ${fmt(data.basis.basis, 2)} دلار)`
+                  : "⚠ کالیبراسیون اسپات انجام نشد — سطوح بر اساس بازار آتی‌اند و با چارت اسپات اختلاف دارند"}
+              </p>
+              <p className="mt-0.5 text-[9px] leading-4 text-foreground/80">{data.basis.note}</p>
+            </div>
+          )}
           {/* هشدار کیفیت داده */}
           {e.degraded && (
             <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-2 py-1.5" data-testid="scalp-degraded">
@@ -227,6 +258,22 @@ export function ScalpPanel({
                 </span>
                 <span className="rounded-full bg-black/30 px-1.5 py-px text-[9px] font-bold text-zinc-300">
                   {sg.kind === "setup4h" ? "ستاپ ۴ساعته" : "برخورد اوردر بلاک"} · {faDigits(sg.signalBarsAgo)} کندل پیش
+                </span>
+              </div>
+              {/* وضعیت سیگنال نسبت به قیمت فعلی + فاصلهٔ واقعی تا ناحیه */}
+              <div
+                className={`mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md border px-1.5 py-1 text-[9.5px] font-bold ${
+                  sg.status === "active"
+                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+                    : sg.status === "far"
+                      ? "border-amber-500/50 bg-amber-500/10 text-amber-200"
+                      : "border-rose-500/50 bg-rose-500/10 text-rose-200"
+                }`}
+                data-testid="scalp-status"
+              >
+                <span>وضعیت نسبت به قیمت فعلی: {sg.statusFa}</span>
+                <span dir="ltr">
+                  Δ {fmt(sg.dist, 2)}{sg.distAtr !== null && sg.distAtr !== undefined ? ` (${fmt(sg.distAtr, 2)}×ATR)` : ""}
                 </span>
               </div>
               <div className="mt-1.5 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10.5px] font-bold">
@@ -331,10 +378,10 @@ export function ScalpPanel({
           )}
 
           <p className="text-center text-[9px] leading-4 text-muted-foreground/70">
-            {data.symbolLabel} · تایم‌فریم {data.tfLabel} · قیمت آخرین کندل بسته‌شده: <span dir="ltr">{fmt(e.lastClose)}</span> · ATR۱۴: <span dir="ltr">{fmt(e.atr)}</span>
+            {data.symbolLabel} · تایم‌فریم {data.tfLabel} · قیمت آخرین کندل بسته‌شده (کالیبره به اسپات): <span dir="ltr">{fmt(e.lastClose)}</span> · ATR۱۴: <span dir="ltr">{fmt(e.atr)}</span>
             {at ? <> · آخرین محاسبه: {at}</> : null}
             <br />
-            پورت الگوریتمی اندیکاتور کاربر روی کندل‌های Yahoo Finance — سطوح حدودی‌اند و این خروجی سیگنال قطعی یا توصیه خرید/فروش نیست؛ تایم‌فریم‌های کوچک نویز بیشتری دارند.
+            {data.feedNote} پورت الگوریتمی اندیکاتور کاربر روی کندل‌های Yahoo Finance — سطوح حدودی‌اند و این خروجی سیگنال قطعی یا توصیه خرید/فروش نیست؛ تایم‌فریم‌های کوچک نویز بیشتری دارند.
           </p>
         </>
       )}

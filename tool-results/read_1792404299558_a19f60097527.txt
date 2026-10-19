@@ -1,0 +1,641 @@
+     1→/* ================= موتور اسکلپ (نسخه مستقل) =================
+     2→ * پورت JS اندیکاتور کاربر «SBW + OB xATR + 4H Setup + Div»:
+     3→ * موج شکست سوئینگ (نرمال ATR) + اوردر بلاک با فیلتر FVG + ستاپ ۴ساعته
+     4→ * (برخورد ← شکست ساختار ← ریتست ← الگوی کندلی) + واگرایی ۵ابزاری.
+     5→ * منبع داده: کندل‌های Yahoo Finance از پروکسی عمومی — خروجی اطلاع‌رسانی است.
+     6→ * ================================================================ */
+     7→
+     8→var SCALP_SYMS = {
+     9→  xau: { y: 'GC=F', label: 'طلا (اونس) — XAUUSD', mono: 'XAUUSD · GC=F' },
+    10→  xag: { y: 'SI=F', label: 'نقره — XAGUSD', mono: 'XAGUSD · SI=F' },
+    11→  eurusd: { y: 'EURUSD=X', label: 'یورو/دلار — EURUSD', mono: 'EURUSD' },
+    12→  dji: { y: '^DJI', label: 'داوجونز — DJI', mono: 'DJI · ^DJI' },
+    13→  btc: { y: 'BTC-USD', label: 'بیت‌کوین — BTC', mono: 'BTCUSDT · BTC-USD' }
+    14→};
+    15→var SCALP_TFS = {
+    16→  '1m': { i: '1m', r: '2d', label: '۱ دقیقه' },
+    17→  '5m': { i: '5m', r: '5d', label: '۵ دقیقه' },
+    18→  '15m': { i: '15m', r: '1mo', label: '۱۵ دقیقه' }
+    19→};
+    20→var SCALP_KEY = 'sd_scalp_v1';
+    21→var SCALP_FRESH = 3; /* سیگنال تا ۳ کندل بسته‌شدهٔ آخر «تازه» است */
+    22→
+    23→var S_SCALP = { sym: 'xau', tf: '5m' };
+    24→try {
+    25→  var _sc = JSON.parse(lsGet(SCALP_KEY) || 'null');
+    26→  if (_sc && SCALP_SYMS[_sc.sym] && SCALP_TFS[_sc.tf]) S_SCALP = { sym: _sc.sym, tf: _sc.tf };
+    27→} catch (e) {}
+    28→function scSave() { lsSet(SCALP_KEY, JSON.stringify(S_SCALP)); }
+    29→
+    30→var SCALP_CACHE = {}; /* key → { at, payload } */
+    31→var SCALP_BUSY = false;
+    32→
+    33→/* ---------- ابزارهای سری ---------- */
+    34→function scAtr(bars, len) {
+    35→  var out = [], i;
+    36→  for (i = 0; i < bars.length; i++) out.push(NaN);
+    37→  if (bars.length < len + 1) return out;
+    38→  var trs = [bars[0].h - bars[0].l];
+    39→  for (i = 1; i < bars.length; i++)
+    40→    trs.push(Math.max(bars[i].h - bars[i].l, Math.abs(bars[i].h - bars[i - 1].c), Math.abs(bars[i].l - bars[i - 1].c)));
+    41→  var a = 0;
+    42→  for (i = 0; i < len; i++) a += trs[i];
+    43→  out[len] = a / len;
+    44→  for (i = len + 1; i < bars.length; i++) { a = (a * (len - 1) + trs[i]) / len; out[i] = a; }
+    45→  return out;
+    46→}
+    47→function scRma(v, len) {
+    48→  var out = [], sum = 0, prev = NaN, i;
+    49→  for (i = 0; i < v.length; i++) {
+    50→    if (i < len) { sum += v[i]; if (i === len - 1) { prev = sum / len; out.push(prev); } else out.push(NaN); }
+    51→    else { prev = (prev * (len - 1) + v[i]) / len; out.push(prev); }
+    52→  }
+    53→  return out;
+    54→}
+    55→function scRsi(c, len) {
+    56→  len = len || 14;
+    57→  var ch = [0], i;
+    58→  for (i = 1; i < c.length; i++) ch.push(c[i] - c[i - 1]);
+    59→  var g = ch.map(function (d) { return d > 0 ? d : 0; });
+    60→  var l = ch.map(function (d) { return d < 0 ? -d : 0; });
+    61→  var ag = scRma(g, len), al = scRma(l, len), out = [];
+    62→  for (i = 0; i < c.length; i++) {
+    63→    if (isNaN(ag[i]) || isNaN(al[i])) { out.push(NaN); continue; }
+    64→    out.push(al[i] === 0 ? (ag[i] === 0 ? 50 : 100) : 100 - 100 / (1 + ag[i] / al[i]));
+    65→  }
+    66→  return out;
+    67→}
+    68→function scMacdHist(c) {
+    69→  function ema(len) {
+    70→    var k = 2 / (len + 1), e = c[0], out = [], i;
+    71→    for (i = 0; i < c.length; i++) { e = i === 0 ? c[0] : c[i] * k + e * (1 - k); out.push(e); }
+    72→    return out;
+    73→  }
+    74→  var f = ema(12), s = ema(26), line = [], i;
+    75→  for (i = 0; i < c.length; i++) line.push(f[i] - s[i]);
+    76→  var k = 2 / 10, se = line[0], hist = [];
+    77→  for (i = 0; i < line.length; i++) { se = i === 0 ? line[0] : line[i] * k + se * (1 - k); hist.push(line[i] - se); }
+    78→  return hist;
+    79→}
+    80→function scStoch(bars, len) {
+    81→  len = len || 14;
+    82→  var out = [], i, j;
+    83→  for (i = 0; i < bars.length; i++) out.push(NaN);
+    84→  for (i = len - 1; i < bars.length; i++) {
+    85→    var hh = -Infinity, ll = Infinity;
+    86→    for (j = i - len + 1; j <= i; j++) { if (bars[j].h > hh) hh = bars[j].h; if (bars[j].l < ll) ll = bars[j].l; }
+    87→    out[i] = hh === ll ? 50 : ((bars[i].c - ll) / (hh - ll)) * 100;
+    88→  }
+    89→  return out;
+    90→}
+    91→function scCci(bars, len) {
+    92→  len = len || 20;
+    93→  var tp = bars.map(function (b) { return (b.h + b.l + b.c) / 3; }), out = [], i, j;
+    94→  for (i = 0; i < bars.length; i++) out.push(NaN);
+    95→  for (i = len - 1; i < bars.length; i++) {
+    96→    var mean = 0;
+    97→    for (j = i - len + 1; j <= i; j++) mean += tp[j];
+    98→    mean /= len;
+    99→    var dev = 0;
+   100→    for (j = i - len + 1; j <= i; j++) dev += Math.abs(tp[j] - mean);
+   101→    dev /= len;
+   102→    out[i] = dev === 0 ? 0 : (tp[i] - mean) / (0.015 * dev);
+   103→  }
+   104→  return out;
+   105→}
+   106→function scMfi(bars, len) {
+   107→  len = len || 14;
+   108→  var tp = bars.map(function (b) { return (b.h + b.l + b.c) / 3; }), out = [], i, j;
+   109→  for (i = 0; i < bars.length; i++) out.push(NaN);
+   110→  for (i = len; i < bars.length; i++) {
+   111→    var pos = 0, neg = 0;
+   112→    for (j = i - len + 1; j <= i; j++) {
+   113→      var flow = tp[j] * bars[j].c;
+   114→      if (tp[j] > tp[j - 1]) pos += flow; else if (tp[j] < tp[j - 1]) neg += flow;
+   115→    }
+   116→    out[i] = neg === 0 ? 100 : pos === 0 ? 0 : 100 - 100 / (1 + pos / neg);
+   117→  }
+   118→  return out;
+   119→}
+   120→function scPivots(high, low, L, R) {
+   121→  var hs = [], ls = [], i, k, okH, okL;
+   122→  for (i = L; i < high.length - R; i++) {
+   123→    okH = true; okL = true;
+   124→    for (k = 1; k <= L; k++) { if (high[i - k] >= high[i]) okH = false; if (low[i - k] <= low[i]) okL = false; }
+   125→    for (k = 1; k <= R; k++) { if (high[i + k] >= high[i]) okH = false; if (low[i + k] <= low[i]) okL = false; }
+   126→    if (okH) hs.push({ idx: i, price: high[i] });
+   127→    if (okL) ls.push({ idx: i, price: low[i] });
+   128→  }
+   129→  return { hs: hs, ls: ls };
+   130→}
+   131→function scPx(v, d) {
+   132→  if (v === null || v === undefined || isNaN(v)) return '—';
+   133→  d = d === undefined ? 2 : d;
+   134→  return faDigits(Number(v).toLocaleString('en-US', { maximumFractionDigits: d })).replace(/,/g, '٬');
+   135→}
+   136→
+   137→/* ---------- موتور اصلی اسکلپ ---------- */
+   138→function scalpRun(bars, h4bars) {
+   139→  var SWING = 5, PIVOT = 3, RETR = 23, ATRL = 14, OBLOOK = 20, MAXZ = 12;
+   140→  var DOJI = 10, KEYBAR = 70, KEYATR = 1, H4 = 14400;
+   141→  var n = bars.length, i, k;
+   142→  var high = bars.map(function (b) { return b.h; }), low = bars.map(function (b) { return b.l; });
+   143→  var close = bars.map(function (b) { return b.c; }), open = bars.map(function (b) { return b.o; });
+   144→  var atr = scAtr(bars, ATRL);
+   145→  var notes = [];
+   146→
+   147→  /* نقشه ۴ساعته */
+   148→  var h4map = {};
+   149→  if (h4bars && h4bars.length >= 2) {
+   150→    for (i = 0; i < h4bars.length; i++) {
+   151→      var bk = Math.floor(h4bars[i].t / H4);
+   152→      if (!h4map[bk]) h4map[bk] = { h: h4bars[i].h, l: h4bars[i].l };
+   153→      else { h4map[bk].h = Math.max(h4map[bk].h, h4bars[i].h); h4map[bk].l = Math.min(h4map[bk].l, h4bars[i].l); }
+   154→    }
+   155→  }
+   156→  var h4count = Object.keys(h4map).length;
+   157→  var h4Ready = h4count >= 2;
+   158→  if (!h4Ready) notes.push('دادهٔ کندل‌های ۴ساعته کافی نبود؛ ستاپ ۴ساعته محاسبه نشد و فقط موج/OB/واگرایی فعال‌اند.');
+   159→
+   160→  var pivDiv = scPivots(high, low, 5, 5);
+   161→  var pivSt = scPivots(high, low, PIVOT, PIVOT);
+   162→  var stHiPtr = 0, stLoPtr = 0, lastPivotLow = null, lastPivotHigh = null;
+   163→  var swPtr = 0, slPtr = 0, swingHigh = null, swingLow = null, hiBroken = false, loBroken = false;
+   164→
+   165→  function Wave() { return null; }
+   166→  var bear = null, bull = null;
+   167→
+   168→  var supply = [], demand = [];
+   169→  function ov(arr, t, b) {
+   170→    for (var j = 0; j < arr.length; j++) if (arr[j].live && arr[j].top > b && t > arr[j].bot) return true;
+   171→    return false;
+   172→  }
+   173→
+   174→  var curBucket = null, sellArmed = false, buyArmed = false, sellWaiting = false, buyWaiting = false;
+   175→  var sellZone = null, buyZone = null, h4HighNow = null, h4LowNow = null;
+   176→
+   177→  var rsi = scRsi(close, 14), macdH = scMacdHist(close), stoch = scStoch(bars, 14), cci = scCci(bars, 20), mfi = scMfi(bars, 14);
+   178→  var signals = [], lastDiv = null, lastBullIdx = null, lastBearIdx = null;
+   179→
+   180→  function votesAt(idx, prev, dir) {
+   181→    var pairs = [[rsi[idx], rsi[prev]], [macdH[idx], macdH[prev]], [stoch[idx], stoch[prev]], [cci[idx], cci[prev]], [mfi[idx], mfi[prev]]];
+   182→    var v = 0;
+   183→    for (var j = 0; j < pairs.length; j++) {
+   184→      var a = pairs[j][0], b = pairs[j][1];
+   185→      if (isNaN(a) || isNaN(b)) continue;
+   186→      if ((dir === 'bull' && a > b) || (dir === 'bear' && a < b) || (dir === 'hBull' && a < b) || (dir === 'hBear' && a > b)) v++;
+   187→    }
+   188→    return v;
+   189→  }
+   190→
+   191→  for (i = 0; i < n; i++) {
+   192→    var bar = bars[i], atrVal = atr[i];
+   193→
+   194→    /* پیوت‌های سوئینگ */
+   195→    while (swPtr < pivDiv.hs.length && pivDiv.hs[swPtr].idx + SWING <= i) { swingHigh = pivDiv.hs[swPtr].price; hiBroken = false; swPtr++; }
+   196→    while (slPtr < pivDiv.ls.length && pivDiv.ls[slPtr].idx + SWING <= i) { swingLow = pivDiv.ls[slPtr].price; loBroken = false; slPtr++; }
+   197→    /* پیوت‌های شکست ساختار */
+   198→    while (stHiPtr < pivSt.hs.length && pivSt.hs[stHiPtr].idx + PIVOT <= i) { lastPivotHigh = pivSt.hs[stHiPtr].price; stHiPtr++; }
+   199→    while (stLoPtr < pivSt.ls.length && pivSt.ls[stLoPtr].idx + PIVOT <= i) { lastPivotLow = pivSt.ls[stLoPtr].price; stLoPtr++; }
+   200→
+   201→    /* نگهداری زون‌ها (لمس/تخفیف) */
+   202→    var tapSell = null, tapBuy = null;
+   203→    for (k = 0; k < supply.length; k++) {
+   204→      var zs = supply[k];
+   205→      if (!zs.live) continue;
+   206→      if (zs.tappedIdx === null && bar.h >= zs.bot) { zs.tappedIdx = i; tapSell = zs; }
+   207→      if (close[i] >= zs.bot) { zs.live = false; zs.fadedIdx = i; }
+   208→    }
+   209→    for (k = 0; k < demand.length; k++) {
+   210→      var zd = demand[k];
+   211→      if (!zd.live) continue;
+   212→      if (zd.tappedIdx === null && bar.l <= zd.top) { zd.tappedIdx = i; tapBuy = zd; }
+   213→      if (close[i] <= zd.top) { zd.live = false; zd.fadedIdx = i; }
+   214→    }
+   215→    if (tapSell) signals.push({ side: 'sell', kind: 'ob-tap', idx: i, t: bar.t, price: bar.c, zoneLo: tapSell.bot, zoneHi: tapSell.top, ob: true, pat: 'برخورد اول قیمت به زون فروش (OB)' });
+   216→    if (tapBuy) signals.push({ side: 'buy', kind: 'ob-tap', idx: i, t: bar.t, price: bar.c, zoneLo: tapBuy.bot, zoneHi: tapBuy.top, ob: true, pat: 'برخورد اول قیمت به زون خرید (OB)' });
+   217→
+   218→    /* موج شکست */
+   219→    var loBreakAny = false, hiBreakAny = false;
+   220→    if (swingLow !== null && !isNaN(atrVal) && atrVal > 0) {
+   221→      if (loBroken && close[i] > swingLow) loBroken = false;
+   222→      if (close[i] < swingLow) {
+   223→        if (!loBroken) { loBreakAny = true; if (!bear) bear = { active: true, brk: swingLow, atrBrk: atrVal, ext: bar.l, st: i }; }
+   224→        loBroken = true;
+   225→      }
+   226→    }
+   227→    if (swingHigh !== null && !isNaN(atrVal) && atrVal > 0) {
+   228→      if (hiBroken && close[i] < swingHigh) hiBroken = false;
+   229→      if (close[i] > swingHigh) {
+   230→        if (!hiBroken) { hiBreakAny = true; if (!bull) bull = { active: true, brk: swingHigh, atrBrk: atrVal, ext: bar.h, st: i }; }
+   231→        hiBroken = true;
+   232→      }
+   233→    }
+   234→    if (bear && bear.active) {
+   235→      if (bar.l < bear.ext) bear.ext = bar.l;
+   236→      if (i > bear.st) { var rngB = bear.brk - bear.ext; if (close[i] > bear.ext + rngB * (RETR / 100)) bear = null; }
+   237→    }
+   238→    if (bull && bull.active) {
+   239→      if (bar.h > bull.ext) bull.ext = bar.h;
+   240→      if (i > bull.st) { var rngU = bull.ext - bull.brk; if (close[i] < bull.ext - rngU * (RETR / 100)) bull = null; }
+   241→    }
+   242→
+   243→    /* ساخت OB */
+   244→    if (loBreakAny) {
+   245→      var oB = null;
+   246→      for (k = 1; k <= OBLOOK && i - k >= 0; k++) if (close[i - k] > open[i - k]) { oB = k; break; }
+   247→      if (oB !== null) {
+   248→        var ztB = high[i - oB], zbB = low[i - oB], fvgB = false;
+   249→        for (k = 0; k <= oB - 2; k++) if (low[i - k - 2] > high[i - k]) { fvgB = true; break; }
+   250→        var leftB = false, preB = false;
+   251→        for (k = oB - 1; k >= 0; k--) { if (!leftB) { if (close[i - k] < zbB) leftB = true; } else if (close[i - k] >= zbB) { preB = true; break; } }
+   252→        if (fvgB && leftB && !preB && !ov(supply, ztB, zbB)) {
+   253→          supply.push({ side: 'supply', top: ztB, bot: zbB, live: true, createdIdx: i, tappedIdx: null, fadedIdx: null });
+   254→          if (supply.length > MAXZ) supply.shift();
+   255→        }
+   256→      }
+   257→    }
+   258→    if (hiBreakAny) {
+   259→      var oU = null;
+   260→      for (k = 1; k <= OBLOOK && i - k >= 0; k++) if (close[i - k] < open[i - k]) { oU = k; break; }
+   261→      if (oU !== null) {
+   262→        var ztU = high[i - oU], zbU = low[i - oU], fvgU = false;
+   263→        for (k = 0; k <= oU - 2; k++) if (high[i - k - 2] < low[i - k]) { fvgU = true; break; }
+   264→        var leftU = false, preU = false;
+   265→        for (k = oU - 1; k >= 0; k--) { if (!leftU) { if (close[i - k] > ztU) leftU = true; } else if (close[i - k] <= ztU) { preU = true; break; } }
+   266→        if (fvgU && leftU && !preU && !ov(demand, ztU, zbU)) {
+   267→          demand.push({ side: 'demand', top: ztU, bot: zbU, live: true, createdIdx: i, tappedIdx: null, fadedIdx: null });
+   268→          if (demand.length > MAXZ) demand.shift();
+   269→        }
+   270→      }
+   271→    }
+   272→
+   273→    /* ستاپ ۴ساعته */
+   274→    var ocBuy = false, ocSell = false, j;
+   275→    for (k = 0; k < demand.length; k++) { var dzz = demand[k]; if (dzz.live && bar.l <= dzz.top && bar.h >= dzz.bot) { ocBuy = true; break; } }
+   276→    for (k = 0; k < supply.length; k++) { var szz = supply[k]; if (szz.live && bar.l <= szz.top && bar.h >= szz.bot) { ocSell = true; break; } }
+   277→
+   278→    if (h4Ready) {
+   279→      var bucket = Math.floor(bar.t / H4);
+   280→      if (curBucket === null) curBucket = bucket;
+   281→      if (bucket !== curBucket) {
+   282→        curBucket = bucket; sellArmed = false; buyArmed = false; sellWaiting = false; buyWaiting = false; sellZone = null; buyZone = null;
+   283→      }
+   284→      for (var b = bucket - 1; b >= bucket - 12; b--) {
+   285→        if (h4map[b]) { h4HighNow = h4map[b].h; h4LowNow = h4map[b].l; break; }
+   286→      }
+   287→      var sellWas = sellArmed, buyWas = buyArmed;
+   288→      if (h4HighNow !== null && bar.h >= h4HighNow) { sellArmed = true; sellWaiting = false; sellZone = null; }
+   289→      if (h4LowNow !== null && bar.l <= h4LowNow) { buyArmed = true; buyWaiting = false; buyZone = null; }
+   290→      if (sellWas && !sellWaiting && lastPivotLow !== null && close[i] < lastPivotLow) { sellZone = { lo: bar.l, hi: bar.h }; sellWaiting = true; sellArmed = false; }
+   291→      if (buyWas && !buyWaiting && lastPivotHigh !== null && close[i] > lastPivotHigh) { buyZone = { lo: bar.l, hi: bar.h }; buyWaiting = true; buyArmed = false; }
+   292→    }
+   293→
+   294→    /* الگوهای کندلی */
+   295→    var rng = bar.h - bar.l, body = Math.abs(bar.c - bar.o);
+   296→    var prevBar = i > 0 ? bars[i - 1] : null;
+   297→    var dojiPrev = prevBar ? (prevBar.h - prevBar.l > 0 && Math.abs(prevBar.c - prevBar.o) <= (prevBar.h - prevBar.l) * DOJI / 100) : false;
+   298→    var bearEng = bar.c < bar.o && i > 0 && close[i - 1] > open[i - 1] && bar.o >= close[i - 1] && bar.c <= open[i - 1];
+   299→    var bullEng = bar.c > bar.o && i > 0 && close[i - 1] < open[i - 1] && bar.o <= close[i - 1] && bar.c >= open[i - 1];
+   300→    var keyBar = rng > 0 && body >= rng * KEYBAR / 100 && !isNaN(atrVal) && body >= atrVal * KEYATR;
+   301→    var bullPat = bullEng || (dojiPrev && keyBar && bar.c > bar.o);
+   302→    var bearPat = bearEng || (dojiPrev && keyBar && bar.c < bar.o);
+   303→    var bullPatFa = bullEng ? 'انگالف صعودی' : 'دوجی + کی‌بار صعودی';
+   304→    var bearPatFa = bearEng ? 'انگالف نزولی' : 'دوجی + کی‌بار نزولی';
+   305→
+   306→    /* ریتست + سیگنال */
+   307→    if (sellWaiting && sellZone && bar.l <= sellZone.hi && bar.h >= sellZone.lo && bearPat) {
+   308→      signals.push({ side: 'sell', kind: 'setup4h', idx: i, t: bar.t, price: bar.c, zoneLo: sellZone.lo, zoneHi: sellZone.hi, ob: ocSell, pat: bearPatFa + (ocSell ? ' + هم‌پوشانی OB' : '') });
+   309→      sellWaiting = false;
+   310→    }
+   311→    if (buyWaiting && buyZone && bar.l <= buyZone.hi && bar.h >= buyZone.lo && bullPat) {
+   312→      signals.push({ side: 'buy', kind: 'setup4h', idx: i, t: bar.t, price: bar.c, zoneLo: buyZone.lo, zoneHi: buyZone.hi, ob: ocBuy, pat: bullPatFa + (ocBuy ? ' + هم‌پوشانی OB' : '') });
+   313→      buyWaiting = false;
+   314→    }
+   315→
+   316→    /* واگرایی */
+   317→    for (k = 0; k < pivDiv.hs.length; k++) {
+   318→      var p = pivDiv.hs[k];
+   319→      if (p.idx + 5 !== i) continue;
+   320→      var prevH = null;
+   321→      for (j = pivDiv.hs.length - 1; j >= 0; j--) if (pivDiv.hs[j].idx < p.idx) { prevH = pivDiv.hs[j]; break; }
+   322→      if (!prevH) continue;
+   323→      var gapH = p.idx - prevH.idx;
+   324→      if (gapH < 5 || gapH > 60) continue;
+   325→      if (high[p.idx] > high[prevH.idx]) { var vB = votesAt(p.idx, prevH.idx, 'bear'); if (vB >= 3) { lastDiv = { side: 'bear', votes: vB, hidden: false, idx: i }; lastBearIdx = i; } }
+   326→      else { var vHB = votesAt(p.idx, prevH.idx, 'hBear'); if (vHB >= 3) { lastDiv = { side: 'bear', votes: vHB, hidden: true, idx: i }; lastBearIdx = i; } }
+   327→    }
+   328→    for (k = 0; k < pivDiv.ls.length; k++) {
+   329→      var p2 = pivDiv.ls[k];
+   330→      if (p2.idx + 5 !== i) continue;
+   331→      var prevL = null;
+   332→      for (j = pivDiv.ls.length - 1; j >= 0; j--) if (pivDiv.ls[j].idx < p2.idx) { prevL = pivDiv.ls[j]; break; }
+   333→      if (!prevL) continue;
+   334→      var gapL = p2.idx - prevL.idx;
+   335→      if (gapL < 5 || gapL > 60) continue;
+   336→      if (low[p2.idx] < low[prevL.idx]) { var vBl = votesAt(p2.idx, prevL.idx, 'bull'); if (vBl >= 3) { lastDiv = { side: 'bull', votes: vBl, hidden: false, idx: i }; lastBullIdx = i; } }
+   337→      else { var vHl = votesAt(p2.idx, prevL.idx, 'hBull'); if (vHl >= 3) { lastDiv = { side: 'bull', votes: vHl, hidden: true, idx: i }; lastBullIdx = i; } }
+   338→    }
+   339→  }
+   340→
+   341→  /* جمع‌بندی */
+   342→  var last = bars[n - 1], lastAtr = isNaN(atr[n - 1]) ? null : atr[n - 1];
+   343→  var tail = bars.slice(-200), bodyless = 0;
+   344→  for (i = 0; i < tail.length; i++) if (tail[i].o === tail[i].c) bodyless++;
+   345→  var degraded = tail.length > 0 && bodyless / tail.length > 0.6;
+   346→  if (degraded) notes.push('کیفیت داده: ' + faDigits(Math.round(bodyless / tail.length * 100)) + '٪ از ۲۰۰ کندل اخیر این تایم‌فریم از منبع بدون بدنه‌اند (open=close) — زون‌های OB، الگوهای کندلی و موج روی این داده قابل محاسبه نیستند؛ تایم‌فریم بزرگ‌تر (۵ یا ۱۵ دقیقه) را انتخاب کنید.');
+   347→
+   348→  var lastDivIdx = lastDiv ? lastDiv.idx : null;
+   349→  var divRecent = lastDivIdx !== null && (n - 1 - lastDivIdx) <= 10;
+   350→  var liveSupply = supply.filter(function (z) { return z.live && z.bot > last.c; }).sort(function (a, b) { return a.bot - b.bot; }).slice(0, 3);
+   351→  var liveDemand = demand.filter(function (z) { return z.live && z.top < last.c; }).sort(function (a, b) { return b.top - a.top; }).slice(0, 3);
+   352→
+   353→  var waveOut = { active: null, nAtr: null, retrLevel: null };
+   354→  if (bear && bear.active) { var rB = bear.brk - bear.ext; waveOut = { active: 'bear', nAtr: bear.atrBrk > 0 ? rB / bear.atrBrk : null, retrLevel: bear.ext + rB * (RETR / 100) }; }
+   355→  else if (bull && bull.active) { var rU = bull.ext - bull.brk; waveOut = { active: 'bull', nAtr: bull.atrBrk > 0 ? rU / bull.atrBrk : null, retrLevel: bull.ext - rU * (RETR / 100) }; }
+   356→
+   357→  /* پیشنهاد حدودی */
+   358→  var sg = null;
+   359→  var fresh = signals.filter(function (s) { return (n - 1 - s.idx) <= SCALP_FRESH; });
+   360→  var latest = fresh.length ? fresh[fresh.length - 1] : null;
+   361→  if (latest && lastAtr && lastAtr > 0) {
+   362→    var mid = (latest.zoneLo + latest.zoneHi) / 2, buf = 0.5 * lastAtr;
+   363→    var risk = latest.side === 'buy' ? mid - (latest.zoneLo - buf) : (latest.zoneHi + buf) - mid;
+   364→    if (risk > 0) {
+   365→      function pickTp(dir, minDist) {
+   366→        var cands = [];
+   367→        if (dir === 1) {
+   368→          for (var q = 0; q < liveSupply.length; q++) { cands.push(liveSupply[q].bot); cands.push(liveSupply[q].top); }
+   369→          if (swingHigh !== null) cands.push(swingHigh);
+   370→          if (h4HighNow !== null) cands.push(h4HighNow);
+   371→          var okv = cands.filter(function (v) { return v >= mid + minDist; }).sort(function (a, b2) { return a - b2; });
+   372→          return okv.length ? okv[0] : mid + 2 * minDist;
+   373→        }
+   374→        for (var q2 = 0; q2 < liveDemand.length; q2++) { cands.push(liveDemand[q2].bot); cands.push(liveDemand[q2].top); }
+   375→        if (swingLow !== null) cands.push(swingLow);
+   376→        if (h4LowNow !== null) cands.push(h4LowNow);
+   377→        var okv2 = cands.filter(function (v) { return v <= mid - minDist; }).sort(function (a, b2) { return b2 - a; });
+   378→        return okv2.length ? okv2[0] : mid - 2 * minDist;
+   379→      }
+   380→      var tp1 = pickTp(latest.side === 'buy' ? 1 : -1, risk);
+   381→      var tp2 = pickTp(latest.side === 'buy' ? 1 : -1, 2 * risk);
+   382→      sg = {
+   383→        side: latest.side, entryLo: latest.zoneLo, entryHi: latest.zoneHi,
+   384→        sl: latest.side === 'buy' ? latest.zoneLo - buf : latest.zoneHi + buf,
+   385→        tp1: tp1, tp2: tp2, kind: latest.kind, barsAgo: n - 1 - latest.idx,
+   386→        reason: (latest.kind === 'setup4h' ? 'ستاپ ۴ساعته (' + latest.pat + ')' : latest.pat) + ' — سطوح و اهداف حدودی‌اند (ATR۱۴ تایم‌فریم: ' + scPx(lastAtr) + ')'
+   387→      };
+   388→    }
+   389→  }
+   390→
+   391→  var divNote = 'واگرایی تازه‌ای در ۱۰ کندل اخیر ثبت نشده است.';
+   392→  if (lastDiv && divRecent)
+   393→    divNote = 'واگرایی ' + (lastDiv.hidden ? 'مخفی ' : '') + (lastDiv.side === 'bull' ? 'صعودی' : 'نزولی') + ' با توافق ' + faDigits(lastDiv.votes) + '/۵ ابزار، ' + faDigits(n - 1 - lastDiv.idx) + ' کندل پیش ثبت شده است.';
+   394→
+   395→  return {
+   396→    bars: n, lastClose: last.c, lastT: last.t,
+   397→    atr: lastAtr, atrPct: lastAtr ? lastAtr / last.c * 100 : null,
+   398→    h4High: h4HighNow, h4Low: h4LowNow,
+   399→    swingHigh: swingHigh, swingLow: swingLow, swingHighBroken: hiBroken, swingLowBroken: loBroken,
+   400→    setup: {
+   401→      sell: sellWaiting ? 'retest' : sellArmed ? 'armed' : 'idle',
+   402→      buy: buyWaiting ? 'retest' : buyArmed ? 'armed' : 'idle',
+   403→      sellZone: sellZone, buyZone: buyZone, unavailable: !h4Ready
+   404→    },
+   405→    wave: waveOut,
+   406→    supplyZones: liveSupply, demandZones: liveDemand,
+   407→    signals: signals.slice(-6),
+   408→    divergence: {
+   409→      recentBull: !!(divRecent && lastDiv && lastDiv.side === 'bull'),
+   410→      recentBear: !!(divRecent && lastDiv && lastDiv.side === 'bear'),
+   411→      note: divNote
+   412→    },
+   413→    suggestion: sg, degraded: degraded, notes: notes
+   414→  };
+   415→}
+   416→
+   417→/* ---------- دریافت داده از Yahoo با پروکسی ---------- */
+   418→function scFetchBars(yahooSym, interval, range) {
+   419→  var u = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(yahooSym) + '?interval=' + interval + '&range=' + range + '&includePrePost=false';
+   420→  var i = 0;
+   421→  function attempt() {
+   422→    if (i >= PROXIES.length) return Promise.reject(new Error('proxy-fail'));
+   423→    var p = PROXIES[i++];
+   424→    return fetchJSON(p(u), 12000).then(function (j) {
+   425→      var r = j && j.chart && j.chart.result && j.chart.result[0];
+   426→      var q = r && r.indicators && r.indicators.quote && r.indicators.quote[0];
+   427→      if (!r || !q || !q.close || !r.timestamp) throw new Error('bad');
+   428→      var out = [], k;
+   429→      for (k = 0; k < q.close.length; k++) {
+   430→        if (q.close[k] == null || q.open[k] == null || q.high[k] == null || q.low[k] == null) continue;
+   431→        out.push({ t: r.timestamp[k], o: q.open[k], h: q.high[k], l: q.low[k], c: q.close[k] });
+   432→      }
+   433→      if (out.length < 80) throw new Error('thin');
+   434→      return out;
+   435→    }).catch(function () { return attempt(); });
+   436→  }
+   437→  return attempt();
+   438→}
+   439→function scAgg4h(bars) {
+   440→  var H = 14400, map = {}, keys = [], i;
+   441→  for (i = 0; i < bars.length; i++) {
+   442→    var b = Math.floor(bars[i].t / H) * H;
+   443→    if (map[b] === undefined) { map[b] = { t: b, o: bars[i].o, h: bars[i].h, l: bars[i].l, c: bars[i].c }; keys.push(b); }
+   444→    else { var e = map[b]; e.h = Math.max(e.h, bars[i].h); e.l = Math.min(e.l, bars[i].l); e.c = bars[i].c; }
+   445→  }
+   446→  keys.sort(function (a, b) { return a - b; });
+   447→  return keys.map(function (k) { return map[k]; });
+   448→}
+   449→
+   450→/* ---------- محاسبه + کش ---------- */
+   451→function scKey() { return S_SCALP.sym + '@' + S_SCALP.tf; }
+   452→function scalpCompute(force) {
+   453→  var key = scKey();
+   454→  var cached = SCALP_CACHE[key];
+   455→  if (!force && cached && Date.now() - cached.at < 60000) return Promise.resolve(cached.payload);
+   456→  var symCfg = SCALP_SYMS[S_SCALP.sym], tfCfg = SCALP_TFS[S_SCALP.tf];
+   457→  if (!symCfg || !tfCfg) return Promise.reject(new Error('cfg'));
+   458→  SCALP_BUSY = true;
+   459→  var h4p = null;
+   460→  return scFetchBars(symCfg.y, tfCfg.i, tfCfg.r).then(function (bars) {
+   461→    return scFetchBars(symCfg.y, '1h', '3mo').then(function (h1) { h4p = scAgg4h(h1); return bars; }).catch(function () { return bars; });
+   462→  }).then(function (bars) {
+   463→    var engine = scalpRun(bars, h4p);
+   464→    var rw = null;
+   465→    try {
+   466→      rw = trRangeComp(bars.map(function (b) { return b.h; }), bars.map(function (b) { return b.l; }), bars.map(function (b) { return b.c; }));
+   467→    } catch (e) { rw = null; }
+   468→    var payload = {
+   469→      ok: true, sym: S_SCALP.sym, symbolLabel: symCfg.label, symbolMono: symCfg.mono,
+   470→      tf: S_SCALP.tf, tfLabel: tfCfg.label, engine: engine, rangeWarn: rw, at: Date.now()
+   471→    };
+   472→    SCALP_CACHE[key] = { at: Date.now(), payload: payload };
+   473→    SCALP_BUSY = false;
+   474→    return payload;
+   475→  }).catch(function (err) {
+   476→    SCALP_BUSY = false;
+   477→    throw err;
+   478→  });
+   479→}
+   480→
+   481→/* ---------- رندر: باکس اسکلپ (داخل اپ پیشنهاد معامله) ---------- */
+   482→function scStateChip(label, st) {
+   483→  var cls = st === 'retest' ? 'mid' : st === 'armed' ? 'warn' : 'na';
+   484→  var txt = st === 'retest' ? 'در انتظار ریتست' : st === 'armed' ? 'مسلح' : 'غیرفعال';
+   485→  return '<span class="chip ' + cls + '">' + label + ': ' + txt + '</span>';
+   486→}
+   487→function scBodyHTML(d, fixed) {
+   488→  var e = d.engine, h = '';
+   489→  if (e.degraded) h += '<div class="bt-warn">⚠ کیفیت داده این تایم‌فریم برای موتور اسکلپ کافی نیست — ' + e.notes[0] + '</div>';
+   490→  var sg = e.suggestion;
+   491→  if (sg) {
+   492→    h += '<div class="sc-sig ' + (sg.side === 'buy' ? 'b' : 's') + '">' +
+   493→      '<div class="sc-sig-top"><b>' + icon(sg.side === 'buy' ? 'trendUp' : 'trendDown', 15) + (sg.side === 'buy' ? 'پیشنهاد خرید اسکلپ' : 'پیشنهاد فروش اسکلپ') + '</b>' +
+   494→      '<span class="chip na">' + (sg.kind === 'setup4h' ? 'ستاپ ۴ساعته' : 'برخورد اوردر بلاک') + ' · ' + faDigits(sg.barsAgo) + ' کندل پیش</span></div>' +
+   495→      '<div class="sc-grid">' +
+   496→      '<span>ناحیه ورود (حدودی): <b dir="ltr">' + scPx(sg.entryLo) + ' – ' + scPx(sg.entryHi) + '</b></span>' +
+   497→      '<span>حد ضرر: <b class="r" dir="ltr">' + scPx(sg.sl) + '</b></span>' +
+   498→      '<span>هدف ۱: <b class="g" dir="ltr">' + scPx(sg.tp1) + '</b></span>' +
+   499→      '<span>هدف ۲: <b class="g" dir="ltr">' + scPx(sg.tp2) + '</b></span></div>' +
+   500→      '<p class="m">' + sg.reason + '</p>' +
+   501→      '<p class="m amber">ابطال محاسباتی: بسته‌شدن کندل خارج و خلاف ناحیه ورود — اجرا، حجم و ریسک بر عهده خودتان است.</p></div>';
+   502→  } else {
+   503→    var stTxt = '';
+   504→    if (e.setup.sell === 'retest' && e.setup.sellZone) stTxt += '<p class="m">ناحیه ریتست فروش: <b dir="ltr">' + scPx(e.setup.sellZone.lo) + ' – ' + scPx(e.setup.sellZone.hi) + '</b> — بازگشت به ناحیه + الگوی نزولی = سیگنال فروش.</p>';
+   505→    if (e.setup.buy === 'retest' && e.setup.buyZone) stTxt += '<p class="m">ناحیه ریتست خرید: <b dir="ltr">' + scPx(e.setup.buyZone.lo) + ' – ' + scPx(e.setup.buyZone.hi) + '</b> — بازگشت به ناحیه + الگوی صعودی = سیگنال خرید.</p>';
+   506→    h += '<div class="sc-wait"><div class="sc-sig-top"><b>' + icon('hourglass', 14) + 'سیگنال تازه‌ای صادر نشده است</b></div>' +
+   507→      '<p class="m">اندیکاتور فعلاً ستاپ کامل (برخورد ← شکست ← ریتست ← الگو) یا برخورد تازه به زون OB ندارد؛ این وضعیت «عدم سیگنال» است، نه «عدم داده».</p>' +
+   508→      '<div class="sc-chips">' + scStateChip('ستاپ فروش', e.setup.sell) + scStateChip('ستاپ خرید', e.setup.buy) + '</div>' + stTxt + '</div>';
+   509→  }
+   510→  if (d.rangeWarn && d.rangeWarn.active)
+   511→    h += '<div class="bt-warn' + (d.rangeWarn.severity === 'tight' ? ' red' : '') + '"><b>' + (d.rangeWarn.severity === 'tight' ? 'هشدار جدی: رنج فشرده در تایم‌فریم اسکلپ' : 'هشدار: بازار رنج است') + '</b><span>' + d.rangeWarn.message + '</span></div>';
+   512→
+   513→  h += '<div class="sc-lv"><p class="t">' + icon('target', 13) + 'سطوح مهم (مقادیر حدودی)</p>' +
+   514→    '<div class="sc-grid">' +
+   515→    '<span>سقف کندل ۴ساعتهٔ بسته‌شده: <b class="r" dir="ltr">' + scPx(e.h4High) + '</b></span>' +
+   516→    '<span>کف کندل ۴ساعتهٔ بسته‌شده: <b class="g" dir="ltr">' + scPx(e.h4Low) + '</b></span>' +
+   517→    '<span>آخرین سقف سوئینگ: <b dir="ltr">' + scPx(e.swingHigh) + (e.swingHighBroken ? ' (شکسته)' : '') + '</b></span>' +
+   518→    '<span>آخرین کف سوئینگ: <b dir="ltr">' + scPx(e.swingLow) + (e.swingLowBroken ? ' (شکسته)' : '') + '</b></span></div>';
+   519→  var zi;
+   520→  for (zi = 0; zi < e.supplyZones.length; zi++) h += '<p class="z r">زون فروش OB (زنده): <b dir="ltr">' + scPx(e.supplyZones[zi].bot) + ' – ' + scPx(e.supplyZones[zi].top) + '</b></p>';
+   521→  for (zi = 0; zi < e.demandZones.length; zi++) h += '<p class="z g">زون خرید OB (زنده): <b dir="ltr">' + scPx(e.demandZones[zi].bot) + ' – ' + scPx(e.demandZones[zi].top) + '</b></p>';
+   522→  if (e.wave.active) h += '<p class="m">موج شکست ' + (e.wave.active === 'bear' ? 'نزولی' : 'صعودی') + ' فعال است (' + scPx(e.wave.nAtr) + ' برابر ATR) — سطح پایان موج (اصلاح ۲۳٪): <b dir="ltr">' + scPx(e.wave.retrLevel) + '</b></p>';
+   523→  if (e.setup.unavailable && e.notes[0]) h += '<p class="m amber">' + e.notes[0] + '</p>';
+   524→  h += '</div>';
+   525→  h += '<p class="sc-div">واگرایی چندابزاری (RSI/MACD/Stoch/CCI/MFI — توافق ۳ از ۵): ' + e.divergence.note + '</p>';
+   526→
+   527→  if (e.signals.length) {
+   528→    h += '<div class="sc-hist"><p class="t">سیگنال‌های اخیر موتور (۶ مورد آخر)</p>';
+   529→    var sigs = e.signals.slice().reverse();
+   530→    for (var si = 0; si < sigs.length; si++) {
+   531→      var s = sigs[si];
+   532→      h += '<div class="sc-hrow"><span class="' + (s.side === 'buy' ? 'g' : 'r') + '">' + (s.side === 'buy' ? 'خرید' : 'فروش') + ' — ' + (s.kind === 'setup4h' ? 'ستاپ ۴ساعته' : 'برخورد OB') + '</span><span dir="ltr">' + scPx(s.zoneLo) + ' – ' + scPx(s.zoneHi) + '</span><span>' + faTime(new Date(s.t * 1000)) + '</span></div>';
+   533→    }
+   534→    h += '</div>';
+   535→  }
+   536→  h += '<p class="sc-foot">' + d.symbolLabel + ' · تایم‌فریم ' + d.tfLabel + ' · قیمت آخرین کندل بسته‌شده: <span dir="ltr">' + scPx(e.lastClose) + '</span> · ATR۱۴: <span dir="ltr">' + scPx(e.atr) + '</span> · آخرین محاسبه: ' + faTime(new Date(d.at)) +
+   537→    '<br>پورت الگوریتمی اندیکاتور کاربر روی کندل‌های Yahoo Finance — سطوح حدودی‌اند و سیگنال قطعی یا توصیه خرید/فروش نیستند؛ تایم‌فریم‌های کوچک نویز بیشتری دارند.</p>';
+   538→  return h;
+   539→}
+   540→function scSelectorsHTML(fixed) {
+   541→  var h = '<div class="sc-sels">';
+   542→  if (!fixed) {
+   543→    h += '<div class="sc-chips" data-sc-syms>';
+   544→    Object.keys(SCALP_SYMS).forEach(function (k) {
+   545→      h += '<button type="button" class="cchip' + (S_SCALP.sym === k ? ' on' : '') + '" data-sc-sym="' + k + '">' + SCALP_SYMS[k].label.split(' — ')[0] + '</button>';
+   546→    });
+   547→    h += '</div>';
+   548→  }
+   549→  h += '<div class="sc-chips" data-sc-tfs>';
+   550→  Object.keys(SCALP_TFS).forEach(function (t) {
+   551→    h += '<button type="button" class="cchip' + (S_SCALP.tf === t ? ' on' : '') + '" data-sc-tf="' + t + '">' + SCALP_TFS[t].label + '</button>';
+   552→  });
+   553→  h += '</div>' +
+   554→    '<button type="button" class="iconbtn" data-sc-refresh aria-label="بروزرسانی اسکلپ"><span data-sc-spin style="display:inline-flex">' + icon('refresh', 14) + '</span></button>' +
+   555→    '</div>';
+   556→  return h;
+   557→}
+   558→function scContentHTML(fixed, d) {
+   559→  var head = '<div class="sc-head">' + icon('zap', 15) + '<b>' + (fixed ? 'سیگنال اسکلپ اونس — XAUUSD' : 'پیشنهاد اسکلپ') + '</b>' +
+   560→    '<span class="sc-sub">موتور اندیکاتور: SBW موج شکست · اوردر بلاک FVG · ستاپ ۴ساعته · واگرایی ۵ابزاری</span></div>' + scSelectorsHTML(fixed);
+   561→  if (!d) return head + '<div class="bt-state"><span class="spin">' + icon('refresh', 18) + '</span>در حال تحلیل کندل‌ها…<span class="s">موج، اوردر بلاک‌ها و ستاپ ۴ساعته روی داده Yahoo Finance</span></div>';
+   562→  return head + scBodyHTML(d, fixed);
+   563→}
+   564→function bindScalpControls(rerender) {
+   565→  var syms = appScroll.querySelectorAll('[data-sc-sym]');
+   566→  for (var i = 0; i < syms.length; i++) {
+   567→    (function (b) {
+   568→      b.addEventListener('click', function () {
+   569→        if (S_SCALP.sym === b.dataset.scSym) return;
+   570→        S_SCALP.sym = b.dataset.scSym; scSave();
+   571→        rerender(true);
+   572→      });
+   573→    })(syms[i]);
+   574→  }
+   575→  var tfs = appScroll.querySelectorAll('[data-sc-tf]');
+   576→  for (var j = 0; j < tfs.length; j++) {
+   577→    (function (b) {
+   578→      b.addEventListener('click', function () {
+   579→        if (S_SCALP.tf === b.dataset.scTf) return;
+   580→        S_SCALP.tf = b.dataset.scTf; scSave();
+   581→        rerender(true);
+   582→      });
+   583→    })(tfs[j]);
+   584→  }
+   585→  var rf = appScroll.querySelector('[data-sc-refresh]');
+   586→  if (rf) rf.addEventListener('click', function () { rerender(true); });
+   587→}
+   588→/* باکس داخل اپ پیشنهاد معامله */
+   589→function renderScalpBox(force) {
+   590→  var slot = appScroll.querySelector('[data-sc-slot]');
+   591→  if (!slot) return;
+   592→  if (SCALP_BUSY && !force) { slot.innerHTML = scContentHTML(false, null); return; }
+   593→  slot.innerHTML = '<div class="bt-state"><span class="spin">' + icon('refresh', 18) + '</span>در حال تحلیل کندل‌ها…</div>';
+   594→  scalpCompute(!!force).then(function (d) {
+   595→    var s2 = appScroll.querySelector('[data-sc-slot]');
+   596→    if (!s2) return;
+   597→    s2.innerHTML = scContentHTML(false, d);
+   598→    bindScalpControls(renderScalpBox);
+   599→  }).catch(function () {
+   600→    var s3 = appScroll.querySelector('[data-sc-slot]');
+   601→    if (!s3) return;
+   602→    s3.innerHTML = '<div class="bt-state"><span style="color:var(--red)">' + icon('wifi', 20) + '</span>دریافت کندل‌ها از Yahoo Finance ممکن نشد — اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.<button type="button" class="btn" data-sc-retry>' + icon('refresh', 13) + 'تلاش مجدد</button></div>';
+   603→    var rb = s3.querySelector('[data-sc-retry]');
+   604→    if (rb) rb.addEventListener('click', function () { renderScalpBox(true); });
+   605→  });
+   606→}
+   607→
+   608→/* ---------- اپ مستقل سیگنال اسکلپ اونس ---------- */
+   609→var SCALP_AUTO = null; /* تایمر بروزرسانی خودکار — فقط وقتی اپ باز است */
+   610→function scStopAuto() { if (SCALP_AUTO) { clearInterval(SCALP_AUTO); SCALP_AUTO = null; } }
+   611→function renderScalpApp() {
+   612→  scStopAuto();
+   613→  appScroll.innerHTML = '<div class="app-pad"><div data-sc-app>' + scContentHTML(true, null) + '</div>' +
+   614→    '<p class="ms-note">این پنجره مستقل، همان موتور اندیکاتور را روی نماد اونس (XAUUSD) اجرا می‌کند و هر ۶۰ ثانیه خودکار بروزرسانی می‌شود؛ اگر اندیکاتور شما در تریدینگ‌ویو سیگنال بدهد، این پنجره همان سیگنال را با سطوح حدودی نشان می‌دهد. خروجی اطلاع‌رسانی است و توصیه معامله نیست.</p></div>';
+   615→  bindScalpControls(renderScalpAppInner);
+   616→  renderScalpAppInner(true);
+   617→}
+   618→function renderScalpAppInner(force) {
+   619→  var box = appScroll.querySelector('[data-sc-app]');
+   620→  if (!box) return;
+   621→  if (!force && SCALP_BUSY) return;
+   622→  scalpCompute(!!force).then(function (d) {
+   623→    var b2 = appScroll.querySelector('[data-sc-app]');
+   624→    if (!b2) return;
+   625→    b2.innerHTML = scContentHTML(true, d);
+   626→    bindScalpControls(renderScalpAppInner);
+   627→    /* بروزرسانی خودکار ۶۰ ثانیه‌ای فقط برای اپ مستقل */
+   628→    scStopAuto();
+   629→    SCALP_AUTO = setInterval(function () {
+   630→      if (!appScroll.querySelector('[data-sc-app]')) { scStopAuto(); return; }
+   631→      renderScalpAppInner(true);
+   632→    }, 60000);
+   633→  }).catch(function () {
+   634→    var b3 = appScroll.querySelector('[data-sc-app]');
+   635→    if (!b3) return;
+   636→    b3.innerHTML = '<div class="bt-state"><span style="color:var(--red)">' + icon('wifi', 20) + '</span>دریافت کندل‌ها از Yahoo Finance ممکن نشد — اتصال اینترنت یا VPN را بررسی کنید و دوباره تلاش کنید.<button type="button" class="btn" data-sc-retry2>' + icon('refresh', 13) + 'تلاش مجدد</button></div>';
+   637→    var rb = b3.querySelector('[data-sc-retry2]');
+   638→    if (rb) rb.addEventListener('click', function () { renderScalpAppInner(true); });
+   639→  });
+   640→}
+   641→
