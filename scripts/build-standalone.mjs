@@ -44,6 +44,11 @@ const js = [
   readFileSync(BASE + '/app.f.js', 'utf8'),
 ].join('\n');
 
+/* اسنپ‌شات تحلیل و پیش‌بینی طلا (پشتوانه آفلاین اپ «تحلیل و پیش‌بینی») */
+const analysisSnapshot = existsSync(BASE + '/snapshot-analysis.json')
+  ? JSON.parse(readFileSync(BASE + '/snapshot-analysis.json', 'utf8'))
+  : null;
+
 /* لوگوی BIG TRADER (base64) — در app.b.js و app.e.js جای‌گذاری می‌شود */
 const logoB64 = readFileSync(BASE + '/logo-b64.txt', 'utf8').trim();
 if (logoB64.length < 1000) throw new Error('logo-b64 invalid');
@@ -59,7 +64,14 @@ const json = JSON.stringify(snap)
 
 if (!json.includes('"events"')) throw new Error('snapshot json invalid');
 
-body = body.split('__SNAPSHOT__').join(json).split('__APP_JS__').join(wrapped);
+const analysisJson = analysisSnapshot
+  ? JSON.stringify(analysisSnapshot).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')
+  : JSON.stringify({ generatedAtISO: new Date().toISOString(), lite: { ok: false }, fx: { ok: false, poll: [], items: [] } });
+
+body = body
+  .split('__SNAPSHOT__').join(json)
+  .split('__SNAPSHOT_ANALYSIS__').join(analysisJson)
+  .split('__APP_JS__').join(wrapped);
 const out = head + body;
 writeFileSync(OUT, out);
-console.log('OK →', OUT, (out.length / 1024).toFixed(1) + ' KB', '| source:', snap.source, '| events:', snap.news.events.length);
+console.log('OK →', OUT, (out.length / 1024).toFixed(1) + ' KB', '| source:', snap.source, '| events:', snap.news.events.length, '| analysis snapshot:', analysisSnapshot ? 'yes' : 'missing');

@@ -417,7 +417,7 @@ export function TraderApp() {
 
         {!loading && !error && d && (
           <p className="pt-2 text-center text-[9px] leading-4 text-muted-foreground/70">
-            منبع: ساختار و قیمت Yahoo Finance · اخبار ForexFactory · محاسبات محلی — آخرین بروزرسانی {faTime(new Date(d.generatedAtISO))}
+            منبع: ساختار و قیمت Yahoo Finance + اسپات · اخبار ForexFactory · دماسنج: تریدینگ‌ویو — آخرین بروزرسانی {faTime(new Date(d.generatedAtISO))}
             <br />
             هیچ خروجی این بخش توصیه قطعی خرید/فروش یا اجرای خودکار سفارش نیست.
           </p>

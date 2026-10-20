@@ -31,7 +31,7 @@ function saveSettings() { lsSet(SETTINGS_KEY, JSON.stringify(settings)); }
 var GRID_KEY = 'sd_grid_order_v1';
 var HINT_KEY = 'sd_hint_v1';
 var DISMISS_KEY = 'sd_banner_dismiss_v1';
-var DEFAULT_ORDER = ['news', 'structure', 'suggestion', 'scalp', 'chart', 'trader', 'about'];
+var DEFAULT_ORDER = ['news', 'structure', 'suggestion', 'scalp', 'chart', 'trader', 'analysis', 'about'];
 
 /* ---------- توابع تاریخ تهران ---------- */
 var TEHRAN = 'Asia/Tehran';
@@ -68,6 +68,7 @@ var IC = {
   crosshair: '<circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/>',
   zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
   target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  radar: '<path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62a10 10 0 1 0 19.02-1.27"/><path d="M16.24 7.76a6 6 0 1 0-8.01 8.91"/><path d="M12 18h.01"/><path d="M17.99 11.66a6 6 0 0 1-2.22 4.58"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/>',
   info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   sliders: '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
@@ -192,6 +193,7 @@ var APPS = {
   scalp: { label: 'سیگنال اسکلپ اونس', cls: 'g-scalp', ic: 'zap' },
   chart: { label: 'چارت تریدینگ‌ویو', cls: 'g-chart', ic: 'candles' },
   trader: { label: 'دستیار معامله‌گر', cls: 'g-trader', ic: 'briefcase' },
+  analysis: { label: 'تحلیل و پیش‌بینی', cls: 'g-analysis', ic: 'radar' },
   about: { label: 'درباره', cls: 'g-about', ic: 'info' }
 };
 var TF_LONG = { '5m': '۵ دقیقه', '15m': '۱۵ دقیقه', '1h': '۱ ساعته', '4h': '۴ ساعته', '1d': 'روزانه', '1wk': 'هفتگی', '1mo': 'ماهانه' };

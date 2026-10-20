@@ -18,6 +18,7 @@ import {
   Wifi,
   BatteryFull,
   Check,
+  Radar,
   Menu,
   ArrowRight,
   X,
@@ -49,10 +50,11 @@ import { NewsApp } from "./apps/news-app";
 import { AboutApp } from "./apps/about-app";
 import { ChartApp } from "./apps/chart-app";
 import { TraderApp } from "./apps/trader-app";
+import { AnalysisApp } from "./apps/analysis-app";
 
 /* ---------- تعریف اپ‌ها ---------- */
 
-type AppId = "news" | "structure" | "suggestion" | "scalp" | "chart" | "trader" | "about";
+type AppId = "news" | "structure" | "suggestion" | "scalp" | "chart" | "trader" | "analysis" | "about";
 
 const APPS: Record<
   AppId,
@@ -64,10 +66,11 @@ const APPS: Record<
   scalp: { label: "سیگنال اسکلپ اونس", icon: Zap, cls: "from-rose-500 to-red-700" },
   chart: { label: "چارت تریدینگ‌ویو", icon: CandlestickChart, cls: "from-amber-500 to-orange-700" },
   trader: { label: "دستیار معامله‌گر", icon: Briefcase, cls: "from-yellow-400 to-amber-700" },
+  analysis: { label: "تحلیل و پیش‌بینی", icon: Radar, cls: "from-cyan-500 to-blue-700" },
   about: { label: "درباره", icon: Info, cls: "from-zinc-500 to-zinc-700" },
 };
 
-const DEFAULT_GRID_ORDER: AppId[] = ["news", "structure", "suggestion", "scalp", "chart", "trader", "about"];
+const DEFAULT_GRID_ORDER: AppId[] = ["news", "structure", "suggestion", "scalp", "chart", "trader", "analysis", "about"];
 const GRID_ORDER_KEY = "home_grid_order_v1";
 const SHELL_HINT_KEY = "shell_hint_v1";
 const LONG_PRESS_MS = 450;
@@ -523,6 +526,7 @@ function Shell() {
     if (app.id === "about") return <AboutApp />;
     if (app.id === "chart") return <ChartApp />;
     if (app.id === "trader") return <TraderApp />;
+    if (app.id === "analysis") return <AnalysisApp />;
     if (app.id === "scalp")
       return (
         <div className="p-4">

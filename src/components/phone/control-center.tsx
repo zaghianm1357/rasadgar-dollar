@@ -138,7 +138,7 @@ export function ControlCenter({
               <span className="text-[10px] font-bold">منابع داده</span>
             </div>
             <p className="text-[9px] leading-4 text-muted-foreground">
-              اخبار: ForexFactory — بازار: Yahoo Finance — ترجمه و تحلیل: هوش مصنوعی
+              اخبار: ForexFactory — بازار: Yahoo Finance + اسپات — دماسنج: تریدینگ‌ویو — تحلیل و پیش‌بینی: LiteFinance/FXStreet/تریدینگ‌ویو
             </p>
           </div>
           <ActionTile

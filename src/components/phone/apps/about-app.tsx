@@ -53,7 +53,40 @@ export function AboutApp() {
           </li>
           <li>• قیمت طلا/نقره/داوجونز: Yahoo Finance از «لایه داده واحد» ابزار — همه صفحات از یک منبع تغذیه می‌شوند و برای طلا/نقره با اسپات gold-api کالیبره می‌شوند تا عدد همه صفحات یکی باشد.</li>
           <li>• ساختار بازار: ترکیب EMA۲۰/۵۰ و سقف/کف‌های سوئینگ در ۶ تایم‌فریم + تایم‌فریم ورود ۵ دقیقه.</li>
-          <li>• دماسنج فشار: اجماع ۱۶ اندیکاتور و اسیلاتور مومنتوم و جریان سفارش — فقط نتیجه نمایش داده می‌شود.</li>
+          <li>• دماسنج فشار: رأی فنی{" "}
+            <a
+              href="https://www.tradingview.com/symbols/XAUUSD/technicals/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-0.5 text-primary hover:underline"
+            >
+              تریدینگ‌ویو (Technicals)
+              <ExternalLink className="h-3 w-3" />
+            </a>{" "}
+            — همان نوسانگرها و میانگین‌های متحرک آن صفحه؛ فقط سه حالت (فشار خرید/خنثی/فشار فروش) نمایش داده می‌شود و در نبود تریدینگ‌ویو، اجماع ۱۶ اندیکاتور محلی جایگزین می‌شود.</li>
+          <li>
+            • تحلیل و پیش‌بینی طلا:{" "}
+            <a
+              href="https://www.litefinance.org/blog/analysts-opinions/gold-price-prediction-forecast/daily-and-weekly/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-0.5 text-primary hover:underline"
+            >
+              LiteFinance
+              <ExternalLink className="h-3 w-3" />
+            </a>{" "}
+            (پیش‌بینی فردا و هفته) +{" "}
+            <a
+              href="https://www.fxstreet.com/commodities/gold"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-0.5 text-primary hover:underline"
+            >
+              FXStreet
+              <ExternalLink className="h-3 w-3" />
+            </a>{" "}
+            (تحلیل‌ها و نظرسنجی) + نقشهٔ مسیر امروز: تلفیق رأی همهٔ منابع ابزار در سه سناریو با محرک و ابطال.
+          </li>
         </ul>
       </section>
 

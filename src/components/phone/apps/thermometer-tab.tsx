@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { AlertTriangle, RefreshCw, Thermometer } from "lucide-react";
 import { faDigits, faTime } from "@/lib/tehran";
 
@@ -21,6 +21,7 @@ export interface PressureIndicator {
 export interface PressureResponse {
   ok: true;
   symbol: { key: string; labelFa: string };
+  tvSymbol?: string;
   tf: string;
   tfLabel: string;
   score: number;
@@ -31,6 +32,8 @@ export interface PressureResponse {
   indicators: PressureIndicator[];
   guidanceFa: string;
   reliable: boolean;
+  source?: "tradingview" | "local";
+  sourceNoteFa?: string;
   price: { value: number | null; spotApplied: boolean; source: string };
   generatedAtISO: string;
   disclaimer: string;
@@ -99,6 +102,51 @@ function PressureGauge({ score, zone }: { score: number; zone: string }) {
   );
 }
 
+/* ---------- ویجت رسمی تریدینگ‌ویو (صفحه Technicals نماد) ---------- */
+
+function TvTechnicalsWidget({ tvSymbol }: { tvSymbol: string }) {
+  const hostRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    host.innerHTML = "";
+    const container = document.createElement("div");
+    container.className = "tradingview-widget-container";
+    const widget = document.createElement("div");
+    widget.className = "tradingview-widget-container__widget";
+    container.appendChild(widget);
+    const script = document.createElement("script");
+    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js";
+    script.async = true;
+    script.type = "text/javascript";
+    script.innerHTML = JSON.stringify({
+      symbol: tvSymbol,
+      interval: "1D",
+      width: "100%",
+      height: 380,
+      isTransparent: true,
+      locale: "en",
+      showIntervalTabs: true,
+    });
+    container.appendChild(script);
+    host.appendChild(container);
+    return () => {
+      host.innerHTML = "";
+    };
+  }, [tvSymbol]);
+
+  return (
+    <div className="rounded-xl border border-border/70 bg-card/60 p-3">
+      <p className="mb-2 text-[11px] font-extrabold text-foreground/90">صفحه فنی تریدینگ‌ویو — همان نمایش Technicals نماد</p>
+      <div ref={hostRef} dir="ltr" className="overflow-hidden rounded-lg" data-testid="bt-tv-widget" />
+      <p className="mt-2 text-[9px] leading-4 text-muted-foreground">
+        این ویجت رسمی از تریدینگ‌ویو بارگذاری می‌شود و متن داخلی آن به انگلیسی است (خدمات شخص ثالث)؛ نتیجه سه‌حالته فارسی همان‌جا در دماسنج بالا نمایش داده شده است.
+      </p>
+    </div>
+  );
+}
+
 /* ---------- تب دماسنج فشار ---------- */
 
 export function ThermometerTab({
@@ -125,7 +173,7 @@ export function ThermometerTab({
       <div className="flex h-full flex-col items-center justify-center gap-2">
         <Thermometer className="h-6 w-6 animate-pulse text-violet-300" />
         <p className="text-xs font-bold text-foreground/80">در حال سنجش فشار بازار…</p>
-        <p className="text-[10px] text-muted-foreground">اجماع ۱۶ اندیکاتور و اسیلاتور روی کندل‌های {TF_LABELS[tf]}</p>
+        <p className="text-[10px] text-muted-foreground">رأی فنی تریدینگ‌ویو — در نبود آن، اجماع ۱۶ اندیکاتور محلی روی کندل‌ها</p>
       </div>
     );
   }
@@ -198,11 +246,18 @@ export function ThermometerTab({
         <p className="mt-1 text-[9px] text-muted-foreground">
           قیمت لحظه‌ای: <span dir="ltr">{priceTxt}</span> {data.price.spotApplied ? "(اسپات کالیبره‌شده)" : ""} · آخرین محاسبه: {faTime(new Date(data.generatedAtISO))}
         </p>
+        {data.sourceNoteFa && (
+          <p className="mt-1 text-[9px] font-bold text-sky-300/90" data-testid="bt-pressure-source">
+            {data.sourceNoteFa}
+          </p>
+        )}
       </div>
 
-      {/* رأی تک‌تک اندیکاتورها — فقط نتیجه، بدون فرمول */}
+      {/* رأی اجزای دماسنج — فقط نتیجه، بدون فرمول */}
       <div className="rounded-xl border border-border/70 bg-card/60 p-3">
-        <p className="mb-2 text-[11px] font-extrabold text-foreground/90">رأی تک‌تک اندیکاتورها</p>
+        <p className="mb-2 text-[11px] font-extrabold text-foreground/90">
+          {data.source === "tradingview" ? "تفکیک رأی تریدینگ‌ویو (نوسانگرها / میانگین‌ها)" : "رأی تک‌تک اندیکاتورها"}
+        </p>
         <div className="flex flex-wrap gap-1" data-testid="bt-pressure-chips">
           {chips.map((i) => {
             const m = DIR_META[i.dir] ?? DIR_META.neutral;
@@ -220,6 +275,9 @@ export function ThermometerTab({
         </div>
         <p className="mt-2 text-[9px] leading-4 text-muted-foreground">{data.disclaimer}</p>
       </div>
+
+      {/* صفحه فنی تریدینگ‌ویو — همان نمایش معروف Technicals */}
+      {data.tvSymbol && <TvTechnicalsWidget tvSymbol={data.tvSymbol} />}
     </div>
   );
 }

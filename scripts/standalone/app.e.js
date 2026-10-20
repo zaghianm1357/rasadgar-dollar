@@ -231,12 +231,36 @@ function btThermoHTML() {
     '<p class="bt-note" style="text-align:center" dir="ltr">' + (p.symName || '') + ' · ' + (p.tfLabel || '') + '</p></div>' +
     '<p class="bt-note boxed" style="margin-top:6px">' + p.guidanceFa + '</p>' +
     (!p.reliable ? '<p class="bt-warn">⚠ تعداد اندیکاتورهای قابل محاسبه کم است — این نتیجه اعتماد پایینی دارد.</p>' : '') +
-    '<p class="bt-src">قیمت لحظه‌ای همین نماد در «نمای بازار» و «اسکلپ» از همین منبع کالیبره می‌شود · آخرین محاسبه: ' + faTime(new Date(p.atISO)) + '</p>';
+    '<p class="bt-src">قیمت لحظه‌ای همین نماد در «نمای بازار» و «اسکلپ» از همین منبع کالیبره می‌شود · آخرین محاسبه: ' + faTime(new Date(p.atISO)) + '</p>' +
+    (p.sourceNoteFa ? '<p style="font-size:9px;font-weight:700;color:#7dd3fc;margin:2px 0 0">' + p.sourceNoteFa + '</p>' : '');
 
   return btSec('دماسنج فشار خرید/فروش', 'activity',
     '<div class="sc-chips" style="justify-content:center">' + tfChips + '</div>' + gauge + main, 'var(--violet)') +
-    btSec('رأی تک‌تک اندیکاتورها — فقط نتیجه، بدون فرمول', 'crosshair',
-      '<div class="sc-chips">' + chips + '</div><p class="bt-note">' + p.disclaimer + '</p>', 'var(--sky)');
+    btSec(p.source === 'tradingview' ? 'تفکیک رأی تریدینگ‌ویو (نوسانگرها / میانگین‌ها)' : 'رأی تک‌تک اندیکاتورها — فقط نتیجه، بدون فرمول', 'crosshair',
+      '<div class="sc-chips">' + chips + '</div><p class="bt-note">' + p.disclaimer + '</p>', 'var(--sky)') +
+    (p.tvSymbol ? btSec('صفحه فنی تریدینگ‌ویو — همان نمایش Technicals نماد', 'candles',
+      '<div id="tv-ta-host" dir="ltr" style="min-height:80px"></div><p class="bt-note">ویجت رسمی تریدینگ‌ویو است و متن داخلی آن انگلیسی است (خدمات شخص ثالث)؛ نتیجه سه‌حالته فارسی همان‌جا در دماسنج بالا نمایش داده شده است.</p>', 'var(--amber,#f59e0b)') : '');
+}
+
+/* تزریق ویجت رسمی Technicals تریدینگ‌ویو (اسکریپت باید با createElement اضافه شود تا اجرا شود) */
+function injectTvTaWidget(hostId, tvSym) {
+  var host = document.getElementById(hostId);
+  if (!host) return;
+  if (host.getAttribute('data-tv') === tvSym && host.firstChild) return;
+  host.innerHTML = '';
+  host.setAttribute('data-tv', tvSym);
+  var c = document.createElement('div');
+  c.className = 'tradingview-widget-container';
+  var w = document.createElement('div');
+  w.className = 'tradingview-widget-container__widget';
+  c.appendChild(w);
+  var s = document.createElement('script');
+  s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js';
+  s.async = true;
+  s.type = 'text/javascript';
+  s.innerHTML = JSON.stringify({ symbol: tvSym, interval: '1D', width: '100%', height: 380, isTransparent: true, locale: 'en', showIntervalTabs: true });
+  c.appendChild(s);
+  host.appendChild(c);
 }
 
 /* ---------- رندر اصلی اپ ---------- */
@@ -278,6 +302,8 @@ function renderTraderApp(soft) {
   }
   appScroll.innerHTML = '<div class="bt-wrap">' + inner + '</div>';
   btBind();
+  /* ویجت رسمی Technicals تریدینگ‌ویو در تب دماسنج */
+  if (BT.tab === 'factors' && BT.pt && BT.pt.tvSymbol) injectTvTaWidget('tv-ta-host', BT.pt.tvSymbol);
   /* بارگذاری اولیه — فقط وقتی هیچ داده یا وضعیتی وجود ندارد */
   if (!BT.data && !BT.busy && !BT.err) btLoadData(false);
   /* بارگذاری تنبل عوامل کمّی هنگام باز شدن تب */
@@ -382,4 +408,184 @@ function btBind() {
   });
   var aiRf = appScroll.querySelector('[data-ai-refresh]');
   if (aiRf) aiRf.addEventListener('click', function () { runAi(true); });
+}
+
+/* ================= اپ تحلیل و پیش‌بینی (پنجرهٔ مجزا) ================= */
+
+var AN_DIR_META = { buy: { icon: '▲', color: '#6ee7b7' }, sell: { icon: '▼', color: '#fb7185' }, neutral: { icon: '●', color: '#a1a1aa' } };
+
+function anStateCard(txt, ic) {
+  return '<div class="bt-state"><span class="spin">' + icon('refresh', 20) + '</span>' + txt + '</div>';
+}
+
+function anBriefHTML() {
+  if (AN.busy) return anStateCard('در حال خواندن تحلیل‌های تازه از LiteFinance، FXStreet و تریدینگ‌ویو…');
+  if (!AN.br) {
+    return '<div class="bt-state"><span style="color:var(--red)">' + icon('wifi', 22) + '</span>' + (AN.err || 'تحلیل‌ها دریافت نشد — دوباره تلاش کنید.') +
+      '<button type="button" class="btn" data-an-refresh>' + icon('refresh', 13) + 'تلاش مجدد</button></div>';
+  }
+  var br = AN.br;
+  var lite = br.lite, fx = br.fx;
+  var h = '';
+
+  /* نوار وضعیت */
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px">';
+  if (br.stale) h += '<span class="cchip" style="color:#fcd34d;border-color:rgba(251,191,36,.4)">' + (br.ageMin !== null ? 'داده ' + faDigits(br.ageMin) + ' دقیقه‌ای' : 'حالت اسنپ‌شات') + ' — منابع زنده در دسترس نبود</span>';
+  h += '<button type="button" class="cchip" data-an-refresh title="بروزرسانی">' + icon('refresh', 11) + ' بروزرسانی</button></div>';
+
+  /* جمع‌بندی */
+  if (br.summaryFa && br.summaryFa.length) {
+    var lis = '';
+    for (var si = 0; si < br.summaryFa.length; si++) lis += '<li style="margin-bottom:3px">' + br.summaryFa[si] + '</li>';
+    h += btSec('جمع‌بندی مختصر تحلیل و پیش‌بینی', 'sparkles',
+      '<ul style="margin:0;padding-right:16px;font-size:10.5px;line-height:1.7;color:var(--fg,#e4e4e7)">' + lis + '</ul>', '#7dd3fc');
+  }
+
+  /* LiteFinance */
+  var liteBody = '';
+  if (lite && lite.ok) {
+    if (lite.reportedAtFa) liteBody += '<p class="bt-note" dir="auto">تاریخ گزارش: <span dir="ltr">' + lite.reportedAtFa + '</span> · ' + (lite.via || '—') + '</p>';
+    if (lite.baseScenario === 'long' && lite.longAbove !== null) {
+      liteBody += '<p class="bt-note">سناریوی اصلی: <b style="color:#6ee7b7">خرید</b> بالای <b dir="ltr">' + anFaNum(lite.longAbove) + '</b>' +
+        (lite.stopLoss !== null ? ' — حد ضرر <b dir="ltr">' + anFaNum(lite.stopLoss) + '</b>' : '') +
+        (lite.targets.length ? ' — اهداف: <b dir="ltr">' + lite.targets.slice(0, 3).map(function (t) { return anFaNum(t); }).join(' · ') + '</b>' : '') + '</p>';
+    } else if (lite.baseScenario === 'short' && lite.shortBelow !== null) {
+      liteBody += '<p class="bt-note">سناریوی اصلی: <b style="color:#fb7185">فروش</b> زیر <b dir="ltr">' + anFaNum(lite.shortBelow) + '</b>' +
+        (lite.stopLoss !== null ? ' — حد ضرر <b dir="ltr">' + anFaNum(lite.stopLoss) + '</b>' : '') +
+        (lite.targets.length ? ' — اهداف: <b dir="ltr">' + lite.targets.slice(0, 3).map(function (t) { return anFaNum(t); }).join(' · ') + '</b>' : '') + '</p>';
+    }
+    if (lite.tomorrow.avg !== null || lite.tomorrow.high !== null) {
+      liteBody += '<p class="bt-note">پیش‌بینی <b>فردا</b>: کف <b dir="ltr">' + anFaNum(lite.tomorrow.low) + '</b> · میانگین <b dir="ltr">' + anFaNum(lite.tomorrow.avg) + '</b> · سقف <b dir="ltr">' + anFaNum(lite.tomorrow.high) + '</b></p>';
+    }
+    if (lite.week.avg !== null) {
+      liteBody += '<p class="bt-note">پیش‌بینی <b>هفته</b>: کف <b dir="ltr">' + anFaNum(lite.week.low) + '</b> · میانگین <b dir="ltr">' + anFaNum(lite.week.avg) + '</b> · سقف <b dir="ltr">' + anFaNum(lite.week.high) + '</b></p>';
+    }
+    if (lite.rsi !== null) liteBody += '<p class="bt-note">RSI گزارش: ' + anFaNum(lite.rsi, 0) + '</p>';
+  } else {
+    liteBody += '<p class="bt-note">دریافت زنده LiteFinance ناموفق بود — اعداد این بخش بدون منبع نمایش داده نمی‌شوند.</p>';
+  }
+  h += btSec('پیش‌بینی قیمت طلا — LiteFinance', 'flame', liteBody, '#fbbf24');
+
+  /* FXStreet */
+  var fxBody = '';
+  if (fx && fx.ok) {
+    if (fx.via) fxBody += '<p class="bt-note">دریافت: ' + fx.via + '</p>';
+    for (var pi = 0; pi < fx.poll.length; pi++) {
+      var p = fx.poll[pi];
+      fxBody += '<p class="bt-note">نظرسنجی <b>' + p.periodFa + '</b>: میانگین <b dir="ltr">' + anFaNum(p.avg) + '</b>' + (p.mixFa ? ' — <span style="color:var(--muted,#8b8b94)">' + p.mixFa + '</span>' : '') + '</p>';
+    }
+    if (fx.items.length) {
+      fxBody += '<div style="margin-top:4px">';
+      for (var ii = 0; ii < fx.items.length; ii++) {
+        var it = fx.items[ii];
+        fxBody += '<a href="' + it.url + '" target="_blank" rel="noreferrer" style="display:block;font-size:10px;line-height:1.7;color:#7dd3fc;text-decoration:underline;text-decoration-color:rgba(125,211,252,.3);margin-bottom:3px">• ' + (it.titleFa || it.title) + '</a>';
+      }
+      fxBody += '</div><p class="bt-note">عنوان‌های بدون ترجمه فارسی به انگلیسی منبع نمایش داده شده‌اند.</p>';
+    }
+  } else {
+    fxBody += '<p class="bt-note">دریافت زنده FXStreet ناموفق بود.</p>';
+  }
+  h += btSec('تحلیل‌ها و نظرسنجی — FXStreet', 'newspaper', fxBody, '#7dd3fc');
+
+  /* تریدینگ‌ویو */
+  var tvBody = (br.tv && br.tv.ok && br.tv.stateFa)
+    ? '<p class="bt-note">اجماع فنی تریدینگ‌ویو برای XAUUSD (روزانه): <b style="color:#c4b5fd">' + br.tv.stateFa + '</b> — تفکیک کامل در دماسنج فشار (اپ دستیار معامله‌گر).</p>'
+    : '<p class="bt-note">رأی فنی تریدینگ‌ویو در دسترس نبود.</p>';
+  h += btSec('رأی فنی روزانه — تریدینگ‌ویو', 'activity', tvBody, '#c4b5fd');
+
+  h += '<p class="bt-src" style="text-align:center">' + br.sourcesNoteFa + '<br>آخرین جمع‌آوری: ' + faTime(new Date(br.generatedAtISO)) + ' — خلاصه‌سازی خودکار محتوای منابع است، نه توصیه خرید/فروش.</p>';
+  return h;
+}
+
+function anPathHTML() {
+  if (AN.pathBusy) return anStateCard('در حال ترسیم نقشهٔ مسیر از همهٔ منابع…');
+  if (!AN.path) {
+    return '<div class="bt-state"><span style="color:var(--red)">' + icon('wifi', 22) + '</span>' + (AN.pathErr || 'نقشه مسیر هنوز ترسیم نشده — دوباره تلاش کنید.') +
+      '<button type="button" class="btn" data-an-refresh>' + icon('refresh', 13) + 'ترسیم مجدد</button></div>';
+  }
+  var pm = AN.path;
+  var domColor = pm.dominant === 'bull' ? '#6ee7b7' : pm.dominant === 'bear' ? '#fb7185' : '#a1a1aa';
+  var domBg = pm.dominant === 'bull' ? 'rgba(16,185,129,.1)' : pm.dominant === 'bear' ? 'rgba(244,63,94,.1)' : 'rgba(255,255,255,.06)';
+  var domBorder = pm.dominant === 'bull' ? 'rgba(52,211,153,.5)' : pm.dominant === 'bear' ? 'rgba(251,113,133,.5)' : 'rgba(255,255,255,.2)';
+
+  var h = '<div style="border:1px solid ' + domBorder + ';background:' + domBg + ';border-radius:14px;padding:10px;text-align:center;margin-bottom:6px">' +
+    '<p style="font-size:13px;font-weight:900;color:' + domColor + ';margin:0">' + pm.dominantFa + '</p>' +
+    '<p style="font-size:10px;color:var(--fg,#e4e4e7);margin:3px 0 0">' + pm.confidenceFa + '</p>' +
+    '<p style="font-size:9.5px;color:var(--muted,#8b8b94);margin:3px 0 0">' + faDigits(pm.alignment.buy) + ' رأی خرید · ' + faDigits(pm.alignment.sell) + ' رأی فروش · ' + faDigits(pm.alignment.neutral) + ' خنثی — از ' + faDigits(pm.alignment.total) + ' منبع</p></div>';
+
+  var rows = '';
+  for (var i = 0; i < pm.sources.length; i++) {
+    var s = pm.sources[i];
+    var m = AN_DIR_META[s.dir] || AN_DIR_META.neutral;
+    rows += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);border-radius:10px;padding:5px 9px;margin-bottom:4px;' + (s.available ? '' : 'opacity:.5') + '">' +
+      '<div style="min-width:0"><p style="font-size:10px;font-weight:700;margin:0;color:var(--fg,#e4e4e7)">' + s.labelFa + '</p>' +
+      '<p style="font-size:8.5px;color:var(--muted,#8b8b94);margin:1px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + s.detailFa + '</p></div>' +
+      '<span style="font-size:12px;font-weight:900;color:' + m.color + ';flex:none">' + (s.available ? m.icon : '—') + '</span></div>';
+  }
+  h += btSec('رأی هر منبع (فقط نتیجه)', 'crosshair', rows, 'var(--sky)');
+
+  var scenCls = { bull: ['rgba(52,211,153,.4)', 'rgba(16,185,129,.05)', '#6ee7b7'], bear: ['rgba(251,113,133,.4)', 'rgba(244,63,94,.05)', '#fb7185'], range: ['rgba(255,255,255,.2)', 'rgba(255,255,255,.04)', '#d4d4d8'] };
+  for (var k = 0; k < pm.scenarios.length; k++) {
+    var sc = pm.scenarios[k];
+    var c = scenCls[sc.id];
+    h += '<div style="border:1px solid ' + c[0] + ';background:' + c[1] + ';border-radius:14px;padding:9px 11px;margin-bottom:6px">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' +
+      '<p style="font-size:12px;font-weight:900;color:' + c[2] + ';margin:0">' + sc.titleFa + '</p>' +
+      (pm.dominant === sc.id ? '<span class="cchip" style="font-size:8px">مسیر غالب</span>' : '') + '</div>' +
+      '<p style="font-size:9.5px;color:var(--muted,#8b8b94);margin:2px 0">' + sc.strengthFa + '</p>' +
+      '<p style="font-size:10px;line-height:1.7;margin:2px 0;color:var(--fg,#e4e4e7)">محرر فعال‌سازی: <b>' + sc.triggerFa + '</b></p>' +
+      '<p style="font-size:10px;line-height:1.7;margin:2px 0;color:var(--fg,#e4e4e7)">ابطال: <b>' + sc.invalidateFa + '</b></p>' +
+      (sc.targetsFa ? '<p style="font-size:10px;line-height:1.7;margin:2px 0;color:var(--fg,#e4e4e7)">هدف: <b dir="auto">' + sc.targetsFa + '</b></p>' : '') +
+      '<p class="bt-note boxed" style="margin-top:4px">' + sc.noteFa + '</p></div>';
+  }
+
+  if (pm.hotHours && pm.hotHours.length) {
+    var hh = '';
+    for (var q = 0; q < pm.hotHours.length; q++) {
+      hh += '<li style="margin-bottom:3px;display:flex;gap:6px;align-items:center"><span class="cchip" style="font-size:8.5px;color:#fcd34d" dir="ltr">' + pm.hotHours[q].timeFa + '</span><span style="font-size:10px">' + pm.hotHours[q].titleFa + '</span></li>';
+    }
+    h += btSec('ساعت‌های حساس امروز/فردا (تهران)', 'bell', '<ul style="margin:0;padding-right:4px;list-style:none">' + hh + '</ul>', '#fcd34d');
+  }
+
+  h += '<div style="text-align:center;margin:6px 0"><button type="button" class="btn" data-an-refresh>' + icon('refresh', 13) + 'ترسیم مجدد نقشه</button></div>';
+  h += '<p class="bt-src" style="text-align:center">' + pm.noteFa + '</p>';
+  return h;
+}
+
+function renderAnalysisApp(soft) {
+  if (!soft) AN.tab = btGet('an_tab_v1', 'brief');
+  var inner = '<div class="sc-chips" style="margin-bottom:4px" data-testid="an-tabs">' +
+    '<button type="button" class="cchip' + (AN.tab === 'brief' ? ' on' : '') + '" data-an-sub="brief">' + icon('sparkles', 11) + ' تحلیل و پیش‌بینی</button>' +
+    '<button type="button" class="cchip' + (AN.tab === 'path' ? ' on' : '') + '" data-an-sub="path">' + icon('crosshair', 11) + ' نقشهٔ مسیر امروز</button>' +
+    '</div>';
+  inner += AN.tab === 'brief' ? anBriefHTML() : anPathHTML();
+  inner += '<p class="bt-foot">هیچ خروجی این پنجره توصیه قطعی خرید/فروش یا اجرای خودکار سفارش نیست.</p>';
+  appScroll.innerHTML = '<div class="bt-wrap">' + inner + '</div>';
+  anBind();
+  if (AN.tab === 'brief' && !AN.br && !AN.busy && !AN.err) btLoadBriefing(false);
+  if (AN.tab === 'path' && !AN.path && !AN.pathBusy) btPathCompute();
+}
+
+function anBind() {
+  var subs = appScroll.querySelectorAll('[data-an-sub]');
+  for (var i = 0; i < subs.length; i++) {
+    (function (el) {
+      el.addEventListener('click', function () {
+        var t = el.getAttribute('data-an-sub');
+        if (t === AN.tab) return;
+        AN.tab = t;
+        lsSet('an_tab_v1', t);
+        renderAnalysisApp(true);
+      });
+    })(subs[i]);
+  }
+  var rf = appScroll.querySelectorAll('[data-an-refresh]');
+  for (var k = 0; k < rf.length; k++) {
+    (function (el) {
+      el.addEventListener('click', function () {
+        if (AN.tab === 'brief') btLoadBriefing(true);
+        else { AN.path = null; btPathCompute(); }
+      });
+    })(rf[k]);
+  }
 }
