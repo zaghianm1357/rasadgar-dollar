@@ -178,65 +178,65 @@ function btNewsHTML() {
     btSec('مقایسه با واکنش‌های تاریخی خبر', 'calDays', hist, 'var(--sky)');
 }
 
-/* ---------- تب عوامل کمّی ---------- */
-function btFactorsHTML() {
-  if (BT.fqBusy) {
-    return '<div class="bt-state"><span class="spin">' + icon('refresh', 20) + '</span>در حال برآورد رگرسیون‌های تاریخی…<span class="s">بازده نماد و عوامل در افق‌های ۱/۵/۲۰ روزه — دریافت ۴ سری ۲ساله، کمی طول می‌کشد</span></div>';
-  }
-  if (BT.fqErr && !BT.fq) {
-    return '<div class="bt-state"><span style="color:var(--red)">' + icon('wifi', 22) + '</span>' + BT.fqErr +
-      '<button type="button" class="btn" data-bt-fq-reload>' + icon('refresh', 13) + 'تلاش مجدد</button></div>';
-  }
-  var fq = BT.fq;
-  if (!fq) return '<div class="bt-state">داده عوامل آماده نشده است.</div>';
-  var score = btFqLocalScore(fq);
-  var scoreLabel = score === null ? 'بدون امتیاز معتبر' : score > 15 ? 'فشار صعودی' : score < -15 ? 'فشار نزولی' : 'فشار خنثی/متعادل';
-  var scoreCls = score === null ? '' : score > 15 ? 'ok' : score < -15 ? 'bad' : 'mid';
-  var sumW = btFqSumValidW(fq);
-  var w = btFqWeights();
+/* ---------- تب دماسنج فشار ---------- */
+var PT_ZONE_COLOR = { 'heavy-buy': '#34d399', 'buy': '#6ee7b7', 'neutral': '#a1a1aa', 'sell': '#fda4af', 'heavy-sell': '#fb7185' };
+var PT_DIR_META = { buy: { icon: '▲', cls: 'color:#6ee7b7', label: 'خرید' }, sell: { icon: '▼', cls: 'color:#fb7185', label: 'فروش' }, neutral: { icon: '●', cls: 'color:#a1a1aa', label: 'خنثی' } };
 
-  var rows = '';
-  for (var i = 0; i < fq.rows.length; i++) {
-    var r = fq.rows[i];
-    var bc = function (b) { return b ? (b.beta >= 0 ? '+' : '') + faDigits(b.beta) + '<span class="t">t=' + faDigits(b.t) + '</span>' : '—'; };
-    rows += '<tr>' +
-      '<td class="fa"><b>' + r.nameFa + '</b><span dir="ltr">Yahoo: ' + r.sourceYahoo + '</span><span>وزن ' + faNum(w[r.id] !== undefined ? w[r.id] : r.w) + '</span></td>' +
-      '<td dir="ltr">' + btNum(r.current) + '</td>' +
-      '<td dir="ltr">' + (r.change5 === null ? '—' : (r.change5 > 0 ? '+' : '') + faDigits(r.change5) + ' ' + r.unitFa) + '</td>' +
-      '<td dir="ltr">' + (r.z === null ? '—' : (r.z > 0 ? '+' : '') + faDigits(r.z)) + '</td>' +
-      '<td dir="ltr">' + bc(r.beta.h1) + '</td><td dir="ltr">' + bc(r.beta.h5) + '</td><td dir="ltr">' + bc(r.beta.h20) + '</td>' +
-      '<td dir="ltr"><b>' + (r.pressure === null ? 'نامشخص' : (r.pressure > 0 ? '+' : '') + faDigits(r.pressure)) + '</b></td>' +
-      '<td dir="ltr">' + (r.reliability === null ? '—' : faDigits(r.reliability)) + '</td>' +
-      '<td class="' + (r.effect === 'supportive' ? 'g' : r.effect === 'restrictive' ? 'r' : r.effect === 'conflict' ? 'a' : '') + '">' + r.effectFa + '</td>' +
-      '</tr>';
+function btThermoHTML() {
+  if (BT.ptBusy) {
+    return '<div class="bt-state"><span class="spin">' + icon('refresh', 20) + '</span>در حال سنجش فشار بازار…<span class="s">اجماع ۱۶ اندیکاتور و اسیلاتور روی کندل‌ها — کمی طول می‌کشد</span></div>';
   }
-  var interps = '';
-  for (i = 0; i < fq.rows.length; i++) {
-    if (fq.rows[i].interpFa) interps += '<p class="bt-note boxed">' + fq.rows[i].interpFa + '</p>';
-    else if (fq.rows[i].unreliableReason) interps += '<p class="bt-note warn">⚠ ' + fq.rows[i].nameFa + ': ' + fq.rows[i].unreliableReason + ' — Pressure محاسبه نشد و عدد حدس زده نشد.</p>';
+  if (BT.ptErr && !BT.pt) {
+    return '<div class="bt-state"><span style="color:var(--red)">' + icon('wifi', 22) + '</span>' + BT.ptErr +
+      '<button type="button" class="btn" data-pt-reload>' + icon('refresh', 13) + 'تلاش مجدد</button></div>';
   }
-  var skips = '';
-  if (fq.skipped.length) {
-    skips = '<div class="bt-warn">عوامل کنارگذاشته‌شده از امتیاز (وزن بقیه بازتنظیم شد — مجموع وزن مؤثر: ' + faDigits(sumW) + '): <ul>' +
-      fq.skipped.map(function (s) { return '<li>• ' + s.nameFa + ': ' + s.reason + '</li>'; }).join('') + '</ul></div>';
+  var p = BT.pt;
+  if (!p) return '<div class="bt-state">داده دماسنج آماده نشده است.</div>';
+
+  var color = PT_ZONE_COLOR[p.zone] || PT_ZONE_COLOR.neutral;
+  var score = p.score;
+  var angle = 180 - (score / 100) * 180;
+  var rad = angle * Math.PI / 180;
+  var cx = 100, cy = 96, r = 76;
+  var nx = cx + r * Math.cos(rad), ny = cy - r * Math.sin(rad);
+
+  var tfChips = '';
+  for (var key in PT_TFS) {
+    tfChips += '<button type="button" class="cchip' + (p.tf === key ? ' on' : '') + '" data-pt-tf="' + key + '">' + PT_TFS[key].label + '</button>';
   }
-  var wInputs = '';
-  for (i = 0; i < fq.rows.length; i++) {
-    var rw = fq.rows[i];
-    wInputs += '<label class="bt-fw-row"><span>' + rw.nameFa + '</span><input type="number" min="0" max="1" step="0.05" dir="ltr" data-bt-fw="' + rw.id + '" value="' + (w[rw.id] !== undefined ? w[rw.id] : rw.w) + '" aria-label="وزن ' + rw.nameFa + '"></label>';
+  tfChips += '<button type="button" class="cchip" data-pt-reload title="بروزرسانی">' + icon('refresh', 11) + '</button>';
+
+  var chips = '';
+  for (var i = 0; i < p.indicators.length; i++) {
+    var m = PT_DIR_META[p.indicators[i].dir] || PT_DIR_META.neutral;
+    chips += '<span class="cchip" style="' + m.cls + '" title="' + p.indicators[i].nameFa + ': ' + m.label + '">' + m.icon + ' ' + p.indicators[i].nameFa + '</span>';
   }
-  var notes = '<ul class="bt-list">' + fq.notes.map(function (n) { return '<li>' + n + '</li>'; }).join('') + '</ul>';
-  return btSec('شاخص فشار مدل — Composite', 'sparkles',
-    '<div class="bt-score-row"><div class="bt-score ' + scoreCls + '"><b dir="ltr">' + (score === null ? '—' : (score > 0 ? '+' : '') + faDigits(score)) + '</b><span>−۱۰۰ تا +۱۰۰</span></div>' +
-    '<div class="bt-score-txt"><p class="bt-score-v">' + scoreLabel + '</p>' +
-    '<p class="bt-note">مثبت = فشار تاریخی مدل به سمت رشد نماد · منفی = فشار به سمت افت · نزدیک صفر = فشار خالص کم یا عوامل متضاد. این «شاخص فشار مدل» است — احتمال صعود، بازده مورد انتظار یا تضمین حرکت نیست.</p></div></div>' + skips, 'var(--violet)') +
-    btSec('جدول کمّی عوامل — رابطه تاریخی/آماری، نه علّی', 'activity',
-      '<div class="fq-scroll"><table class="mini-tbl fq"><thead><tr><th>عامل</th><th>مقدار جاری</th><th>تغییر ۵روزه</th><th>Z</th><th>β افق ۱ر</th><th>β افق ۵ر</th><th>β افق ۲۰ر</th><th>Pressure</th><th>قابلیت اتکا</th><th>اثر فعلی</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-      interps + '<p class="bt-src">نمونه: ' + faDigits(fq.sampleBars || 0) + ' کندل روزانه ۲ساله · محاسبه محلی روی همین دستگاه — آخرین محاسبه: ' + faTime(new Date(fq.generatedAtISO)) + '</p>', 'var(--sky)') +
-    btSec('تنظیمات وزن عوامل (۰ تا ۱)', 'crosshair',
-      wInputs +
-      '<p class="bt-note">وزن‌ها در امتیاز تجمیعی همان بالا اعمال می‌شوند. اگر داده عاملی موجود نباشد از امتیاز کنار گذاشته می‌شود و وزن عوامل باقی‌مانده شفاف بازتنظیم می‌شود (مجموع وزن مؤثر فعلی: ' + faDigits(sumW) + ').</p>', 'var(--violet)') +
-    btSec('روش و محدودیت‌ها', 'alert', notes + '<p class="bt-note bold">این جدول کمّی‌سازی شفاف رابطه تاریخی عوامل با نماد است؛ برای تصمیم معامله به تنهایی کافی نیست و توصیه خرید/فروش محسوب نمی‌شود.</p>', 'var(--amber)');
+
+  var gauge =
+    '<svg viewBox="0 0 200 112" style="width:190px;height:104px;display:block;margin:0 auto">' +
+    '<defs><linearGradient id="ptg" x1="0%" y1="0%" x2="100%" y2="0%">' +
+    '<stop offset="0%" stop-color="#fb7185"/><stop offset="35%" stop-color="#f43f5e"/><stop offset="50%" stop-color="#a1a1aa"/><stop offset="65%" stop-color="#10b981"/><stop offset="100%" stop-color="#34d399"/>' +
+    '</linearGradient></defs>' +
+    '<path d="M 16 96 A 84 84 0 0 1 184 96" fill="none" stroke="url(#ptg)" stroke-width="13" stroke-linecap="round" opacity="0.9"/>' +
+    '<line x1="100" y1="8" x2="100" y2="22" stroke="#71717a" stroke-width="2"/>' +
+    '<line x1="100" y1="96" x2="' + nx.toFixed(1) + '" y2="' + ny.toFixed(1) + '" stroke="' + color + '" stroke-width="3.5" stroke-linecap="round"/>' +
+    '<circle cx="100" cy="96" r="5.5" fill="' + color + '"/><circle cx="100" cy="96" r="2" fill="#09090b"/>' +
+    '</svg>' +
+    '<div style="text-align:center;margin-top:-18px"><b dir="ltr" style="font-size:22px;color:' + color + '">' + faDigits(score) + '</b>' +
+    '<div style="font-size:8.5px;color:var(--muted,#8b8b94)">دماسنج ۰ تا ۱۰۰</div></div>';
+
+  var main =
+    '<div style="text-align:center"><p style="font-size:14px;font-weight:900;color:' + color + ';margin:2px 0">' + p.zoneFa + '</p>' +
+    '<p class="bt-note" style="text-align:center">' + p.consensus.sentenceFa + '</p>' +
+    '<p class="bt-note" style="text-align:center" dir="ltr">' + (p.symName || '') + ' · ' + (p.tfLabel || '') + '</p></div>' +
+    '<p class="bt-note boxed" style="margin-top:6px">' + p.guidanceFa + '</p>' +
+    (!p.reliable ? '<p class="bt-warn">⚠ تعداد اندیکاتورهای قابل محاسبه کم است — این نتیجه اعتماد پایینی دارد.</p>' : '') +
+    '<p class="bt-src">قیمت لحظه‌ای همین نماد در «نمای بازار» و «اسکلپ» از همین منبع کالیبره می‌شود · آخرین محاسبه: ' + faTime(new Date(p.atISO)) + '</p>';
+
+  return btSec('دماسنج فشار خرید/فروش', 'activity',
+    '<div class="sc-chips" style="justify-content:center">' + tfChips + '</div>' + gauge + main, 'var(--violet)') +
+    btSec('رأی تک‌تک اندیکاتورها — فقط نتیجه، بدون فرمول', 'crosshair',
+      '<div class="sc-chips">' + chips + '</div><p class="bt-note">' + p.disclaimer + '</p>', 'var(--sky)');
 }
 
 /* ---------- رندر اصلی اپ ---------- */
@@ -270,7 +270,7 @@ function renderTraderApp(soft) {
       '<button type="button" class="btn" data-bt-refresh>' + icon('refresh', 13) + 'تلاش مجدد</button></div>';
   } else if (BT.data) {
     if (BT.tab === 'ai') inner += btAiHTML();
-    else if (BT.tab === 'factors') inner += btFactorsHTML();
+    else if (BT.tab === 'factors') inner += btThermoHTML();
     else if (BT.tab === 'news') inner += btNewsHTML();
     else inner += btViewHTML();
     inner += '<p class="bt-foot">منبع: ' + (BT.data.degraded ? 'اسنپ‌شات فایل (داده زنده در دسترس نبود)' : 'سری روزانه Yahoo Finance (پروکسی عمومی) · ساختار و اخبار: اسنپ‌شات فایل') + ' — آخرین محاسبه: ' + faTime(new Date()) +
@@ -281,7 +281,7 @@ function renderTraderApp(soft) {
   /* بارگذاری اولیه — فقط وقتی هیچ داده یا وضعیتی وجود ندارد */
   if (!BT.data && !BT.busy && !BT.err) btLoadData(false);
   /* بارگذاری تنبل عوامل کمّی هنگام باز شدن تب */
-  if (BT.tab === 'factors' && BT.data && !BT.fq && !BT.fqBusy && !BT.fqErr) btLoadFactors(false);
+  if (BT.tab === 'factors' && BT.data && !BT.pt && !BT.ptBusy && !BT.ptErr) btLoadPressure(false);
 }
 function btBind() {
   var rf = appScroll.querySelector('[data-bt-refresh]');
@@ -293,23 +293,25 @@ function btBind() {
     BT.nudge = n.warn ? n.message : '';
     btLoadData(true);
   });
-  var fqr = appScroll.querySelector('[data-bt-fq-reload]');
-  if (fqr) fqr.addEventListener('click', function () { btLoadFactors(true); });
-  var fws = appScroll.querySelectorAll('[data-bt-fw]');
-  for (var wi = 0; wi < fws.length; wi++) {
+  var ptr = appScroll.querySelector('[data-pt-reload]');
+  if (ptr) ptr.addEventListener('click', function () { btLoadPressure(true); });
+  var ptfs = appScroll.querySelectorAll('[data-pt-tf]');
+  for (var wi = 0; wi < ptfs.length; wi++) {
     (function (b) {
-      b.addEventListener('change', function () {
-        btFqSetWeight(b.dataset.btFw, Number(b.value));
-        renderTraderApp(true);
+      b.addEventListener('click', function () {
+        if (BT.ptTf === b.dataset.ptTf && BT.pt) return;
+        BT.ptTf = b.dataset.ptTf;
+        BT.pt = null;
+        btLoadPressure(false, BT.ptTf);
       });
-    })(fws[wi]);
+    })(ptfs[wi]);
   }
   var syms = appScroll.querySelectorAll('[data-bt-sym]');
   for (var i = 0; i < syms.length; i++) {
     (function (b) {
       b.addEventListener('click', function () {
         if (BT.sym === b.dataset.btSym) return;
-        BT.sym = b.dataset.btSym; BT.data = null; BT.plan = null; BT.changes = []; BT.fq = null; BT.fqErr = null; BT.zf = null;
+        BT.sym = b.dataset.btSym; BT.data = null; BT.plan = null; BT.changes = []; BT.pt = null; BT.ptErr = null; BT.zf = null;
         btLoadData(true);
       });
     })(syms[i]);

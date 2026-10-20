@@ -2,42 +2,33 @@ import { NextResponse } from "next/server";
 import { getMeta, setMeta } from "@/lib/ff";
 import { rangeCompression } from "@/lib/trader-engine";
 import { runScalpEngine, h4PhaseSec, type ScalpBar, type H4Anchor } from "@/lib/scalp-engine";
+import { SYMBOL_REGISTRY, yahooChart, aggregateCandles, getSpot } from "@/lib/market-data";
 
 export const dynamic = "force-dynamic";
 
 /**
  * API اسکلپ — پورت اندیکاتور کاربر (SBW + OB + ستاپ ۴ساعته + واگرایی)
- * ورودی: نماد + تایم‌فریم اسکلپ (۱/۵/۱۵ دقیقه) → کندل‌های Yahoo + تجمیع ۴ساعته
+ * ورودی: نماد + تایم‌فریم اسکلپ (۱/۵/۱۵ دقیقه) → کندل‌های لایه واحد market-data + تجمیع ۴ساعته
  * کش ۳ دقیقه‌ای؛ خروجی اطلاع‌رسانی است، نه سیگنال قطعی.
  */
 
-const UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 const TTL_MS = 3 * 60 * 1000;
-const FETCH_TIMEOUT_MS = 15_000;
 const MIN_BARS = 80;
 
-const SCALP_SYMBOLS: Record<string, { yahoo: string[]; label: string; mono: string; anchor?: H4Anchor; spot?: { url: string; sym: string } }> = {
-  xau: {
-    yahoo: ["GC=F"],
-    label: "طلا (اونس) — XAUUSD",
-    mono: "XAUUSD",
-    /* مرز کندل ۴ساعته مثل چارت بروکر (۱۷:۰۰ نیویورک) نه UTC — قابل تغییر با anchor */
-    anchor: "broker",
-    /* کندل Yahoo = آتی GC=F؛ برای هم‌ترازی با اسپات، قیمت لحظه‌ای اسپات از gold-api کالیبره می‌شود */
-    spot: { url: "https://api.gold-api.com/price/XAU", sym: "XAU" },
-  },
-  xag: {
-    yahoo: ["SI=F"],
-    label: "نقره — XAGUSD",
-    mono: "XAGUSD",
-    anchor: "broker",
-    spot: { url: "https://api.gold-api.com/price/XAG", sym: "XAG" },
-  },
-  dji: { yahoo: ["^DJI", "YM=F"], label: "داوجونز — DJI", mono: "DJI · ^DJI", anchor: "broker" },
-  eurusd: { yahoo: ["EURUSD=X"], label: "یورو/دلار — EURUSD", mono: "EURUSD", anchor: "broker" },
-  btc: { yahoo: ["BTC-USD"], label: "بیت‌کوین — BTC", mono: "BTCUSDT · BTC-USD", anchor: "utc" },
-};
+/* پیکربندی نمادها از رجیستری واحد market-data — همان منبع همه صفحات */
+const SCALP_SYMBOLS: Record<string, { yahoo: string[]; label: string; mono: string; anchor?: H4Anchor; spot?: { url: string; sym: string } }> =
+  Object.fromEntries(
+    Object.values(SYMBOL_REGISTRY).map((d) => [
+      d.key,
+      {
+        yahoo: d.yahoo,
+        label: d.labelFa,
+        mono: d.mono,
+        anchor: (d.h4Anchor ?? "utc") as H4Anchor,
+        ...(d.spot ? { spot: d.spot } : {}),
+      },
+    ])
+  );
 
 const TF_SEC: Record<string, number> = { "1m": 60, "5m": 300, "15m": 900 };
 
@@ -47,78 +38,17 @@ const SCALP_TFS: Record<string, { interval: string; range: string; label: string
   "15m": { interval: "15m", range: "1mo", label: "۱۵ دقیقه" },
 };
 
-function num(v: unknown): number | null {
-  return typeof v === "number" && isFinite(v) ? v : null;
-}
-
+/** دریافت کندل از لایه داده واحد (market-data) — تنها نقطه تماس با Yahoo */
 async function fetchCandles(symbol: string, interval: string, range: string): Promise<ScalpBar[]> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-    symbol,
-  )}?interval=${interval}&range=${range}&includePrePost=false`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": UA, Accept: "application/json" },
-    cache: "no-store",
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = (await res.json()) as {
-    chart?: {
-      result?: Array<{
-        timestamp?: number[];
-        indicators?: { quote?: Array<{ open?: (number | null)[]; high?: (number | null)[]; low?: (number | null)[]; close?: (number | null)[] }> | null };
-      }> | null;
-    };
-  };
-  const r = json.chart?.result?.[0];
-  const q = r?.indicators?.quote?.[0] ?? {};
-  const ts = r?.timestamp;
-  if (!r || !Array.isArray(ts) || ts.length === 0) throw new Error("empty chart response");
-  const bars: ScalpBar[] = [];
-  for (let i = 0; i < ts.length; i++) {
-    const o = num(q.open?.[i]);
-    const h = num(q.high?.[i]);
-    const l = num(q.low?.[i]);
-    const c = num(q.close?.[i]);
-    if (o === null || h === null || l === null || c === null) continue;
-    bars.push({ t: ts[i], o, h, l, c });
-  }
+  const { candles } = await yahooChart([symbol], interval, range);
+  const bars: ScalpBar[] = candles.map((c) => ({ t: c.t, o: c.o, h: c.h, l: c.l, c: c.c }));
   if (bars.length < MIN_BARS) throw new Error(`not enough bars: ${bars.length}`);
   return bars;
 }
 
-/** تجمیع ۴ساعته با فاز تراز (مرز کندل مثل چارت بروکر یا UTC) */
-function aggregate4h(bars: ScalpBar[], phase: number): ScalpBar[] {
-  const BUCKET = 4 * 3600;
-  const map = new Map<number, ScalpBar>();
-  for (const b of bars) {
-    const idx = Math.floor((b.t - phase) / BUCKET);
-    const k = idx * BUCKET + phase;
-    const ex = map.get(k);
-    if (!ex) map.set(k, { t: k, o: b.o, h: b.h, l: b.l, c: b.c });
-    else {
-      if (b.h > ex.h) ex.h = b.h;
-      if (b.l < ex.l) ex.l = b.l;
-      ex.c = b.c;
-    }
-  }
-  return [...map.values()].sort((a, b) => a.t - b.t);
-}
-
-/** قیمت لحظه‌ای اسپات از gold-api (بدون کلید، CORS باز) — برای کالیبراسیون آتی↔اسپات */
+/* قیمت لحظه‌ای اسپات از gold-api — از لایه واحد (همان منبع همه صفحات) */
 async function fetchSpot(url: string): Promise<number | null> {
-  try {
-    const res = await fetch(url, {
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-      signal: AbortSignal.timeout(6_000),
-    });
-    if (!res.ok) return null;
-    const j = (await res.json()) as { price?: number | string };
-    const p = typeof j.price === "number" ? j.price : parseFloat(String(j.price));
-    return isFinite(p) && p > 0 ? p : null;
-  } catch {
-    return null;
-  }
+  return getSpot({ url, sym: url.split("/price/")[1] ?? url });
 }
 
 /** جای‌جایی همهٔ سطوح مطلق موتور با اختلاف آتی↔اسپات (شکل زون‌ها و ATR بدون تغییر) */
@@ -150,8 +80,8 @@ function shiftEngine(e: Record<string, unknown>, d: number): void {
   /* پنجرهٔ کندل ملاک هم باید روی بیس اسپات باشد */
   const ref = e.h4Ref as { high: number; low: number } | null | undefined;
   if (ref && typeof ref.high === "number" && typeof ref.low === "number") {
-    ref.high = sh(ref.high);
-    ref.low = sh(ref.low);
+    ref.high = sh(ref.high) as number;
+    ref.low = sh(ref.low) as number;
   }
   e.swingHigh = sh(e.swingHigh);
   e.swingLow = sh(e.swingLow);
@@ -212,7 +142,7 @@ async function computeScalp(symbol: string, tf: string, anchor: H4Anchor): Promi
   let h4: ScalpBar[] | null = null;
   try {
     const raw1h = await fetchCandles(symSpec.yahoo[0], "1h", "3mo");
-    h4 = aggregate4h(raw1h, phase);
+    h4 = aggregateCandles(raw1h, 4 * 3600, phase);
   } catch {
     h4 = null;
   }

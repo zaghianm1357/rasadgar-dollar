@@ -800,9 +800,10 @@ function renderAboutApp() {
     '<section class="about-sec"><div class="about-h"><span style="color:var(--sky)">' + icon('layers', 16) + '</span><h2 class="about-t">منابع داده و روش تحلیل</h2></div>' +
     '<ul style="display:flex;flex-direction:column;gap:6px;font-size:11px;line-height:20px;color:var(--mutedfg);margin:0;padding:0;list-style:none">' +
     '<li>• اخبار اقتصادی USD: ForexFactory با ترجمه و تحلیل تأثیر هوش مصنوعی (در لحظه تولید فایل).</li>' +
-    '<li>• قیمت طلا (فیوچرز COMEX — همبستگی نزدیک به XAUUSD) و داو جونز: Yahoo Finance — بروزرسانی زنده اختیاری.</li>' +
+    '<li>• قیمت طلا/نقره/داوجونز: Yahoo Finance از «لایه داده واحد» ابزار — همه صفحات از یک منبع تغذیه می‌شوند و برای طلا/نقره با اسپات gold-api کالیبره می‌شوند تا عدد همه صفحات یکی باشد.</li>' +
     '<li>• ساختار بازار: ترکیب EMA۲۰/۵۰ و سقف/کف‌های سوئینگ در ۶ تایم‌فریم + تایم‌فریم ورود ۵ دقیقه.</li>' +
-    '<li>• چارت تریدینگ‌ویو + دستیار معامله‌گر (BIG TRADER): امتیاز اطمینان، ماشین‌حساب حجم/حد ضرر و حد سود، تحلیل هوشمند، سناریوی خبری و عوامل کمّی.</li>' +
+    '<li>• دماسنج فشار: اجماع ۱۶ اندیکاتور و اسیلاتور مومنتوم و جریان سفارش — فقط نتیجه نمایش داده می‌شود.</li>' +
+    '<li>• چارت تریدینگ‌ویو + دستیار معامله‌گر (BIG TRADER): امتیاز اطمینان، ماشین‌حساب حجم/حد ضرر و حد سود، تحلیل هوشمند، سناریوی خبری و دماسنج فشار.</li>' +
     '<li>• پیشنهاد اسکلپ و سیگنال اسکلپ اونس: پورت اندیکاتور SBW + اوردر بلاک FVG + ستاپ ۴ساعته + واگرایی روی کندل‌های زنده Yahoo Finance.</li>' +
     '</ul></section>' +
     '<section class="about-sec"><div class="about-h"><span style="color:var(--violet)">' + icon('sliders', 16) + '</span><h2 class="about-t">این فایل</h2></div>' +

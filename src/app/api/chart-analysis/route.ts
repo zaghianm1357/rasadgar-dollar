@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import ZAI from "z-ai-web-dev-sdk";
 import { getMeta, setMeta } from "@/lib/ff";
+import { yahooChart, aggregateCandles, SYMBOL_REGISTRY } from "@/lib/market-data";
 import { rangeCompression, entryZonesFromStructure } from "@/lib/trader-engine";
 import type { EntryZoneOutput, RangeWarning } from "@/lib/trader-engine";
 
@@ -12,11 +13,7 @@ export const dynamic = "force-dynamic";
  * کش ۱۵ دقیقه‌ای در AppMeta برای جلوگیری از هزینه تکراری LLM.
  */
 
-const UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-
 const TTL_MS = 15 * 60 * 1000;
-const FETCH_TIMEOUT_MS = 15_000;
 const MIN_BARS = 60;
 
 interface Candle {
@@ -27,12 +24,10 @@ interface Candle {
   c: number;
 }
 
-const SYMBOL_MAP: Record<string, { yahoo: string[]; label: string }> = {
-  "OANDA:XAUUSD": { yahoo: ["GC=F", "XAUUSD=X"], label: "طلا (XAUUSD)" },
-  "OANDA:XAGUSD": { yahoo: ["SI=F"], label: "نقره (XAGUSD)" },
-  "OANDA:EURUSD": { yahoo: ["EURUSD=X"], label: "یورو/دلار (EURUSD)" },
-  "BINANCE:BTCUSDT": { yahoo: ["BTC-USD"], label: "بیت‌کوین (BTCUSDT)" },
-};
+/* نگاشت نماد TradingView → زنجیره Yahoo — از رجیستری واحد market-data */
+const SYMBOL_MAP: Record<string, { yahoo: string[]; label: string }> = Object.fromEntries(
+  Object.values(SYMBOL_REGISTRY).map((d) => [d.tv, { yahoo: d.yahoo, label: d.shortFa }])
+);
 
 const INTERVAL_MAP: Record<string, { yahooInterval: string; range: string; agg4h?: boolean; label: string }> = {
   "5": { yahooInterval: "5m", range: "5d", label: "۵ دقیقه" },
@@ -42,72 +37,17 @@ const INTERVAL_MAP: Record<string, { yahooInterval: string; range: string; agg4h
   D: { yahooInterval: "1d", range: "1y", label: "روزانه" },
 };
 
-/* ---------- دریافت کندل ---------- */
-
-function num(v: unknown): number | null {
-  return typeof v === "number" && isFinite(v) ? v : null;
-}
+/* ---------- دریافت کندل از لایه داده واحد (market-data) ---------- */
 
 async function fetchChart(
   symbol: string,
   interval: string,
   range: string
 ): Promise<Candle[]> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-    symbol
-  )}?interval=${interval}&range=${range}&includePrePost=false`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": UA, Accept: "application/json" },
-    cache: "no-store",
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = (await res.json()) as {
-    chart?: {
-      result?: Array<{
-        timestamp?: number[];
-        indicators?: {
-          quote?: Array<{
-            open?: (number | null)[];
-            high?: (number | null)[];
-            low?: (number | null)[];
-            close?: (number | null)[];
-          }>;
-        };
-      }> | null;
-    };
-  };
-  const r = json.chart?.result?.[0];
-  const q = r?.indicators?.quote?.[0] ?? {};
-  const ts = r?.timestamp;
-  if (!r || !Array.isArray(ts) || ts.length === 0) throw new Error("empty chart response");
-  const candles: Candle[] = [];
-  for (let i = 0; i < ts.length; i++) {
-    const o = num(q.open?.[i]);
-    const h = num(q.high?.[i]);
-    const l = num(q.low?.[i]);
-    const c = num(q.close?.[i]);
-    if (o === null || h === null || l === null || c === null) continue;
-    candles.push({ t: ts[i], o, h, l, c });
-  }
-  if (candles.length < MIN_BARS) throw new Error(`not enough bars: ${candles.length}`);
-  return candles;
-}
-
-function aggregate4h(candles: Candle[]): Candle[] {
-  const BUCKET = 4 * 3600;
-  const map = new Map<number, Candle>();
-  for (const c of candles) {
-    const b = Math.floor(c.t / BUCKET) * BUCKET;
-    const ex = map.get(b);
-    if (!ex) map.set(b, { t: b, o: c.o, h: c.h, l: c.l, c: c.c });
-    else {
-      if (c.h > ex.h) ex.h = c.h;
-      if (c.l < ex.l) ex.l = c.l;
-      ex.c = c.c;
-    }
-  }
-  return [...map.values()].sort((a, b) => a.t - b.t);
+  const { candles } = await yahooChart([symbol], interval, range);
+  const mapped = candles.map((c) => ({ t: c.t, o: c.o, h: c.h, l: c.l, c: c.c }));
+  if (mapped.length < MIN_BARS) throw new Error(`not enough bars: ${mapped.length}`);
+  return mapped;
 }
 
 /* ---------- اندیکاتورهای خلاصه ---------- */
@@ -249,7 +189,9 @@ async function computeAnalysis(symbol: string, interval: string): Promise<AiCach
   for (const y of symSpec.yahoo) {
     try {
       const raw = await fetchChart(y, itvSpec.yahooInterval, itvSpec.range);
-      candles = itvSpec.agg4h ? aggregate4h(raw) : raw;
+      candles = itvSpec.agg4h
+        ? aggregateCandles(raw, 4 * 3600)
+        : raw;
       break;
     } catch (err) {
       lastErr = err as Error;

@@ -9,25 +9,22 @@ import {
   LoaderCircle,
   Newspaper,
   RefreshCw,
-  Sigma,
-  SlidersHorizontal,
   Sparkles,
+  Thermometer,
   X,
 } from "lucide-react";
 import { faTime, faDigits } from "@/lib/tehran";
 import { currencyFa } from "@/lib/currency-fa";
 import { computeTradePlan, refreshNudge } from "@/lib/trader-engine";
-import { compositeScore, compositeLabelFa } from "@/lib/factor-quant";
 import type { RangeWarning, EntryZone, EntryZoneOutput } from "@/lib/trader-engine";
 import type { PlanOutput } from "@/lib/trader-engine";
 import type { TraderResponse } from "@/lib/trader-types";
-import type { FactorQuantResponse, FactorRow } from "@/lib/factor-types";
+import { ThermometerTab, type PressureResponse, type PressureTf } from "./thermometer-tab";
 
 /* ---------- کلیدهای ذخیره‌سازی ---------- */
 
 const K_VISIT = "bt_visit_v1";
 const K_REFRESH = "bt_refresh_v1";
-const K_FWEIGHTS = "bt_fw_v1";
 const K_AI = "bt_ai_v1";
 
 function lsGet<T>(key: string, fallback: T): T {
@@ -63,7 +60,7 @@ const VERDICT_FA: Record<string, string> = { strong: "شرایط قوی", modera
 const TABS = [
   { id: "view", label: "نمای بازار", icon: Compass },
   { id: "ai", label: "تحلیل هوشمند", icon: Sparkles },
-  { id: "factors", label: "عوامل کمّی", icon: Sigma },
+  { id: "factors", label: "دماسنج فشار", icon: Thermometer },
   { id: "news", label: "اخبار", icon: Newspaper },
 ] as const;
 
@@ -146,10 +143,11 @@ export function TraderApp() {
   const [error, setError] = useState<string | null>(null);
   const [visitChanges, setVisitChanges] = useState<{ text: string }[]>([]);
   const [nudgeMsg, setNudgeMsg] = useState<string | null>(null);
-  /* داده تب عوامل کمّی — بارگذاری تنبل هنگام باز شدن تب */
-  const [fq, setFq] = useState<FactorQuantResponse | null>(null);
-  const [fqStatus, setFqStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
-  const [fqError, setFqError] = useState<string | null>(null);
+  /* داده دماسنج فشار — بارگذاری تنبل هنگام باز شدن تب */
+  const [pt, setPt] = useState<PressureResponse | null>(null);
+  const [ptStatus, setPtStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [ptError, setPtError] = useState<string | null>(null);
+  const [ptTf, setPtTf] = useState<PressureTf>("1d");
 
   const load = useCallback(
     (force: boolean) => {
@@ -231,43 +229,44 @@ export function TraderApp() {
     return () => clearTimeout(t);
   }, [load]);
 
-  /* تغییر نماد → داده عوامل قبلی باطل شود (در هندلر انتخاب نماد، نه افکت) */
+  /* تغییر نماد → داده دماسنج قبلی باطل شود (در هندلر انتخاب نماد، نه افکت) */
   const pickSym = (k: "xau" | "dji") => {
     if (k === sym) return;
     setSym(k);
-    setFq(null);
-    setFqStatus("idle");
+    setPt(null);
+    setPtStatus("idle");
   };
 
-  const loadFactors = useCallback(
-    (force: boolean) => {
-      setFqStatus("loading");
-      setFqError(null);
-      fetch(`/api/factor-quant?symbol=${sym}${force ? "&force=1" : ""}`)
+  const loadPressure = useCallback(
+    (force: boolean, tfOverride?: PressureTf) => {
+      const tf = tfOverride ?? ptTf;
+      setPtStatus("loading");
+      setPtError(null);
+      fetch(`/api/pressure?symbol=${sym}&tf=${tf}${force ? "&force=1" : ""}`)
         .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
         .then(({ ok, j }) => {
           if (ok && j?.ok) {
-            setFq(j as FactorQuantResponse);
-            setFqStatus("done");
+            setPt(j as PressureResponse);
+            setPtStatus("done");
           } else {
-            setFqError(String(j?.error ?? "خطای نامشخص"));
-            setFqStatus("error");
+            setPtError(String(j?.error ?? "خطای نامشخص"));
+            setPtStatus("error");
           }
         })
         .catch(() => {
-          setFqError("ارتباط با سرور برقرار نشد");
-          setFqStatus("error");
+          setPtError("ارتباط با سرور برقرار نشد");
+          setPtStatus("error");
         });
     },
-    [sym]
+    [sym, ptTf]
   );
 
   useEffect(() => {
-    if (tab === "factors" && fqStatus === "idle") {
-      const t = setTimeout(() => loadFactors(false), 0);
+    if (tab === "factors" && ptStatus === "idle") {
+      const t = setTimeout(() => loadPressure(false), 0);
       return () => clearTimeout(t);
     }
-  }, [tab, fqStatus, loadFactors]);
+  }, [tab, ptStatus, loadPressure]);
 
   const d = data;
   const verdictCls =
@@ -401,7 +400,18 @@ export function TraderApp() {
         {!loading && !error && d && tab === "view" && <ViewTab d={d} visitChanges={visitChanges} />}
         {!loading && !error && d && tab === "ai" && <AiTab />}
         {!loading && !error && d && tab === "factors" && (
-          <FactorsTab sym={sym} data={fq} status={fqStatus} error={fqError} onReload={() => loadFactors(true)} />
+          <ThermometerTab
+            sym={sym}
+            data={pt}
+            status={ptStatus}
+            error={ptError}
+            tf={ptTf}
+            onTf={(t) => {
+              setPtTf(t);
+              loadPressure(false, t);
+            }}
+            onReload={() => loadPressure(true)}
+          />
         )}
         {!loading && !error && d && tab === "news" && <NewsTab d={d} />}
 
@@ -1030,254 +1040,3 @@ const EFFECT_CLS: Record<string, string> = {
   unknown: "text-muted-foreground",
 };
 
-type BetaT = NonNullable<FactorRow["beta"]["h5"]>;
-
-function betaCell(b: BetaT | null): string {
-  if (!b) return "—";
-  return `${b.beta >= 0 ? "+" : ""}${faNum(b.beta, 3)}`;
-}
-function betaT(b: BetaT | null): string {
-  if (!b) return "";
-  return `t=${faNum(b.t, 1)}`;
-}
-
-function FactorsTab({
-  sym,
-  data,
-  status,
-  error,
-  onReload,
-}: {
-  sym: "xau" | "dji";
-  data: FactorQuantResponse | null;
-  status: "idle" | "loading" | "done" | "error";
-  error: string | null;
-  onReload: () => void;
-}) {
-  const [allOverrides, setAllOverrides] = useState<Record<string, Record<string, number>>>(() =>
-    lsGet<Record<string, Record<string, number>>>(K_FWEIGHTS, {})
-  );
-  const overrides = allOverrides[sym] ?? {};
-  const wOf = (id: string, dflt: number) => overrides[id] ?? dflt;
-  const setW = (id: string, v: number) => {
-    setAllOverrides((prev) => {
-      const nx = { ...prev, [sym]: { ...(prev[sym] ?? {}), [id]: isFinite(v) ? Math.max(0, Math.min(1, v)) : 0 } };
-      lsSet(K_FWEIGHTS, nx);
-      return nx;
-    });
-  };
-
-  /* امتیاز تجمیعی با وزن‌های کاربر — فقط از عوامل معتبر */
-  const localScore = useMemo(() => {
-    if (!data) return null;
-    const ov = allOverrides[sym] ?? {};
-    const items = data.rows
-      .filter((r) => r.pressure !== null)
-      .map((r) => ({ id: r.id, w: ov[r.id] ?? r.w, p: r.pressure as number }));
-    return compositeScore(items);
-  }, [data, allOverrides, sym]);
-
-  const sumValidW = useMemo(() => {
-    if (!data) return 0;
-    const ov = allOverrides[sym] ?? {};
-    return data.rows.filter((r) => r.pressure !== null).reduce((s, r) => s + (ov[r.id] ?? r.w), 0);
-  }, [data, allOverrides, sym]);
-
-  if (status === "idle" || status === "loading") {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-2">
-        <LoaderCircle className="h-6 w-6 animate-spin text-violet-300" />
-        <p className="text-xs font-bold text-foreground/80">در حال برآورد رگرسیون‌های تاریخی…</p>
-        <p className="text-[10px] text-muted-foreground">بازده نماد و عوامل در افق‌های ۱/۵/۲۰ روزه — چند ثانیه</p>
-      </div>
-    );
-  }
-  if (status === "error" || !data) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-        <AlertTriangle className="h-6 w-6 text-amber-400" />
-        <p className="max-w-[280px] text-[11px] leading-5 text-muted-foreground">{error ?? "داده عوامل در دسترس نیست"}</p>
-        <button type="button" onClick={onReload} className="rounded-full border border-violet-500/50 bg-violet-500/15 px-3.5 py-1.5 text-xs font-extrabold text-violet-200">
-          تلاش مجدد
-        </button>
-      </div>
-    );
-  }
-
-  const score = localScore ?? data.composite.score;
-  const scoreLabel = compositeLabelFa(score);
-
-  return (
-    <div className="flex flex-col gap-2">
-      {/* شاخص فشار مدل */}
-      <Section title="شاخص فشار مدل — Composite" icon={<Sigma className="h-3.5 w-3.5 text-violet-300" />}>
-        <div className="flex items-center gap-3">
-          <div
-            className={`flex h-16 w-16 flex-none flex-col items-center justify-center rounded-2xl border ${
-              score === null
-                ? "border-border/70 bg-card/60 text-zinc-300"
-                : score > 15
-                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                  : score < -15
-                    ? "border-rose-500/40 bg-rose-500/10 text-rose-300"
-                    : "border-amber-500/40 bg-amber-500/10 text-amber-300"
-            }`}
-            data-testid="bt-factors-score"
-          >
-            <span className="text-lg font-black" dir="ltr">{score === null ? "—" : (score > 0 ? "+" : "") + faDigits(score)}</span>
-            <span className="text-[8px] font-bold">−۱۰۰ تا +۱۰۰</span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[12px] font-extrabold">{scoreLabel}</p>
-            <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">
-              مثبت = فشار تاریخی مدل به سمت رشد نماد · منفی = فشار به سمت افت · نزدیک صفر = فشار خالص کم یا عوامل متضاد.
-              <br />
-              این «شاخص فشار مدل» است — احتمال صعود، بازده مورد انتظار یا تضمین حرکت نیست.
-            </p>
-          </div>
-        </div>
-        {data.composite.skipped.length > 0 && (
-          <div className="mt-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2 py-1.5">
-            <p className="text-[9px] font-bold text-amber-200">عوامل کنارگذاشته‌شده از امتیاز (وزن بقیه بازتنظیم شد — مجموع وزن مؤثر: {faNum(sumValidW)}):</p>
-            <ul className="mt-0.5">
-              {data.composite.skipped.map((s) => (
-                <li key={s.id} className="text-[9px] leading-4 text-amber-200/80">• {s.nameFa}: {s.reason}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </Section>
-
-      {/* جدول عوامل */}
-      <Section title="جدول کمّی عوامل — رابطه تاریخی/آماری، نه علّی" icon={<SlidersHorizontal className="h-3.5 w-3.5 text-sky-300" />}>
-        <div className="overflow-x-auto" data-testid="bt-factors-table">
-          <table className="w-full min-w-[620px] text-[9px]">
-            <thead>
-              <tr className="text-muted-foreground">
-                <th className="py-1 text-start font-bold">عامل</th>
-                <th className="py-1 text-center font-bold">مقدار جاری</th>
-                <th className="py-1 text-center font-bold">تغییر ۵روزه</th>
-                <th className="py-1 text-center font-bold">Z</th>
-                <th className="py-1 text-center font-bold">β افق ۱ر</th>
-                <th className="py-1 text-center font-bold">β افق ۵ر</th>
-                <th className="py-1 text-center font-bold">β افق ۲۰ر</th>
-                <th className="py-1 text-center font-bold">Pressure</th>
-                <th className="py-1 text-center font-bold">قابلیت اتکا</th>
-                <th className="py-1 text-center font-bold">اثر فعلی بر نماد</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((r) => (
-                <tr key={r.id} className="border-t border-border/50">
-                  <td className="py-1.5 pe-1">
-                    <p className="font-bold">{r.nameFa}</p>
-                    <p className="text-[8px] text-muted-foreground" dir="ltr">Yahoo: {r.sourceYahoo} · وزن {faNum(wOf(r.id, r.w))}</p>
-                  </td>
-                  <td className="py-1.5 text-center font-bold" dir="ltr">{faNum(r.current)}</td>
-                  <td className="py-1.5 text-center" dir="ltr">{r.change5 === null ? "—" : (r.change5 > 0 ? "+" : "") + faNum(r.change5) + " " + r.unitFa}</td>
-                  <td className="py-1.5 text-center" dir="ltr">{r.z === null ? "—" : (r.z > 0 ? "+" : "") + faNum(r.z)}</td>
-                  <td className="py-1.5 text-center" dir="ltr" title={r.beta.h1 ? `SE=${faNum(r.beta.h1.se, 3)} | CI: ${faNum(r.beta.h1.ciLo, 2)} تا ${faNum(r.beta.h1.ciHi, 2)} | n=${faDigits(r.beta.h1.n)}` : ""}>
-                    {betaCell(r.beta.h1)}
-                    <span className="block text-[7px] text-muted-foreground">{betaT(r.beta.h1)}</span>
-                  </td>
-                  <td className="py-1.5 text-center" dir="ltr" title={r.beta.h5 ? `SE=${faNum(r.beta.h5.se, 3)} | CI: ${faNum(r.beta.h5.ciLo, 2)} تا ${faNum(r.beta.h5.ciHi, 2)} | n=${faDigits(r.beta.h5.n)}` : ""}>
-                    {betaCell(r.beta.h5)}
-                    <span className="block text-[7px] text-muted-foreground">{betaT(r.beta.h5)}</span>
-                  </td>
-                  <td className="py-1.5 text-center" dir="ltr" title={r.beta.h20 ? `SE=${faNum(r.beta.h20.se, 3)} | CI: ${faNum(r.beta.h20.ciLo, 2)} تا ${faNum(r.beta.h20.ciHi, 2)} | n=${faDigits(r.beta.h20.n)}` : ""}>
-                    {betaCell(r.beta.h20)}
-                    <span className="block text-[7px] text-muted-foreground">{betaT(r.beta.h20)}</span>
-                  </td>
-                  <td className="py-1.5 text-center font-black" dir="ltr">
-                    {r.pressure === null ? "نامشخص" : (r.pressure > 0 ? "+" : "") + faNum(r.pressure, 3)}
-                  </td>
-                  <td className="py-1.5 text-center" dir="ltr">{r.reliability === null ? "—" : faNum(r.reliability)}</td>
-                  <td className={`py-1.5 text-center font-extrabold ${EFFECT_CLS[r.effect] ?? ""}`}>{r.effectFa}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* تفسیر به زبان ساده */}
-        {data.rows.some((r) => r.interpFa) && (
-          <div className="mt-1.5 flex flex-col gap-1">
-            {data.rows.filter((r) => r.interpFa).map((r) => (
-              <p key={r.id} className="rounded-lg border border-border/50 bg-background/40 px-2 py-1 text-[9px] leading-4 text-foreground/85">{r.interpFa}</p>
-            ))}
-          </div>
-        )}
-        {data.rows.filter((r) => !r.reliable5 && r.unreliableReason).map((r) => (
-          <p key={r.id} className="mt-1 text-[9px] leading-4 text-amber-300/90">⚠ {r.nameFa}: {r.unreliableReason} — Pressure محاسبه نشد و عدد حدس زده نشد.</p>
-        ))}
-        {data.overlaps.map((o, i) => (
-          <p key={i} className="mt-1 text-[9px] leading-4 text-amber-300/90">⚠ {o.note}</p>
-        ))}
-      </Section>
-
-      {/* غافلگیری استانداردشده خبری */}
-      {data.surprise && (
-        <Section title="غافلگیری استانداردشده آخرین داده اقتصادی High" icon={<Newspaper className="h-3.5 w-3.5 text-amber-300" />}>
-          <p className="text-[10px] font-bold">{data.surprise.titleFa ?? data.surprise.title}</p>
-          <div className="mt-0.5 grid grid-cols-3 gap-1 text-center">
-            <div className="rounded-lg border border-border/60 bg-background/40 p-1">
-              <p className="text-[8px] text-muted-foreground">واقعی</p>
-              <p className="text-[11px] font-extrabold" dir="ltr">{data.surprise.actual}</p>
-            </div>
-            <div className="rounded-lg border border-border/60 bg-background/40 p-1">
-              <p className="text-[8px] text-muted-foreground">انتظار</p>
-              <p className="text-[11px] font-extrabold" dir="ltr">{data.surprise.forecast ?? "—"}</p>
-            </div>
-            <div className="rounded-lg border border-border/60 bg-background/40 p-1">
-              <p className="text-[8px] text-muted-foreground">Surprise Z</p>
-              <p className="text-[11px] font-extrabold" dir="ltr">{data.surprise.surpriseZ === null ? "نامشخص" : (data.surprise.surpriseZ > 0 ? "+" : "") + faNum(data.surprise.surpriseZ)}</p>
-            </div>
-          </div>
-          <p className="mt-1 text-[9px] leading-4 text-muted-foreground">{data.surprise.note}</p>
-        </Section>
-      )}
-
-      {/* تنظیمات وزن‌ها */}
-      <Section title="تنظیمات وزن عوامل (۰ تا ۱)" icon={<SlidersHorizontal className="h-3.5 w-3.5 text-violet-300" />}>
-        <div className="flex flex-col gap-1.5">
-          {data.rows.map((r) => (
-            <label key={r.id} className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 truncate text-[10px] font-bold">{r.nameFa}</span>
-              <input
-                type="number"
-                min={0}
-                max={1}
-                step={0.05}
-                value={wOf(r.id, r.w)}
-                onChange={(e) => setW(r.id, Number(e.target.value))}
-                dir="ltr"
-                className="w-16 flex-none rounded-lg border border-border/70 bg-background/60 px-1.5 py-1 text-center text-[11px] font-bold outline-none focus:border-violet-500/50"
-                aria-label={`وزن ${r.nameFa}`}
-              />
-            </label>
-          ))}
-        </div>
-        <p className="mt-1.5 text-[9px] leading-4 text-muted-foreground">
-          وزن‌ها در امتیاز تجمیعی همان بالا اعمال می‌شوند. اگر داده عاملی موجود نباشد از امتیاز کنار گذاشته می‌شود و وزن عوامل باقی‌مانده شفاف بازتنظیم می‌شود (مجموع وزن مؤثر فعلی: {faNum(sumValidW)}).
-          {data.overlaps.length > 0 && <> عوامل هم‌پوشان بالاتر با وزن ترکیبی بالاتر از یک عامل مستقل حساب می‌شوند — در تنظیم وزن لحاظ کنید.</>}
-        </p>
-      </Section>
-
-      {/* یادداشت‌های روش */}
-      <Section title="روش و محدودیت‌ها" icon={<AlertTriangle className="h-3.5 w-3.5 text-amber-300" />}>
-        <ul className="flex flex-col gap-1">
-          {data.notes.map((n, i) => (
-            <li key={i} className="flex items-start gap-1.5 text-[9px] leading-4 text-muted-foreground">
-              <span className="mt-1 h-1 w-1 flex-none rounded-full bg-sky-400" />
-              {n}
-            </li>
-          ))}
-        </ul>
-        <p className="mt-1.5 text-[9px] leading-4 text-muted-foreground/80">
-          دوره نمونه: {data.sample.fromISO ? faTime(new Date(data.sample.fromISO)) : "—"} تا {data.sample.toISO ? faTime(new Date(data.sample.toISO)) : "—"} ({faDigits(data.sample.bars ?? 0)} کندل روزانه) · آخرین محاسبه: {faTime(new Date(data.generatedAtISO))}
-        </p>
-        <p className="mt-1 text-[9px] font-bold leading-4 text-foreground/80">{data.disclaimer}</p>
-      </Section>
-    </div>
-  );
-}

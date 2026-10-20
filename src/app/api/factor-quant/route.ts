@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMeta, setMeta } from "@/lib/ff";
+import { yahooChart } from "@/lib/market-data";
 import {
   olsNW,
   horizonPairs,
@@ -26,46 +27,16 @@ export const dynamic = "force-dynamic";
  */
 
 const TTL_MS = 15 * 60 * 1000;
-const UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 interface Candle {
   t: number;
   c: number;
 }
 
-function num(v: unknown): number | null {
-  return typeof v === "number" && isFinite(v) ? v : null;
-}
-
+/** دریافت بسته روزانه از لایه داده واحد (market-data) */
 async function fetchDaily(symbol: string): Promise<Candle[]> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-    symbol
-  )}?interval=1d&range=2y&includePrePost=false`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": UA, Accept: "application/json" },
-    cache: "no-store",
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = (await res.json()) as {
-    chart?: {
-      result?: Array<{
-        timestamp?: number[];
-        indicators?: { quote?: Array<{ close?: (number | null)[] }> };
-      }> | null;
-    };
-  };
-  const r = json.chart?.result?.[0];
-  const ts = r?.timestamp;
-  const q = r?.indicators?.quote?.[0];
-  if (!r || !Array.isArray(ts) || !q?.close) throw new Error(`empty ${symbol}`);
-  const out: Candle[] = [];
-  for (let i = 0; i < ts.length; i++) {
-    const c = num(q.close[i]);
-    if (c === null) continue;
-    out.push({ t: ts[i], c });
-  }
+  const { candles } = await yahooChart([symbol], "1d", "2y");
+  const out: Candle[] = candles.map((c) => ({ t: c.t, c: c.c }));
   if (out.length < 100) throw new Error(`thin ${symbol}: ${out.length}`);
   return out;
 }

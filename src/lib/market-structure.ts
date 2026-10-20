@@ -1,4 +1,12 @@
 import { getMeta, setMeta } from "@/lib/ff";
+import {
+  yahooChart,
+  aggregateCandles,
+  symbolByKey,
+  spotBasis,
+  shiftPrice,
+} from "@/lib/market-data";
+import { h4PhaseSec } from "@/lib/scalp-engine";
 import type {
   MarketStructureResponse,
   MSTrendChange,
@@ -20,14 +28,10 @@ import type {
  * تایم‌فریم ۵ دقیقه صرفاً برای «پیشنهاد معامله» (ورود) استفاده می‌شود و در جدول ساختار نمایش داده نمی‌شود.
  */
 
-const UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-
 const CACHE_KEY = "ms_cache_v2";
 const FAIL_KEY = "ms_last_fail";
 const TTL_MS = 15 * 60 * 1000; // بروزرسانی هر ۱۵ دقیقه (هم‌تراز با کوچک‌ترین تایم‌فریم)
 const FAIL_BACKOFF_MS = 5 * 60 * 1000; // بعد از خطا ۵ دقیقه تلاش مجدد نکن
-const FETCH_TIMEOUT_MS = 15_000;
 const MIN_BARS = 60; // حداقل کندل برای EMA50 معتبر + سوئینگ‌ها
 
 interface Candle {
@@ -43,81 +47,21 @@ interface FetchResult {
   price: number | null;
 }
 
-interface YahooChartResponse {
-  chart?: {
-    result?: Array<{
-      meta?: { regularMarketPrice?: number };
-      timestamp?: number[];
-      indicators?: {
-        quote?: Array<{
-          open?: (number | null)[];
-          high?: (number | null)[];
-          low?: (number | null)[];
-          close?: (number | null)[];
-        }>;
-      };
-    }> | null;
-  };
-}
+/* ---------- دریافت کندل از لایه داده واحد (market-data) ---------- */
 
-/* ---------- دریافت کندل‌ها از Yahoo ---------- */
-
-function num(v: unknown): number | null {
-  return typeof v === "number" && isFinite(v) ? v : null;
-}
-
+/**
+ * تنها مسیر دریافت کندل در این ماژول — پارس و منطق مشترک در market-data
+ * انجام می‌شود و اینجا فقط نگاشت به نوع داخلی و اعتبارسنجی حداقل کندل است.
+ */
 async function fetchChart(
   symbol: string,
   interval: string,
   range: string
 ): Promise<FetchResult> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-    symbol
-  )}?interval=${interval}&range=${range}&includePrePost=false`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": UA, Accept: "application/json" },
-    cache: "no-store",
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-  const json = (await res.json()) as YahooChartResponse;
-  const r = json.chart?.result?.[0];
-  if (!r || !Array.isArray(r.timestamp) || r.timestamp.length === 0) {
-    throw new Error("empty chart response");
-  }
-  const q = r.indicators?.quote?.[0] ?? {};
-  const candles: Candle[] = [];
-  for (let i = 0; i < r.timestamp.length; i++) {
-    const o = num(q.open?.[i]);
-    const h = num(q.high?.[i]);
-    const l = num(q.low?.[i]);
-    const c = num(q.close?.[i]);
-    if (o === null || h === null || l === null || c === null) continue;
-    candles.push({ t: r.timestamp[i], o, h, l, c });
-  }
-  if (candles.length < MIN_BARS) throw new Error(`not enough bars: ${candles.length}`);
-
-  return { candles, price: num(r.meta?.regularMarketPrice) };
-}
-
-/* ---------- تجمیع کندل ۱ ساعته به ۴ ساعته (تراز UTC) ---------- */
-
-function aggregate4h(candles: Candle[]): Candle[] {
-  const BUCKET = 4 * 3600;
-  const map = new Map<number, Candle>();
-  for (const c of candles) {
-    const b = Math.floor(c.t / BUCKET) * BUCKET;
-    const ex = map.get(b);
-    if (!ex) {
-      map.set(b, { t: b, o: c.o, h: c.h, l: c.l, c: c.c });
-    } else {
-      if (c.h > ex.h) ex.h = c.h;
-      if (c.l < ex.l) ex.l = c.l;
-      ex.c = c.c;
-    }
-  }
-  return [...map.values()].sort((a, b) => a.t - b.t);
+  const { candles, price } = await yahooChart([symbol], interval, range);
+  const mapped: Candle[] = candles.map((c) => ({ t: c.t, o: c.o, h: c.h, l: c.l, c: c.c }));
+  if (mapped.length < MIN_BARS) throw new Error(`not enough bars: ${mapped.length}`);
+  return { candles: mapped, price };
 }
 
 /* ---------- اندیکاتورها ---------- */
@@ -246,8 +190,8 @@ interface SymbolSpec {
 }
 
 const SYMBOLS: SymbolSpec[] = [
-  { key: "xau", yahoo: ["GC=F", "XAUUSD=X"] },
-  { key: "dji", yahoo: ["^DJI", "DJIA"] },
+  { key: "xau", yahoo: symbolByKey("xau")?.yahoo ?? ["GC=F", "XAUUSD=X"] },
+  { key: "dji", yahoo: symbolByKey("dji")?.yahoo ?? ["^DJI", "YM=F"] },
 ];
 
 /* ---------- تحلیل یک نماد در همه تایم‌فریم‌ها ---------- */
@@ -278,7 +222,14 @@ async function analyzeSymbol(spec: SymbolSpec): Promise<MSSymbol | null> {
         if (!fetched) {
           return { tf: cfg.tf, trend: null, strength: 0, ma: null, swing: null, bars: 0 };
         }
-        const candles = cfg.agg4h ? aggregate4h(fetched.candles) : fetched.candles;
+        /* تجمیع ۴ساعته با همان مرز کندل بروکری (۱۷:۰۰ نیویورک) که پنل اسکلپ استفاده می‌کند */
+        const candles = cfg.agg4h
+          ? aggregateCandles(
+              fetched.candles,
+              4 * 3600,
+              h4PhaseSec(Math.floor(Date.now() / 1000), symbolByKey(spec.key)?.h4Anchor ?? "utc")
+            )
+          : fetched.candles;
         if (candles.length < MIN_BARS) {
           return { tf: cfg.tf, trend: null, strength: 0, ma: null, swing: null, bars: candles.length };
         }
@@ -292,6 +243,13 @@ async function analyzeSymbol(spec: SymbolSpec): Promise<MSSymbol | null> {
         price !== null && prevClose !== null && prevClose !== 0
           ? ((price - prevClose) / prevClose) * 100
           : null;
+
+      /* کالیبراسیون اسپات — همان منبع پنل اسکلپ تا همه صفحات یک عدد ببینند */
+      const def = symbolByKey(spec.key);
+      if (def && price !== null) {
+        const basis = await spotBasis(def, price);
+        if (basis) price = shiftPrice(price, basis);
+      }
 
       return { key: spec.key, price, prevClose, changePct, rows, okCount };
     } catch (err) {

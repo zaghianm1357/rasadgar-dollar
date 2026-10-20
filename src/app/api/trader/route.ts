@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getMeta, setMeta, refreshFeed } from "@/lib/ff";
 import { getMarketStructure } from "@/lib/market-structure";
+import { yahooChart, symbolByKey, spotBasis, shiftPrice } from "@/lib/market-data";
 import type { MSRow, MSTrend, MSTimeframe } from "@/lib/types";
 import {
   tfAlignmentFactor,
@@ -28,9 +29,6 @@ export const dynamic = "force-dynamic";
  * همه خروجی‌ها اطلاع‌رسانی‌اند؛ هیچ سفارشی اجرا یا توصیه قطعی تولید نمی‌شود.
  */
 
-const UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-
 const TTL_MS = 5 * 60 * 1000;
 
 interface Candle {
@@ -41,50 +39,10 @@ interface Candle {
   c: number;
 }
 
-function num(v: unknown): number | null {
-  return typeof v === "number" && isFinite(v) ? v : null;
-}
-
+/** دریافت کندل از لایه داده واحد (market-data) — تنها نقطه تماس با Yahoo */
 async function fetchChart(symbol: string, interval: string, range: string): Promise<Candle[]> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-    symbol
-  )}?interval=${interval}&range=${range}&includePrePost=false`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": UA, Accept: "application/json" },
-    cache: "no-store",
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = (await res.json()) as {
-    chart?: {
-      result?: Array<{
-        timestamp?: number[];
-        indicators?: {
-          quote?: Array<{
-            open?: (number | null)[];
-            high?: (number | null)[];
-            low?: (number | null)[];
-            close?: (number | null)[];
-          }>;
-        };
-      }> | null;
-    };
-  };
-  const r = json.chart?.result?.[0];
-  const q = r?.indicators?.quote?.[0] ?? {};
-  const ts = r?.timestamp;
-  if (!r || !Array.isArray(ts) || ts.length === 0) throw new Error("empty chart");
-  const candles: Candle[] = [];
-  for (let i = 0; i < ts.length; i++) {
-    const o = num(q.open?.[i]);
-    const h = num(q.high?.[i]);
-    const l = num(q.low?.[i]);
-    const c = num(q.close?.[i]);
-    if (o === null || h === null || l === null || c === null) continue;
-    candles.push({ t: ts[i], o, h, l, c });
-  }
-  if (candles.length < 30) throw new Error("thin series");
-  return candles;
+  const { candles } = await yahooChart([symbol], interval, range);
+  return candles.map((c) => ({ t: c.t, o: c.o, h: c.h, l: c.l, c: c.c }));
 }
 
 function rsiLast(closes: number[], period = 14): number | null {
@@ -374,6 +332,13 @@ async function computeTrader(symbolKey: "xau" | "dji", newsEvents: NewsEventRow[
   const resistance = recent.length ? Math.max(...recent.map((c) => c.h)) : null;
   const support = recent.length ? Math.min(...recent.map((c) => c.l)) : null;
 
+  /* کالیبراسیون اسپات — همه سطوح مطلق پاسخ با همان اختلاف آتی↔اسپاتِ لایه واحد جابه‌جا می‌شوند */
+  const rawPrice = closes.length ? closes[closes.length - 1] : null;
+  const def = symbolByKey(symbolKey);
+  const basis = def && rawPrice !== null ? await spotBasis(def, rawPrice) : null;
+  const cal = (v: number | null): number | null =>
+    v !== null && basis ? shiftPrice(v, basis) : v;
+
   /* خلأ خبری */
   const now = Date.now();
   let nextHigh: NewsEventRow | null = null;
@@ -407,8 +372,8 @@ async function computeTrader(symbolKey: "xau" | "dji", newsEvents: NewsEventRow[
       djiBelow: nextHigh.djiBelow,
     };
     const built = buildScenarios(ev, structure4h, {
-      resistance: resistance !== null ? Math.round(resistance * 100) / 100 : null,
-      support: support !== null ? Math.round(support * 100) / 100 : null,
+      resistance: cal(resistance),
+      support: cal(support),
     });
     scenarios = { items: built.scenarios, conflict: built.conflict };
   }
@@ -439,6 +404,13 @@ async function computeTrader(symbolKey: "xau" | "dji", newsEvents: NewsEventRow[
     atrAbs,
     range: rangeWarning,
   });
+  for (const z of entryZones.zones) {
+    z.zoneLo = shiftPrice(z.zoneLo, basis);
+    z.zoneHi = shiftPrice(z.zoneHi, basis);
+    z.sl = shiftPrice(z.sl, basis);
+    z.tp1 = shiftPrice(z.tp1, basis);
+    z.tp2 = shiftPrice(z.tp2, basis);
+  }
 
   return {
     ok: true,
@@ -451,14 +423,15 @@ async function computeTrader(symbolKey: "xau" | "dji", newsEvents: NewsEventRow[
       correlation: corr30 !== null ? "live" : "missing",
       notes: [
         ...notes,
-        "قیمت نماد از فیوچرز/شاخص Yahoo Finance خوانده می‌شود — همبستگی نزدیک ولی نه برابر نماد اسپات.",
+        "قیمت نماد از فیوچرز/شاخص Yahoo Finance خوانده و برای طلا/نقره با اسپات gold-api کالیبره می‌شود — همه صفحات ابزار از همین یک منبع استفاده می‌کنند.",
         "همبستگی تاریخی به‌معنای رابطه علّی یا تضمین حرکت آینده نیست.",
       ],
     },
     symbol: {
       key: conf.key,
       name: conf.name,
-      price: symData?.price ?? (closes.length ? closes[closes.length - 1] : null),
+      /* symData.price در موتور ساختار از قبل کالیبره شده — fallback هم کالیبره می‌شود */
+      price: symData?.price ?? cal(rawPrice),
       changePct: symData?.changePct ?? null,
       specs: conf.specs,
       healthyAtrBand: conf.healthyAtrBand,
@@ -478,8 +451,8 @@ async function computeTrader(symbolKey: "xau" | "dji", newsEvents: NewsEventRow[
       summary: summaryFa === "هم‌جهت" ? "aligned" : summaryFa === "مختلط" ? "mixed" : "conflict",
       summaryFa,
       detail,
-      resistance: resistance !== null ? Math.round(resistance * 100) / 100 : null,
-      support: support !== null ? Math.round(support * 100) / 100 : null,
+      resistance: cal(resistance) !== null ? Math.round((cal(resistance) as number) * 100) / 100 : null,
+      support: cal(support) !== null ? Math.round((cal(support) as number) * 100) / 100 : null,
     },
     regime,
     divergence,
