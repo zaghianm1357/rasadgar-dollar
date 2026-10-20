@@ -3,10 +3,10 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: "رصدگر دلار | اخبار اقتصادی ForexFactory به فارسی",
+  title: "بیگ تردر | رصدگر دلار — دستیار هوشمند معامله‌گری طلا و دلار",
   description:
-    "اخبار و رویدادهای اقتصادی مهم دلار آمریکا (USD) از ForexFactory با ترجمه فارسی، تحلیل تأثیر بر نرخ دلار و بروزرسانی خودکار روزانه",
-  keywords: ["دلار", "فارکس", "ForexFactory", "اخبار اقتصادی", "تقویم اقتصادی", "USD"],
+    "پایش زندهٔ طلا و داوجونز با ساختار بازار در شش تایم‌فریم، دماسنج فشار خرید و فروش تریدینگ‌ویو، تقویم اقتصادی فارسی ForexFactory و تحلیل و پیش‌بینی روزانهٔ طلا (LiteFinance و FXStreet) — نسخهٔ وب، فایل مستقل و افزونهٔ وردپرس.",
+  keywords: ["دلار", "فارکس", "ForexFactory", "اخبار اقتصادی", "تقویم اقتصادی", "طلا", "XAUUSD", "بیگ تردر", "BIG TRADER"],
 };
 
 export const viewport: Viewport = {
@@ -22,14 +22,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fa" dir="rtl" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
-      </head>
       <body className="antialiased bg-background text-foreground min-h-screen">
         {children}
         <Toaster />
