@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getMeta, setMeta } from "@/lib/ff";
 import { rangeCompression } from "@/lib/trader-engine";
-import { runScalpEngine, type ScalpBar } from "@/lib/scalp-engine";
+import { runScalpEngine, h4PhaseSec, type ScalpBar, type H4Anchor } from "@/lib/scalp-engine";
 
 export const dynamic = "force-dynamic";
 
@@ -17,11 +17,13 @@ const TTL_MS = 3 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 15_000;
 const MIN_BARS = 80;
 
-const SCALP_SYMBOLS: Record<string, { yahoo: string[]; label: string; mono: string; spot?: { url: string; sym: string } }> = {
+const SCALP_SYMBOLS: Record<string, { yahoo: string[]; label: string; mono: string; anchor?: H4Anchor; spot?: { url: string; sym: string } }> = {
   xau: {
     yahoo: ["GC=F"],
     label: "طلا (اونس) — XAUUSD",
     mono: "XAUUSD",
+    /* مرز کندل ۴ساعته مثل چارت بروکر (۱۷:۰۰ نیویورک) نه UTC — قابل تغییر با anchor */
+    anchor: "broker",
     /* کندل Yahoo = آتی GC=F؛ برای هم‌ترازی با اسپات، قیمت لحظه‌ای اسپات از gold-api کالیبره می‌شود */
     spot: { url: "https://api.gold-api.com/price/XAU", sym: "XAU" },
   },
@@ -29,11 +31,12 @@ const SCALP_SYMBOLS: Record<string, { yahoo: string[]; label: string; mono: stri
     yahoo: ["SI=F"],
     label: "نقره — XAGUSD",
     mono: "XAGUSD",
+    anchor: "broker",
     spot: { url: "https://api.gold-api.com/price/XAG", sym: "XAG" },
   },
-  dji: { yahoo: ["^DJI", "YM=F"], label: "داوجونز — DJI", mono: "DJI · ^DJI" },
-  eurusd: { yahoo: ["EURUSD=X"], label: "یورو/دلار — EURUSD", mono: "EURUSD" },
-  btc: { yahoo: ["BTC-USD"], label: "بیت‌کوین — BTC", mono: "BTCUSDT · BTC-USD" },
+  dji: { yahoo: ["^DJI", "YM=F"], label: "داوجونز — DJI", mono: "DJI · ^DJI", anchor: "broker" },
+  eurusd: { yahoo: ["EURUSD=X"], label: "یورو/دلار — EURUSD", mono: "EURUSD", anchor: "broker" },
+  btc: { yahoo: ["BTC-USD"], label: "بیت‌کوین — BTC", mono: "BTCUSDT · BTC-USD", anchor: "utc" },
 };
 
 const TF_SEC: Record<string, number> = { "1m": 60, "5m": 300, "15m": 900 };
@@ -83,11 +86,13 @@ async function fetchCandles(symbol: string, interval: string, range: string): Pr
   return bars;
 }
 
-function aggregate4h(bars: ScalpBar[]): ScalpBar[] {
+/** تجمیع ۴ساعته با فاز تراز (مرز کندل مثل چارت بروکر یا UTC) */
+function aggregate4h(bars: ScalpBar[], phase: number): ScalpBar[] {
   const BUCKET = 4 * 3600;
   const map = new Map<number, ScalpBar>();
   for (const b of bars) {
-    const k = Math.floor(b.t / BUCKET) * BUCKET;
+    const idx = Math.floor((b.t - phase) / BUCKET);
+    const k = idx * BUCKET + phase;
     const ex = map.get(k);
     if (!ex) map.set(k, { t: k, o: b.o, h: b.h, l: b.l, c: b.c });
     else {
@@ -142,6 +147,12 @@ function shiftEngine(e: Record<string, unknown>, d: number): void {
   e.lastClose = sh(e.lastClose);
   e.h4High = sh(e.h4High);
   e.h4Low = sh(e.h4Low);
+  /* پنجرهٔ کندل ملاک هم باید روی بیس اسپات باشد */
+  const ref = e.h4Ref as { high: number; low: number } | null | undefined;
+  if (ref && typeof ref.high === "number" && typeof ref.low === "number") {
+    ref.high = sh(ref.high);
+    ref.low = sh(ref.low);
+  }
   e.swingHigh = sh(e.swingHigh);
   e.swingLow = sh(e.swingLow);
   const setup = e.setup as Record<string, unknown> | undefined;
@@ -178,7 +189,7 @@ interface ScalpCache {
   payload: Record<string, unknown>;
 }
 
-async function computeScalp(symbol: string, tf: string): Promise<ScalpCache> {
+async function computeScalp(symbol: string, tf: string, anchor: H4Anchor): Promise<ScalpCache> {
   const symSpec = SCALP_SYMBOLS[symbol];
   const tfSpec = SCALP_TFS[tf];
   if (!symSpec || !tfSpec) throw new Error("unsupported symbol/tf");
@@ -195,15 +206,18 @@ async function computeScalp(symbol: string, tf: string): Promise<ScalpCache> {
   }
   if (!bars) throw new Error(`yahoo failed: ${lastErr?.message ?? "unknown"}`);
 
+  const nowSec = Math.floor(Date.now() / 1000);
+  const phase = h4PhaseSec(nowSec, anchor);
+
   let h4: ScalpBar[] | null = null;
   try {
     const raw1h = await fetchCandles(symSpec.yahoo[0], "1h", "3mo");
-    h4 = aggregate4h(raw1h);
+    h4 = aggregate4h(raw1h, phase);
   } catch {
     h4 = null;
   }
 
-  const engine = runScalpEngine(bars, h4, tfSpec.label);
+  const engine = runScalpEngine(bars, h4, tfSpec.label, { nowSec, anchor });
   const range = rangeCompression(bars.map((b) => b.h), bars.map((b) => b.l), bars.map((b) => b.c));
 
   /* --- کالیبراسیون آتی↔اسپات: منشأ اصلی فاصلهٔ سطوح با چارت اسپات کاربر --- */
@@ -233,7 +247,6 @@ async function computeScalp(symbol: string, tf: string): Promise<ScalpCache> {
 
   /* --- گیت تازگی داده: کندل آخر چه قدر قدیمی است؟ --- */
   const tfSec = TF_SEC[tf] ?? 300;
-  const nowSec = Math.floor(Date.now() / 1000);
   const lastAgeSec = Math.max(0, nowSec - engine.lastT);
   const stale = lastAgeSec > Math.max(3 * tfSec, 900);
   const freshness = {
@@ -254,6 +267,7 @@ async function computeScalp(symbol: string, tf: string): Promise<ScalpCache> {
       symbolMono: symSpec.mono,
       tf,
       tfLabel: tfSpec.label,
+      anchor,
       engine: engine as unknown as Record<string, unknown>,
       rangeWarning: range,
       basis: basisInfo,
@@ -267,8 +281,10 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const symbol = (url.searchParams.get("symbol") ?? "xau").toLowerCase();
   const tf = (url.searchParams.get("tf") ?? "5m").toLowerCase();
+  const anchorParam = (url.searchParams.get("anchor") ?? "").toLowerCase();
+  const anchor: H4Anchor = anchorParam === "utc" || anchorParam === "broker" ? anchorParam : (SCALP_SYMBOLS[symbol]?.anchor ?? "broker");
   const force = url.searchParams.get("force") === "1";
-  const key = `scalp_v1:${symbol}:${tf}`;
+  const key = `scalp_v2:${symbol}:${tf}:${anchor}`;
 
   if (!force) {
     try {
@@ -285,7 +301,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const out = await computeScalp(symbol, tf);
+    const out = await computeScalp(symbol, tf, anchor);
     try {
       await setMeta(key, JSON.stringify(out));
     } catch {

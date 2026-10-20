@@ -20,12 +20,37 @@ var SCALP_TFS = {
 var SCALP_KEY = 'sd_scalp_v1';
 var SCALP_FRESH = 3; /* سیگنال تا ۳ کندل بسته‌شدهٔ آخر «تازه» است */
 
-var S_SCALP = { sym: 'xau', tf: '5m' };
+var S_SCALP = { sym: 'xau', tf: '5m', anchor: '' }; /* anchor '' = پیش‌فرض نماد */
 try {
   var _sc = JSON.parse(lsGet(SCALP_KEY) || 'null');
-  if (_sc && SCALP_SYMS[_sc.sym] && SCALP_TFS[_sc.tf]) S_SCALP = { sym: _sc.sym, tf: _sc.tf };
+  if (_sc && SCALP_SYMS[_sc.sym] && SCALP_TFS[_sc.tf]) S_SCALP = { sym: _sc.sym, tf: _sc.tf, anchor: _sc.anchor === 'broker' || _sc.anchor === 'utc' ? _sc.anchor : '' };
 } catch (e) {}
 function scSave() { lsSet(SCALP_KEY, JSON.stringify(S_SCALP)); }
+
+/* ---------- تراز کندل ۴ساعته (رفع «خطوط از دو سه کندل قبل») ----------
+ * broker/ny: مرزها در ۱۷:۰۰ نیویورک = ۲۱:۰۰ UTC تابستان / ۲۲:۰۰ زمستان
+ * (همان تراز چارت OANDA/تریدینگ‌ویو و سرور GMT+2/+3 بروکرها) */
+function scAnchorOf(sym) { return S_SCALP.anchor || (sym === 'btc' ? 'utc' : 'broker'); }
+function scPhase(nowSec, anchor) {
+  if (anchor !== 'broker') return 0;
+  var ms = nowSec * 1000, d = new Date(ms), y = d.getUTCFullYear();
+  function dow(u) { return new Date(u).getUTCDay(); }
+  var mar1 = Date.UTC(y, 2, 1), firstSunMar = mar1 + ((7 - dow(mar1)) % 7) * 86400000;
+  var dstStart = firstSunMar + 7 * 86400000;
+  var nov1 = Date.UTC(y, 10, 1), dstEnd = nov1 + ((7 - dow(nov1)) % 7) * 86400000;
+  return ms >= dstStart && ms < dstEnd ? 3600 : 7200;
+}
+function scBucketIdx(t, phase) { return Math.floor((t - phase) / 14400); }
+/* جست‌وجوی کندل بستهٔ قبلی — حداکثر ۲ باکت عقب‌تر با ثبت گپ (رفع fallback خاموش ۱۲باکتی) */
+function scPickRef(map, bucket) {
+  var e = map[bucket - 1];
+  if (e) return { ref: e, gap: 0, refBucket: bucket - 1 };
+  e = map[bucket - 2];
+  if (e) return { ref: e, gap: 1, refBucket: bucket - 2 };
+  e = map[bucket - 3];
+  if (e) return { ref: e, gap: 2, refBucket: bucket - 3 };
+  return { ref: null, gap: 3, refBucket: bucket - 1 };
+}
 
 var SCALP_CACHE = {}; /* key → { at, payload } */
 var SCALP_BUSY = false;
@@ -135,20 +160,24 @@ function scPx(v, d) {
 }
 
 /* ---------- موتور اصلی اسکلپ ---------- */
-function scalpRun(bars, h4bars) {
+function scalpRun(bars, h4bars, opts) {
+  opts = opts || {};
   var SWING = 5, PIVOT = 3, RETR = 23, ATRL = 14, OBLOOK = 20, MAXZ = 12;
   var DOJI = 10, KEYBAR = 70, KEYATR = 1, H4 = 14400;
+  var anchor = opts.anchor || 'utc';
+  var nowSec = opts.nowSec || Math.floor(Date.now() / 1000);
+  var phase = scPhase(nowSec, anchor);
   var n = bars.length, i, k;
   var high = bars.map(function (b) { return b.h; }), low = bars.map(function (b) { return b.l; });
   var close = bars.map(function (b) { return b.c; }), open = bars.map(function (b) { return b.o; });
   var atr = scAtr(bars, ATRL);
   var notes = [];
 
-  /* نقشه ۴ساعته */
+  /* نقشه ۴ساعته با فاز تراز بروکر/UTC */
   var h4map = {};
   if (h4bars && h4bars.length >= 2) {
     for (i = 0; i < h4bars.length; i++) {
-      var bk = Math.floor(h4bars[i].t / H4);
+      var bk = scBucketIdx(h4bars[i].t, phase);
       if (!h4map[bk]) h4map[bk] = { h: h4bars[i].h, l: h4bars[i].l };
       else { h4map[bk].h = Math.max(h4map[bk].h, h4bars[i].h); h4map[bk].l = Math.min(h4map[bk].l, h4bars[i].l); }
     }
@@ -172,7 +201,7 @@ function scalpRun(bars, h4bars) {
   }
 
   var curBucket = null, sellArmed = false, buyArmed = false, sellWaiting = false, buyWaiting = false;
-  var sellZone = null, buyZone = null, h4HighNow = null, h4LowNow = null;
+  var sellZone = null, buyZone = null, h4HighNow = null, h4LowNow = null, maxRefGap = 0;
 
   var rsi = scRsi(close, 14), macdH = scMacdHist(close), stoch = scStoch(bars, 14), cci = scCci(bars, 20), mfi = scMfi(bars, 14);
   var signals = [], lastDiv = null, lastBullIdx = null, lastBearIdx = null;
@@ -276,13 +305,16 @@ function scalpRun(bars, h4bars) {
     for (k = 0; k < supply.length; k++) { var szz = supply[k]; if (szz.live && bar.l <= szz.top && bar.h >= szz.bot) { ocSell = true; break; } }
 
     if (h4Ready) {
-      var bucket = Math.floor(bar.t / H4);
+      var bucket = scBucketIdx(bar.t, phase);
       if (curBucket === null) curBucket = bucket;
       if (bucket !== curBucket) {
         curBucket = bucket; sellArmed = false; buyArmed = false; sellWaiting = false; buyWaiting = false; sellZone = null; buyZone = null;
       }
-      for (var b = bucket - 1; b >= bucket - 12; b--) {
-        if (h4map[b]) { h4HighNow = h4map[b].h; h4LowNow = h4map[b].l; break; }
+      /* آخرین کندل بستهٔ قبل از باکت فعلی — حداکثر ۲ گام عقب‌تر با ثبت گپ */
+      var picked = scPickRef(h4map, bucket);
+      if (picked.ref) {
+        h4HighNow = picked.ref.h; h4LowNow = picked.ref.l;
+        if (picked.gap > maxRefGap) maxRefGap = picked.gap;
       }
       var sellWas = sellArmed, buyWas = buyArmed;
       if (h4HighNow !== null && bar.h >= h4HighNow) { sellArmed = true; sellWaiting = false; sellZone = null; }
@@ -399,6 +431,22 @@ function scalpRun(bars, h4bars) {
     }
   }
 
+  /* کندل ملاک نمایش نسبت به «الان» — با تأخیر فید، آخرین کندل داده ممکن است عقب باشد */
+  var h4Ref = null;
+  if (h4Ready) {
+    var nowBucket = scBucketIdx(nowSec, phase);
+    var disp = scPickRef(h4map, nowBucket);
+    if (disp.ref) {
+      var startT = disp.refBucket * H4 + phase;
+      h4Ref = { startT: startT, endT: startT + H4, high: disp.ref.h, low: disp.ref.l, gap: disp.gap, closed: true };
+      h4HighNow = disp.ref.h; h4LowNow = disp.ref.l;
+      if (disp.gap > 0) notes.push('کندل ۴ساعتهٔ بستهٔ بلافصل در دادهٔ منبع یافت نشد؛ خطوط ۴ساعته از ' + (disp.gap === 1 ? 'یک' : 'دو') + ' کندل قبل‌تر گرفته شد (گپ فید یا تعطیلی بازار) — پنجرهٔ کندل ملاک را با چارت بروکر مقایسه کنید.');
+    } else {
+      h4HighNow = null; h4LowNow = null;
+      notes.push('کندل ملاک ۴ساعته در دادهٔ منبع یافت نشد (تأخیر سنگین فید یا تعطیلی بازار) — خطوط ۴ساعته نمایش داده نمی‌شوند.');
+    }
+  }
+
   var divNote = 'واگرایی تازه‌ای در ۱۰ کندل اخیر ثبت نشده است.';
   if (lastDiv && divRecent)
     divNote = 'واگرایی ' + (lastDiv.hidden ? 'مخفی ' : '') + (lastDiv.side === 'bull' ? 'صعودی' : 'نزولی') + ' با توافق ' + faDigits(lastDiv.votes) + '/۵ ابزار، ' + faDigits(n - 1 - lastDiv.idx) + ' کندل پیش ثبت شده است.';
@@ -407,6 +455,7 @@ function scalpRun(bars, h4bars) {
     bars: n, lastClose: last.c, lastT: last.t,
     atr: lastAtr, atrPct: lastAtr ? lastAtr / last.c * 100 : null,
     h4High: h4HighNow, h4Low: h4LowNow,
+    h4Ref: h4Ref, h4Anchor: anchor,
     swingHigh: swingHigh, swingLow: swingLow, swingHighBroken: hiBroken, swingLowBroken: loBroken,
     setup: {
       sell: sellWaiting ? 'retest' : sellArmed ? 'armed' : 'idle',
@@ -425,32 +474,42 @@ function scalpRun(bars, h4bars) {
   };
 }
 
-/* ---------- دریافت داده از Yahoo با پروکسی ---------- */
-function scFetchBars(yahooSym, interval, range) {
-  var u = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(yahooSym) + '?interval=' + interval + '&range=' + range + '&includePrePost=false';
-  var i = 0;
-  function attempt() {
-    if (i >= PROXIES.length) return Promise.reject(new Error('proxy-fail'));
-    var p = PROXIES[i++];
-    return fetchJSON(p(u), 12000).then(function (j) {
-      var r = j && j.chart && j.chart.result && j.chart.result[0];
-      var q = r && r.indicators && r.indicators.quote && r.indicators.quote[0];
-      if (!r || !q || !q.close || !r.timestamp) throw new Error('bad');
-      var out = [], k;
-      for (k = 0; k < q.close.length; k++) {
-        if (q.close[k] == null || q.open[k] == null || q.high[k] == null || q.low[k] == null) continue;
-        out.push({ t: r.timestamp[k], o: q.open[k], h: q.high[k], l: q.low[k], c: q.close[k] });
-      }
-      if (out.length < 80) throw new Error('thin');
-      return out;
-    }).catch(function () { return attempt(); });
+/* ---------- دریافت داده از Yahoo با پروکسی ----------
+ * رفع تازگی: همهٔ پروکسی‌ها همزمان پرسیده می‌شوند و پاسخی که آخرین کندلِ تازه‌تر
+ * دارد برنده می‌شود (پروکسی‌های عمومی گاهی پاسخ چندساعتهٔ کش‌شده برمی‌گردانند
+ * که دقیقاً عامل «خطوط ۴ساعتهٔ قدیمی» بود) + cache-buster در URL. */
+function scParseBars(j) {
+  var r = j && j.chart && j.chart.result && j.chart.result[0];
+  var q = r && r.indicators && r.indicators.quote && r.indicators.quote[0];
+  if (!r || !q || !q.close || !r.timestamp) throw new Error('bad');
+  var out = [], k;
+  for (k = 0; k < q.close.length; k++) {
+    if (q.close[k] == null || q.open[k] == null || q.high[k] == null || q.low[k] == null) continue;
+    out.push({ t: r.timestamp[k], o: q.open[k], h: q.high[k], l: q.low[k], c: q.close[k] });
   }
-  return attempt();
+  if (out.length < 80) throw new Error('thin');
+  return out;
 }
-function scAgg4h(bars) {
+function scFetchBars(yahooSym, interval, range) {
+  var u = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(yahooSym) + '?interval=' + interval + '&range=' + range + '&includePrePost=false&_cb=' + Date.now();
+  var tries = PROXIES.map(function (p) {
+    return fetchJSON(p(u), 12000).then(scParseBars);
+  });
+  return Promise.all(tries.map(function (p) { return p.catch(function () { return null; }); })).then(function (results) {
+    var best = null;
+    for (var i = 0; i < results.length; i++) {
+      var b = results[i];
+      if (!b || !b.length) continue;
+      if (!best || b[b.length - 1].t > best[best.length - 1].t) best = b;
+    }
+    if (!best) throw new Error('proxy-fail');
+    return best;
+  });
+}
+function scAgg4h(bars, phase) {
   var H = 14400, map = {}, keys = [], i;
   for (i = 0; i < bars.length; i++) {
-    var b = Math.floor(bars[i].t / H) * H;
+    var idx = Math.floor((bars[i].t - phase) / H), b = idx * H + phase;
     if (map[b] === undefined) { map[b] = { t: b, o: bars[i].o, h: bars[i].h, l: bars[i].l, c: bars[i].c }; keys.push(b); }
     else { var e = map[b]; e.h = Math.max(e.h, bars[i].h); e.l = Math.min(e.l, bars[i].l); e.c = bars[i].c; }
   }
@@ -504,6 +563,7 @@ function scShiftEngine(e, d) {
   e.lastClose = sh(e.lastClose);
   e.h4High = sh(e.h4High);
   e.h4Low = sh(e.h4Low);
+  if (e.h4Ref && typeof e.h4Ref.high === 'number') { e.h4Ref.high = sh(e.h4Ref.high); e.h4Ref.low = sh(e.h4Ref.low); }
   e.swingHigh = sh(e.swingHigh);
   e.swingLow = sh(e.swingLow);
   if (e.setup) { e.setup.sellZone = shZone(e.setup.sellZone); e.setup.buyZone = shZone(e.setup.buyZone); }
@@ -522,7 +582,7 @@ function scShiftEngine(e, d) {
 }
 
 /* ---------- محاسبه + کش ---------- */
-function scKey() { return S_SCALP.sym + '@' + S_SCALP.tf; }
+function scKey() { return S_SCALP.sym + '@' + S_SCALP.tf + '@' + scAnchorOf(S_SCALP.sym); }
 function scalpCompute(force) {
   var key = scKey();
   var cached = SCALP_CACHE[key];
@@ -531,10 +591,13 @@ function scalpCompute(force) {
   if (!symCfg || !tfCfg) return Promise.reject(new Error('cfg'));
   SCALP_BUSY = true;
   var h4p = null;
+  var anchor = scAnchorOf(S_SCALP.sym);
+  var nowSec = Math.floor(Date.now() / 1000);
+  var phase = scPhase(nowSec, anchor);
   return scFetchBars(symCfg.y, tfCfg.i, tfCfg.r).then(function (bars) {
-    return scFetchBars(symCfg.y, '1h', '3mo').then(function (h1) { h4p = scAgg4h(h1); return bars; }).catch(function () { return bars; });
+    return scFetchBars(symCfg.y, '1h', '3mo').then(function (h1) { h4p = scAgg4h(h1, phase); return bars; }).catch(function () { return bars; });
   }).then(function (bars) {
-    var engine = scalpRun(bars, h4p);
+    var engine = scalpRun(bars, h4p, { nowSec: nowSec, anchor: anchor });
     var rw = null;
     try {
       rw = trRangeComp(bars.map(function (b) { return b.h; }), bars.map(function (b) { return b.l; }), bars.map(function (b) { return b.c; }));
@@ -559,7 +622,7 @@ function scalpCompute(force) {
       var stale = lastAge > Math.max(3 * tfSec, 900);
       var payload = {
         ok: true, sym: S_SCALP.sym, symbolLabel: symCfg.label, symbolMono: symCfg.mono,
-        tf: S_SCALP.tf, tfLabel: tfCfg.label, engine: engine, rangeWarn: rw, basis: basisInfo,
+        tf: S_SCALP.tf, tfLabel: tfCfg.label, anchor: anchor, engine: engine, rangeWarn: rw, basis: basisInfo,
         freshness: { lastAgeSec: lastAge, stale: stale, note: stale ? 'آخرین کندل منبع ' + faDigits(Math.round(lastAge / 60)) + ' دقیقه پیش است — بازار ممکن است بسته باشد یا فید تأخیر/قطعی داشته باشد؛ تا بازشدن فید، سیگنال‌ها به‌روز نیستند.' : null },
         feedNote: 'کندل‌های اینترادی Yahoo ~۱۰ دقیقه تأخیر دارند؛ سطوح حدودی‌اند.', at: Date.now()
       };
@@ -611,8 +674,13 @@ function scBodyHTML(d, fixed) {
   if (d.rangeWarn && d.rangeWarn.active)
     h += '<div class="bt-warn' + (d.rangeWarn.severity === 'tight' ? ' red' : '') + '"><b>' + (d.rangeWarn.severity === 'tight' ? 'هشدار جدی: رنج فشرده در تایم‌فریم اسکلپ' : 'هشدار: بازار رنج است') + '</b><span>' + d.rangeWarn.message + '</span></div>';
 
-  h += '<div class="sc-lv"><p class="t">' + icon('target', 13) + 'سطوح مهم (مقادیر حدودی)</p>' +
-    '<div class="sc-grid">' +
+  h += '<div class="sc-lv"><p class="t">' + icon('target', 13) + 'سطوح مهم (مقادیر حدودی)</p>';
+  /* پنجرهٔ کندل ملاک ۴ساعته به وقت تهران — صحت‌سنجی با چارت بروکر */
+  if (e.h4Ref)
+    h += '<p class="m" data-sc-h4ref>کندل ملاک ۴ساعته: <b>' + faTime(new Date(e.h4Ref.startT * 1000)) + ' تا ' + faTime(new Date(e.h4Ref.endT * 1000)) + '</b> به وقت تهران (بسته‌شده)' + (e.h4Ref.gap > 0 ? ' — <span class="amber">گپ فید: کندل بلافصل در داده نبود</span>' : '') + '</p>';
+  else if (e.setup.unavailable || e.h4High === null)
+    h += '<p class="m amber">کندل ملاک ۴ساعته در دسترس نیست (تأخیر فید یا تعطیلی بازار)</p>';
+  h += '<div class="sc-grid">' +
     '<span>سقف کندل ۴ساعتهٔ بسته‌شده: <b class="r" dir="ltr">' + scPx(e.h4High) + '</b></span>' +
     '<span>کف کندل ۴ساعتهٔ بسته‌شده: <b class="g" dir="ltr">' + scPx(e.h4Low) + '</b></span>' +
     '<span>آخرین سقف سوئینگ: <b dir="ltr">' + scPx(e.swingHigh) + (e.swingHighBroken ? ' (شکسته)' : '') + '</b></span>' +
@@ -651,8 +719,14 @@ function scSelectorsHTML(fixed) {
   Object.keys(SCALP_TFS).forEach(function (t) {
     h += '<button type="button" class="cchip' + (S_SCALP.tf === t ? ' on' : '') + '" data-sc-tf="' + t + '">' + SCALP_TFS[t].label + '</button>';
   });
-  h += '</div>' +
-    '<button type="button" class="iconbtn" data-sc-refresh aria-label="بروزرسانی اسکلپ"><span data-sc-spin style="display:inline-flex">' + icon('refresh', 14) + '</span></button>' +
+  h += '</div>';
+  /* تراز مرز کندل ۴ساعته — مطابق چارت بروکر کاربر */
+  var actAnchor = scAnchorOf(S_SCALP.sym);
+  h += '<div class="sc-chips" data-sc-anchors title="مرز کندل ۴ساعته: بروکر/نیویورک = چارت OANDA و MT؛ UTC = مرز قدیمی ابزار">' +
+    '<button type="button" class="cchip' + (actAnchor === 'broker' ? ' on' : '') + '" data-sc-anchor="broker">تراز بروکر/نیویورک</button>' +
+    '<button type="button" class="cchip' + (actAnchor === 'utc' ? ' on' : '') + '" data-sc-anchor="utc">تراز UTC</button>' +
+    '</div>';
+  h += '<button type="button" class="iconbtn" data-sc-refresh aria-label="بروزرسانی اسکلپ"><span data-sc-spin style="display:inline-flex">' + icon('refresh', 14) + '</span></button>' +
     '</div>';
   return h;
 }
@@ -682,6 +756,17 @@ function bindScalpControls(rerender) {
         rerender(true);
       });
     })(tfs[j]);
+  }
+  var anchors = appScroll.querySelectorAll('[data-sc-anchor]');
+  for (var a2 = 0; a2 < anchors.length; a2++) {
+    (function (b) {
+      b.addEventListener('click', function () {
+        var k = b.dataset.scAnchor;
+        if (scAnchorOf(S_SCALP.sym) === k) return;
+        S_SCALP.anchor = k; scSave();
+        rerender(true);
+      });
+    })(anchors[a2]);
   }
   var rf = appScroll.querySelector('[data-sc-refresh]');
   if (rf) rf.addEventListener('click', function () { rerender(true); });

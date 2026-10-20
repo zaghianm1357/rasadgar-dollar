@@ -36,6 +36,53 @@ const H4_SEC = 4 * 3600;
 /** سیگنال تا این تعداد کندلِ بسته‌شدهٔ آخر «تازه» محسوب می‌شود */
 export const SCALP_FRESH_BARS = 3;
 
+/**
+ * تراز مرز کندل ۴ساعته — رفع اصلی «خطوط از دو سه کندل قبل»:
+ *  - "broker": مرزها در ۱۷:۰۰ نیویورک (۲۱:۰۰ UTC در ساعت تابستانی آمریکا، ۲۲:۰۰ زمستان) —
+ *    همان تراز چارت OANDA/تریدینگ‌ویو و سرور GMT+2/+3 بروکرهای MT؛ پیش‌فرض فلزات و فارکس.
+ *  - "utc": مرزهای UTC (رفتار قبلی) — مناسب کریپتو.
+ */
+export type H4Anchor = "broker" | "utc";
+
+export interface ScalpEngineOpts {
+  /** زمان حال (ثانیهٔ یونیکس) — کندل ملاک نمایش نسبت به «الان» انتخاب می‌شود نه آخرین کندل داده */
+  nowSec?: number;
+  anchor?: H4Anchor;
+}
+
+/** فاز تراز: مرز کندل جایی است که (t - phase) بخش‌پذیر بر ۱۴۴۰۰ باشد */
+export function h4PhaseSec(nowSec: number, anchor: H4Anchor): number {
+  if (anchor !== "broker") return 0;
+  /* ساعت تابستانی آمریکا: دومین یکشنبهٔ مارس تا اولین یکشنبهٔ نوامبر */
+  const ms = nowSec * 1000;
+  const y = new Date(ms).getUTCFullYear();
+  const dow = (u: number) => new Date(u).getUTCDay();
+  const mar1 = Date.UTC(y, 2, 1);
+  const firstSunMar = mar1 + ((7 - dow(mar1)) % 7) * 86400000;
+  const dstStart = firstSunMar + 7 * 86400000;
+  const nov1 = Date.UTC(y, 10, 1);
+  const dstEnd = nov1 + ((7 - dow(nov1)) % 7) * 86400000;
+  return ms >= dstStart && ms < dstEnd ? 3600 : 7200;
+}
+
+function h4BucketIdx(t: number, phase: number): number {
+  return Math.floor((t - phase) / H4_SEC);
+}
+
+/** جست‌وجوی کندل بسته‌شدهٔ قبلی در نقشه — حداکثر ۲ باکت عقب‌تر با ثبت گپ (رفع fallback خاموش ۱۲باکتی) */
+function h4PickRef(
+  map: Map<number, { h: number; l: number }>,
+  bucket: number,
+): { ref: { h: number; l: number } | null; gap: number; refBucket: number } {
+  let e = map.get(bucket - 1);
+  if (e) return { ref: e, gap: 0, refBucket: bucket - 1 };
+  e = map.get(bucket - 2);
+  if (e) return { ref: e, gap: 1, refBucket: bucket - 2 };
+  e = map.get(bucket - 3);
+  if (e) return { ref: e, gap: 2, refBucket: bucket - 3 };
+  return { ref: null, gap: 3, refBucket: bucket - 1 };
+}
+
 export interface ScalpZone {
   side: "supply" | "demand";
   top: number;
@@ -107,6 +154,10 @@ export interface ScalpResult {
   /** سقف/کف آخرین کندل بسته‌شدهٔ ۴ساعته */
   h4High: number | null;
   h4Low: number | null;
+  /** کندل ملاک ۴ساعته — پنجرهٔ دقیق برای صحت‌سنجی کاربر با چارت بروکر */
+  h4Ref: { startT: number; endT: number; high: number; low: number; gap: number; closed: boolean } | null;
+  /** تراز مرز کندل ۴ساعته استفاده‌شده در این محاسبه */
+  h4Anchor: H4Anchor;
   swingHigh: number | null;
   swingLow: number | null;
   swingHighBroken: boolean;
@@ -300,6 +351,7 @@ export function runScalpEngine(
   bars: ScalpBar[],
   h4bars: ScalpBar[] | null,
   tfLabel = "",
+  opts: ScalpEngineOpts = {},
 ): ScalpResult {
   const notesFa: string[] = [];
   const n = bars.length;
@@ -309,11 +361,14 @@ export function runScalpEngine(
   const open = bars.map((b) => b.o);
   const atr = atrSeries(bars, ATR_LEN);
 
-  /* --- ۴ساعته: نگاشت bucket → سقف/کف کندلِ بسته‌شدهٔ قبلی --- */
+  /* --- ۴ساعته: نگاشت باکت (با فاز تراز بروکر/UTC) → سقف/کف --- */
+  const anchor = opts.anchor ?? "utc";
+  const nowSec = opts.nowSec ?? Math.floor(Date.now() / 1000);
+  const phase = h4PhaseSec(nowSec, anchor);
   const h4Map = new Map<number, { h: number; l: number }>();
   if (h4bars && h4bars.length >= 2) {
     for (const b of h4bars) {
-      const k = Math.floor(b.t / H4_SEC);
+      const k = h4BucketIdx(b.t, phase);
       const ex = h4Map.get(k);
       if (!ex) h4Map.set(k, { h: b.h, l: b.l });
       else {
@@ -367,6 +422,7 @@ export function runScalpEngine(
   let buyZone: { lo: number; hi: number } | null = null;
   let h4HighNow: number | null = null;
   let h4LowNow: number | null = null;
+  let maxRefGap = 0; // بدترین گپ کندل ملاک در طول بازپخش تاریخی
 
   /* --- واگرایی: سری‌های ابزارها --- */
   const rsi = rsiSeries(close, 14);
@@ -588,14 +644,12 @@ export function runScalpEngine(
         sellZone = null;
         buyZone = null;
       }
-      // آخرین کندل ۴ساعتهٔ «بسته‌شده» قبل از bucket فعلی
-      for (let b = bucket - 1; b >= bucket - 12; b--) {
-        const e = h4Map.get(b);
-        if (e) {
-          h4HighNow = e.h;
-          h4LowNow = e.l;
-          break;
-        }
+      // آخرین کندل ۴ساعتهٔ «بسته‌شده» قبل از باکت فعلی — حداکثر ۲ گام عقب‌تر با ثبت گپ
+      const picked = h4PickRef(h4Map, bucket);
+      if (picked.ref) {
+        h4HighNow = picked.ref.h;
+        h4LowNow = picked.ref.l;
+        if (picked.gap > maxRefGap) maxRefGap = picked.gap;
       }
       /* مطابق Pine: وضعیت «مسلح» پیش از کندل فعلی ملاک شکست است (sellWasArmed) */
       const sellWasArmed = sellArmed;
@@ -809,6 +863,31 @@ export function runScalpEngine(
     }
   }
 
+  /* --- کندل ملاک نمایش: آخرین کندل بسته‌شدهٔ ۴ساعته نسبت به «الان» ---
+   * با تأخیر فید، آخرین کندل داده ممکن است در باکت قبلی باشد؛ خطوط نمایشی باید
+   * مثل چارت کاربر به محض شروع کندل ۴ساعتهٔ جدید، کندل تازه‌بسته را نشان دهند. */
+  let h4Ref: ScalpResult["h4Ref"] = null;
+  if (h4Ready) {
+    const nowBucket = h4BucketIdx(nowSec, phase);
+    const disp = h4PickRef(h4Map, nowBucket);
+    if (disp.ref) {
+      const startT = disp.refBucket * H4_SEC + phase;
+      h4Ref = { startT, endT: startT + H4_SEC, high: rp(disp.ref.h), low: rp(disp.ref.l), gap: disp.gap, closed: true };
+      h4HighNow = disp.ref.h;
+      h4LowNow = disp.ref.l;
+      if (disp.gap > 0)
+        notesFa.push(
+          `کندل ۴ساعتهٔ بستهٔ بلافصل در دادهٔ منبع یافت نشد؛ خطوط ۴ساعته از ${disp.gap === 1 ? "یک" : "دو"} کندل قبل‌تر گرفته شد (گپ فید یا تعطیلی بازار) — برای صحت‌سنجی با چارت بروکر، پنجرهٔ کندل ملاک را ببینید.`,
+        );
+    } else {
+      h4HighNow = null;
+      h4LowNow = null;
+      notesFa.push("کندل ملاک ۴ساعته در دادهٔ منبع یافت نشد (تأخیر سنگین فید یا تعطیلی بازار) — خطوط ۴ساعته نمایش داده نمی‌شوند.");
+    }
+  }
+  if (maxRefGap > 0 && h4Ready && !h4Ref)
+    notesFa.push("در بازپخش تاریخی هم گپ کندل ۴ساعته دیده شد؛ سیگنال‌های ستاپ ۴ساعتهٔ میانی ممکن است روی کندل ملاک قدیمی صادر شده باشند.");
+
   let divNote = "واگرایی تازه‌ای در ۱۰ کندل اخیر ثبت نشده است.";
   if (lastDiv && divRecent) {
     const sideFa = lastDiv.side === "bull" ? "صعودی" : "نزولی";
@@ -824,6 +903,8 @@ export function runScalpEngine(
     atrPct: lastAtr ? (lastAtr / last.c) * 100 : null,
     h4High: h4HighNow,
     h4Low: h4LowNow,
+    h4Ref,
+    h4Anchor: anchor,
     swingHigh,
     swingLow,
     swingHighBroken: hiBroken,

@@ -20,6 +20,7 @@ export interface ScalpResponse {
   symbolMono?: string;
   tf?: string;
   tfLabel?: string;
+  anchor?: string;
   engine?: ScalpResult;
   rangeWarning?: RangeWarning;
   generatedAtISO?: string;
@@ -51,6 +52,12 @@ const TFS: { k: string; label: string }[] = [
 ];
 
 const K_SCALP = "sd_scalp_v1";
+const K_SCALP_ANCHOR = "sd_scalp_anchor_v1";
+
+const ANCHORS: { k: "broker" | "utc"; label: string; hint: string }[] = [
+  { k: "broker", label: "تراز بروکر/نیویورک", hint: "مرز کندل ۴ساعته مثل چارت OANDA و بروکرهای MT (۱۷:۰۰ نیویورک)" },
+  { k: "utc", label: "تراز UTC", hint: "مرز کندل در ۰۰:۰۰، ۰۴:۰۰، … UTC (رفتار قبلی ابزار)" },
+];
 
 function fmt(v: number | null | undefined, digits = 2): string {
   if (v === null || v === undefined || !isFinite(v)) return "—";
@@ -91,6 +98,16 @@ export function ScalpPanel({
     }
     return "5m";
   });
+  /** null = پیش‌فرض سرور (بروکر برای فلزات/فارکس، UTC برای بیت‌کوین) */
+  const [anchor, setAnchor] = useState<"broker" | "utc" | null>(() => {
+    try {
+      const raw = localStorage.getItem(K_SCALP_ANCHOR);
+      if (raw === "broker" || raw === "utc") return raw;
+    } catch {
+      /* پیش‌فرض */
+    }
+    return null;
+  });
   const [data, setData] = useState<ScalpResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,7 +119,7 @@ export function ScalpPanel({
       busy.current = true;
       setLoading(true);
       setError(null);
-      fetch(`/api/scalp?symbol=${symbol}&tf=${tf}${force ? "&force=1" : ""}`)
+      fetch(`/api/scalp?symbol=${symbol}&tf=${tf}${anchor ? `&anchor=${anchor}` : ""}${force ? "&force=1" : ""}`)
         .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
         .then(({ ok, j }) => {
           if (ok && j?.ok) setData(j as ScalpResponse);
@@ -114,7 +131,7 @@ export function ScalpPanel({
           setLoading(false);
         });
     },
-    [symbol, tf],
+    [symbol, tf, anchor],
   );
 
   useEffect(() => {
@@ -141,6 +158,20 @@ export function ScalpPanel({
       /* حالت ناشناس */
     }
   };
+
+  const applyAnchor = (k: "broker" | "utc") => {
+    setAnchor(k);
+    try {
+      localStorage.setItem(K_SCALP_ANCHOR, k);
+    } catch {
+      /* حالت ناشناس */
+    }
+  };
+
+  /* پنجرهٔ کندل ملاک ۴ساعته به وقت تهران — برای صحت‌سنجی کاربر با چارت بروکر */
+  const h4Ref = e?.h4Ref ?? null;
+  const h4WinFa = h4Ref ? `${faTime(new Date(h4Ref.startT * 1000))} تا ${faTime(new Date(h4Ref.endT * 1000))}` : "";
+  const activeAnchor = (data?.anchor as "broker" | "utc" | undefined) ?? anchor ?? "broker";
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3" data-testid={fixedSymbol ? "scalp-signal" : "scalp-suggestion"}>
@@ -180,6 +211,21 @@ export function ScalpPanel({
               }`}
             >
               {t.label}
+            </button>
+          ))}
+        </div>
+        {/* تراز مرز کندل ۴ساعته — مطابق چارت بروکر کاربر */}
+        <div className="flex items-center gap-1.5" data-testid="scalp-anchors" title={ANCHORS.find((a) => a.k === activeAnchor)?.hint}>
+          {ANCHORS.map((a) => (
+            <button
+              key={a.k}
+              type="button"
+              onClick={() => applyAnchor(a.k)}
+              className={`rounded-full border px-2 py-1 text-[10px] font-bold transition-colors ${
+                activeAnchor === a.k ? "border-violet-500/60 bg-violet-500/20 text-violet-200" : "border-border/70 bg-card/60 text-muted-foreground"
+              }`}
+            >
+              {a.label}
             </button>
           ))}
         </div>
@@ -326,9 +372,21 @@ export function ScalpPanel({
           {/* سطوح مهم */}
           <div className="rounded-lg border border-border/60 bg-background/40 p-2">
             <p className="text-[10px] font-extrabold text-sky-200">سطوح مهم (مقادیر حدودی)</p>
+            {h4Ref ? (
+              <p className="mt-0.5 text-[9px] font-bold leading-4 text-zinc-300" data-testid="scalp-h4ref">
+                کندل ملاک ۴ساعته: {h4WinFa} به وقت تهران (بسته‌شده)
+                {h4Ref.gap > 0 ? <span className="text-amber-300"> — گپ فید: کندل بلافصل در داده نبود</span> : null}
+              </p>
+            ) : (
+              <p className="mt-0.5 text-[9px] font-bold text-amber-300">کندل ملاک ۴ساعته در دسترس نیست (تأخیر فید یا تعطیلی بازار)</p>
+            )}
             <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[9.5px] font-bold">
-              <p>سقف کندل ۴ساعتهٔ بسته‌شده: <span className="text-rose-300" dir="ltr">{fmt(e.h4High)}</span></p>
-              <p>کف کندل ۴ساعتهٔ بسته‌شده: <span className="text-emerald-300" dir="ltr">{fmt(e.h4Low)}</span></p>
+              <p>
+                سقف کندل ۴ساعتهٔ بسته‌شده: <span className="text-rose-300" dir="ltr">{fmt(e.h4High)}</span>
+              </p>
+              <p>
+                کف کندل ۴ساعتهٔ بسته‌شده: <span className="text-emerald-300" dir="ltr">{fmt(e.h4Low)}</span>
+              </p>
               <p>آخرین سقف سوئینگ: <span dir="ltr">{fmt(e.swingHigh)}{e.swingHighBroken ? " (شکسته)" : ""}</span></p>
               <p>آخرین کف سوئینگ: <span dir="ltr">{fmt(e.swingLow)}{e.swingLowBroken ? " (شکسته)" : ""}</span></p>
             </div>
