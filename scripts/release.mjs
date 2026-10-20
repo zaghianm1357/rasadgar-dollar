@@ -341,10 +341,9 @@ const p = doPush(remote);
 if (p.mode === 'none') {
   console.log('');
   info('⚠ push انجام نشد (اعتبارنامه نیست) — کامیت و تگ محلی آماده‌اند.');
-  info('  راه ۱ (سریع): اسکریپت را با توکن دوباره اجرا کنید:');
-  info('    node scripts/release.mjs --push-only --token <GitHub PAT با اجازه Contents: RW>');
-  info('  راه ۲ (دائمی): کلید عمومی .git-keys/deploy_key.pub را در Settings → Deploy keys با Write access اضافه کنید، سپس:');
-  info('    node scripts/release.mjs --push-only');
+  info('  اسکریپت را با توکن دوباره اجرا کنید (هرگز ذخیره نمی‌شود):');
+  info('    node scripts/release.mjs --push-only --token <GitHub Fine-grained PAT با اجازه Contents: RW>');
+  info('  پس از انتشار موفق می‌توانید توکن را در گیت‌هاب حذف (Revoke) کنید.');
 } else if (p.code !== 0) {
   console.error('✗ push ناموفق:\n' + (p.err || p.out).split('\n').slice(0, 8).join('\n'));
   console.error('  بعد از رفع مشکل: node scripts/release.mjs --push-only');
