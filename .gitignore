@@ -52,3 +52,10 @@ prompt
 server.log
 # Skills directory
 /skills/
+# --- project-specific exclusions (sandbox/runtime artifacts) ---
+db/
+tool-results/
+.zscripts/
+examples/
+mini-services/
+worklog.md
