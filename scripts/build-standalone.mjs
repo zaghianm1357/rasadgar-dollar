@@ -52,8 +52,14 @@ const analysisSnapshot = existsSync(BASE + '/snapshot-analysis.json')
 /* لوگوی BIG TRADER (base64) — در app.b.js و app.e.js جای‌گذاری می‌شود */
 const logoB64 = readFileSync(BASE + '/logo-b64.txt', 'utf8').trim();
 if (logoB64.length < 1000) throw new Error('logo-b64 invalid');
-const jsWithLogo = js.split('__BT_LOGO_B64__').join(logoB64);
+
+/* شماره نسخه از version.json (منبع واحد) — در متن درباره جای‌گذاری می‌شود */
+const appVersion = JSON.parse(readFileSync('/home/z/my-project/version.json', 'utf8')).version;
+
+let jsWithLogo = js.split('__BT_LOGO_B64__').join(logoB64);
+jsWithLogo = jsWithLogo.split('__APP_VERSION__').join(appVersion);
 if (!jsWithLogo.includes('data:image/png;base64,')) throw new Error('logo placeholder missing');
+if (jsWithLogo.includes('__APP_VERSION__')) throw new Error('version placeholder not replaced');
 const wrapped = '(function(){\n' + jsWithLogo + '\n})();';
 
 // امن‌سازی JSON برای جای‌گذاری داخل <script>

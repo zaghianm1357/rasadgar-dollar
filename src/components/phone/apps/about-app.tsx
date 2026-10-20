@@ -1,6 +1,7 @@
 "use client";
 
 import { ExternalLink, Info, Hand, Layers, BellRing, SlidersHorizontal } from "lucide-react";
+import appVersion from "../../../../version.json";
 
 /** اپ «درباره» — منابع، روش تحلیل، راهنمای حرکات و سلب مسئولیت */
 export function AboutApp() {
@@ -10,6 +11,9 @@ export function AboutApp() {
         <div className="mb-1.5 flex items-center gap-2">
           <Info className="h-4 w-4 text-primary" />
           <h2 className="text-[13px] font-extrabold">رصدگر دلار — نسخه پوسته موبایل</h2>
+          <span className="ms-auto shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+            v{appVersion.version}
+          </span>
         </div>
         <p className="text-[11px] leading-6 text-muted-foreground">
           ابزار پایش اخبار اقتصادی USD و ساختار بازار طلا و داو جونز با رابط کاملاً لمسی:

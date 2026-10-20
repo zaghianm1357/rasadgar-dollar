@@ -808,7 +808,7 @@ function renderAboutApp() {
     '<li>• چارت تریدینگ‌ویو + دستیار معامله‌گر (BIG TRADER): امتیاز اطمینان، ماشین‌حساب حجم/حد ضرر و حد سود، تحلیل هوشمند، سناریوی خبری و دماسنج فشار.</li>' +
     '<li>• پیشنهاد اسکلپ و سیگنال اسکلپ اونس: پورت اندیکاتور SBW + اوردر بلاک FVG + ستاپ ۴ساعته + واگرایی روی کندل‌های زنده Yahoo Finance.</li>' +
     '</ul></section>' +
-    '<section class="about-sec"><div class="about-h"><span style="color:var(--violet)">' + icon('sliders', 16) + '</span><h2 class="about-t">این فایل</h2></div>' +
+    '<section class="about-sec"><div class="about-h"><span style="color:var(--violet)">' + icon('sliders', 16) + '</span><h2 class="about-t">این فایل — نسخه v__APP_VERSION__</h2></div>' +
     '<p class="about-p">تولید: ' + faDateLong(gen) + ' — ' + faTime(gen) + ' تهران. این فایل را می‌توانید با ایمیل یا پیام‌رسان برای خودتان یا دیگران بفرستید و روی هر گوشی با مرورگر باز کنید. انتخاب‌ها (ترتیب آیکون‌ها، فیلترها) در همان دستگاه ذخیره می‌شود.</p></section>' +
     '<p class="about-foot">این ابزار صرفاً اطلاع‌رسانی است و توصیه سرمایه‌گذاری محسوب نمی‌شود.</p>' +
     '</div>';
