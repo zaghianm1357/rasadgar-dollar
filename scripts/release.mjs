@@ -193,6 +193,8 @@ function doPush(remote) {
 /* ---------- publish releases for tags ---------- */
 async function publishMissingReleases(tags, token, remote) {
   const results = [];
+  let currentTag = null;
+  try { currentTag = JSON.parse(readFileSync(VERSION_FILE, 'utf8')).tag || null; } catch { /* ignore */ }
   for (const tag of tags) {
     const existing = await getReleaseByTag(tag, token, remote);
     if (existing) { results.push({ tag, status: 'exists', url: existing.html_url }); continue; }
@@ -202,7 +204,8 @@ async function publishMissingReleases(tags, token, remote) {
     const cr = await createRelease(tag, title, notes, token, remote);
     if (!cr.ok) { results.push({ tag, status: 'error', detail: cr.status + ' ' + (cr.json && cr.json.message || cr.text.slice(0, 200)) }); continue; }
     const rel = cr.json;
-    // دارایی‌ها
+    // دارایی‌ها فقط برای Release نسخهٔ فعلی (نسخه‌های قدیمی بدون پیوست)
+    if (currentTag && tag !== currentTag) { results.push({ tag, status: 'created', url: rel.html_url, note: 'بدون پیوست (نسخهٔ قدیمی)' }); continue; }
     const assets = [];
     if (existsSync(STANDALONE_OUT)) assets.push([STANDALONE_OUT, basename(STANDALONE_OUT), 'text/html; charset=utf-8']);
     if (existsSync(WP_ZIP)) assets.push([WP_ZIP, basename(WP_ZIP), 'application/zip']);
