@@ -26,6 +26,7 @@ const VERSION_FILE = resolve(ROOT, 'version.json');
 const PKG_FILE = resolve(ROOT, 'package.json');
 const CHANGELOG = resolve(ROOT, 'CHANGELOG.md');
 const STANDALONE_OUT = resolve(ROOT, 'download/rasadgar-dollar.html');
+const DESKTOP_OUT = resolve(ROOT, 'download/rasadgar-dollar-desktop.html');
 const WP_DIR = resolve(ROOT, 'scripts/wp-plugin/rasadgar-dollar');
 const WP_ASSET = resolve(WP_DIR, 'assets/rasadgar-dollar.html');
 const WP_ZIP = resolve(ROOT, 'download/rasadgar-dollar-wp.zip');
@@ -208,6 +209,7 @@ async function publishMissingReleases(tags, token, remote) {
     if (currentTag && tag !== currentTag) { results.push({ tag, status: 'created', url: rel.html_url, note: 'بدون پیوست (نسخهٔ قدیمی)' }); continue; }
     const assets = [];
     if (existsSync(STANDALONE_OUT)) assets.push([STANDALONE_OUT, basename(STANDALONE_OUT), 'text/html; charset=utf-8']);
+    if (existsSync(DESKTOP_OUT)) assets.push([DESKTOP_OUT, basename(DESKTOP_OUT), 'text/html; charset=utf-8']);
     if (existsSync(WP_ZIP)) assets.push([WP_ZIP, basename(WP_ZIP), 'application/zip']);
     for (const [fp, name, ct] of assets) {
       const up = await uploadAsset(rel.upload_url, token, fp, name, ct);
@@ -309,6 +311,9 @@ if (!OPT.skipBuild) {
   const b = sh('node', ['scripts/build-standalone.mjs']);
   if (b.code !== 0) die('ساخت فایل مستقل ناموفق:\n' + (b.err || b.out));
   info('فایل مستقل: ' + (b.out.split('\n').find((l) => l.startsWith('OK')) || b.out));
+  const bd = sh('node', ['scripts/build-desktop.mjs']);
+  if (bd.code !== 0) die('ساخت نسخه دسکتاپ ناموفق:\n' + (bd.err || bd.out));
+  info('نسخه دسکتاپ: ' + (bd.out.split('\n').find((l) => l.startsWith('OK')) || bd.out));
   if (existsSync(STANDALONE_OUT) && existsSync(resolve(WP_DIR, 'assets'))) {
     writeFileSync(WP_ASSET, readFileSync(STANDALONE_OUT));
     info('آینه وردپرس بروزرسانی شد');
@@ -322,6 +327,8 @@ if (!OPT.skipBuild) {
 
 /* ۳) کامیت */
 const addList = ['version.json', 'package.json', 'CHANGELOG.md', 'download/rasadgar-dollar.html'];
+if (existsSync(DESKTOP_OUT)) addList.push('download/rasadgar-dollar-desktop.html');
+if (existsSync(resolve(ROOT, 'assets/pages'))) addList.push('assets/pages');
 if (existsSync(WP_ASSET)) addList.push('scripts/wp-plugin/rasadgar-dollar/assets/rasadgar-dollar.html');
 if (existsSync(WP_ZIP)) addList.push('download/rasadgar-dollar-wp.zip');
 const a = sh('git', ['add', ...addList]);

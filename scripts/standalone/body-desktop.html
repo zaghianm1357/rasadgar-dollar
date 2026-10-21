@@ -1,0 +1,99 @@
+<body>
+<div id="stage">
+  <div id="device" aria-label="رصدگر دلار — نسخه دسکتاپ">
+
+    <!-- پس‌زمینه دسکتاپ -->
+    <div id="wall" aria-hidden="true">
+      <div class="wall-a"></div>
+      <div class="wall-b"></div>
+    </div>
+
+    <!-- هدر دسکتاپ -->
+    <header id="dt-header" data-nogesture>
+      <div class="dt-brand">
+        <span class="dt-logo" id="dt-logo" aria-hidden="true"></span>
+        <div class="dt-brand-t">
+          <b>رصدگر دلار</b>
+          <span>BIG TRADER · نسخه دسکتاپ <span id="dt-ver"></span></span>
+        </div>
+      </div>
+      <div class="dt-status">
+        <div class="dt-chips" id="dt-chips"></div>
+        <span class="dt-clock" id="dt-clock">--:--</span>
+        <button type="button" id="dt-menu" aria-label="باز کردن منوی جانبی">
+          <svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- نوار تب‌ها -->
+    <nav id="dt-tabs" data-nogesture aria-label="بخش‌های داشبورد"></nav>
+
+    <!-- عناصر گوشی — در دسکتاپ پنهان اما برای موتور JS موجود -->
+    <div id="statusbar" aria-hidden="true">
+      <button type="button" id="sb-clock" class="sb-clock" tabindex="-1">--:--</button>
+      <div class="sb-right" id="sb-right"></div>
+    </div>
+
+    <div id="pages" class="no-scrollbar" aria-hidden="true">
+      <section class="page no-scrollbar" id="page1"><div class="page-inner" id="page1-inner"></div></section>
+      <section class="page no-scrollbar" id="page2"><div class="page-inner grid2" id="page2-inner"></div></section>
+    </div>
+
+    <div id="dots" aria-hidden="true"></div>
+    <div id="dock" aria-hidden="true"><div class="dock-in" id="dock-in"></div></div>
+    <div id="homebar" aria-hidden="true"><div class="homebar-pill"></div></div>
+
+    <!-- پنل محتوا (همان app-sheet موبایل — در دسکتاپ به‌صورت پنل بزرگ) -->
+    <div id="app-sheet" hidden>
+      <div id="app-topbar" data-nogesture>
+        <button type="button" id="app-back" aria-label="بازگشت" tabindex="-1">
+          <svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+        <span id="app-title"></span>
+        <button type="button" id="app-menu" aria-label="باز کردن منوی جانبی">
+          <svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="app-scroll" class="no-scrollbar"></div>
+      <div id="app-homebar" role="button" tabindex="-1" aria-hidden="true">
+        <div class="homebar-pill" style="background:rgba(255,255,255,.4)"></div>
+      </div>
+    </div>
+
+    <!-- منوی جانبی -->
+    <div id="drawer-layer">
+      <div id="drawer-back"></div>
+      <div id="drawer-panel" class="frost no-scrollbar"></div>
+    </div>
+
+    <!-- مرکز اعلان‌ها / کنترل (موتور JS؛ در دسکتاپ غیرفعال) -->
+    <div class="center-layer" id="nc-layer">
+      <div class="center-back" id="nc-back"></div>
+      <div class="nc-sheet frost spring no-scrollbar" id="nc-sheet"></div>
+    </div>
+    <div class="center-layer" id="cc-layer">
+      <div class="center-back" id="cc-back"></div>
+      <div class="cc-sheet frost spring no-scrollbar" id="cc-sheet"></div>
+    </div>
+
+    <div id="drag-ghost" hidden></div>
+
+    <!-- راهنمای اولیه (در دسکتاپ با CSS پنهان می‌شود) -->
+    <div id="hint" hidden>
+      دکمه <b>☰</b> منوی جانبی — انتخاب بخش با نوار تب‌ها یا کلیدهای ۱ تا ۹
+    </div>
+
+    <button type="button" id="wiggle-done" hidden data-nogesture tabindex="-1">
+      <svg class="ic" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+      پایان
+    </button>
+
+  </div>
+</div>
+
+<script type="application/json" id="sd-snapshot">__SNAPSHOT__</script>
+<script type="application/json" id="sd-snapshot-analysis">__SNAPSHOT_ANALYSIS__</script>
+<script>__APP_JS__</script>
+</body>
+</html>

@@ -24,10 +24,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare site (standalone tool as index)
+      - name: Prepare site (auto-redirect + mobile + desktop + PWA)
         run: |
-          mkdir -p _site
-          cp download/rasadgar-dollar.html _site/index.html
+          mkdir -p _site/mobile _site/desktop _site/icons
+          # نسخه‌های مستقل
+          cp download/rasadgar-dollar.html _site/mobile/index.html
+          cp download/rasadgar-dollar-desktop.html _site/desktop/index.html
+          # صفحه انتخاب خودکار (تزریق لوگو)
+          node -e "
+            const fs = require('fs');
+            const logo = fs.readFileSync('scripts/standalone/logo-b64.txt', 'utf8').trim();
+            let idx = fs.readFileSync('assets/pages/index.html', 'utf8');
+            idx = idx.split('__PAGES_LOGO_B64__').join(logo);
+            fs.writeFileSync('_site/index.html', idx);
+          "
+          # PWA
+          cp assets/pages/manifest.webmanifest _site/manifest.webmanifest
+          cp assets/pages/icons/icon-192.png _site/icons/icon-192.png
+          cp assets/pages/icons/icon-512.png _site/icons/icon-512.png
+          cp assets/pages/icons/icon-512-maskable.png _site/icons/icon-512-maskable.png
           echo "rasadgar-dollar v$(node -p "require('./version.json').version")" > _site/VERSION.txt
 
       - name: Configure Pages

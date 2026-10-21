@@ -5,10 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#12181e">
 <title>رصدگر دلار — نسخه موبایل</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
+/* ---------- فونت وزیرمتن (جاسازی کامل داخل فایل — بدون وابستگی به سرویس خارجی) ---------- */
+@font-face{
+  font-family:'Vazirmatn';
+  font-style:normal;
+  font-weight:100 900;
+  font-display:swap;
+  src:url(data:font/woff2;base64,__VAZIRMATN_VAR_B64__) format('woff2-variations');
+}
 /* ---------- پایه ---------- */
 *,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -162,10 +167,10 @@ a{color:var(--primary)}
 .icon-label{font-size:10px;font-weight:700;line-height:12px;color:rgba(232,236,240,.9);text-shadow:0 1px 2px rgba(0,0,0,.6)}
 
 /* ---------- داک و ناوبری ---------- */
-#dock{position:absolute;left:12px;right:12px;bottom:36px;z-index:20}
-.dock-in{display:flex;align-items:center;justify-content:space-around;border-radius:28px;border:1px solid rgba(255,255,255,.1);padding:10px 8px;
+#dock{position:absolute;left:12px;right:12px;bottom:36px;z-index:20;pointer-events:none}
+.dock-in{display:flex;align-items:center;justify-content:space-around;border-radius:28px;border:1px solid rgba(255,255,255,.1);padding:10px 8px;pointer-events:auto;
   backdrop-filter:blur(28px) saturate(1.5);-webkit-backdrop-filter:blur(28px) saturate(1.5);background:rgba(30,38,47,.72)}
-#dots{position:absolute;left:0;right:0;bottom:92px;z-index:20;display:flex;align-items:center;justify-content:center;gap:6px}
+#dots{position:absolute;left:0;right:0;bottom:112px;z-index:21;display:flex;align-items:center;justify-content:center;gap:6px}
 .dot{height:6px;width:6px;border-radius:999px;background:rgba(255,255,255,.3);transition:all .3s}
 .dot.on{width:16px;background:rgba(255,255,255,.85)}
 #homebar{position:absolute;left:0;right:0;bottom:0;z-index:20;height:36px;display:flex;align-items:flex-start;justify-content:center;padding-top:8px;cursor:pointer}
@@ -181,7 +186,7 @@ a{color:var(--primary)}
 
 /* ---------- راهنمای اولیه ---------- */
 @keyframes hint-fade{0%,72%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
-#hint{position:absolute;left:24px;right:24px;bottom:104px;z-index:40;border-radius:16px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.55);backdrop-filter:blur(12px);padding:10px 12px;text-align:center;font-size:10px;line-height:20px;animation:hint-fade 9s ease forwards}
+#hint{position:absolute;left:24px;right:24px;bottom:104px;z-index:40;pointer-events:none;border-radius:16px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.55);backdrop-filter:blur(12px);padding:10px 12px;text-align:center;font-size:10px;line-height:20px;animation:hint-fade 9s ease forwards}
 
 /* ---------- مراکز اعلان/کنترل ---------- */
 .center-layer{position:absolute;inset:0;z-index:70;pointer-events:none}
@@ -651,4 +656,11 @@ table.fq td.a{color:var(--amber);font-weight:800}
 .sc-status.warn{border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.1);color:#fcd34d}
 .sc-status.bad{border-color:rgba(244,63,94,.5);background:rgba(244,63,94,.1);color:#fda4af}
 </style>
+<!-- PWA: در GitHub Pages فعال است؛ در فایل محلی بدون اثر -->
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="رصدگر دلار">
 </head>

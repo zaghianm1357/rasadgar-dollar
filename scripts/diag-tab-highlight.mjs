@@ -1,0 +1,15 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+await page.goto('file:///home/z/my-project/download/rasadgar-dollar-desktop.html', { waitUntil: 'load' });
+await page.waitForTimeout(1800);
+console.log('initial on:', await page.evaluate(() => document.querySelector('#dt-tabs .dt-tab.on span')?.textContent));
+await page.keyboard.press('ArrowLeft');
+await page.waitForTimeout(700);
+console.log('after ArrowLeft on:', await page.evaluate(() => document.querySelector('#dt-tabs .dt-tab.on span')?.textContent));
+console.log('after ArrowLeft title:', await page.evaluate(() => document.querySelector('#app-title').textContent));
+await page.keyboard.press('2');
+await page.waitForTimeout(700);
+console.log('after key2 on:', await page.evaluate(() => document.querySelector('#dt-tabs .dt-tab.on span')?.textContent));
+console.log('after key2 title:', await page.evaluate(() => document.querySelector('#app-title').textContent));
+await browser.close();

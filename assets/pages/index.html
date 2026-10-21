@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12181e">
+<title>رصدگر دلار — BIG TRADER</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  min-height:100dvh;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(130% 100% at 85% -10%,rgba(13,148,136,.22),transparent 55%),
+             radial-gradient(120% 90% at 10% 110%,rgba(52,211,153,.10),transparent 55%),#0a0e13;
+  color:#e8ecf0;font-family:-apple-system,'Segoe UI',Tahoma,'Vazirmatn',sans-serif;
+  -webkit-font-smoothing:antialiased;padding:24px;
+}
+.card{max-width:420px;width:100%;text-align:center;
+  border:1px solid rgba(255,255,255,.09);border-radius:22px;padding:34px 26px;
+  background:rgba(20,26,33,.72);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:0 30px 70px -24px rgba(0,0,0,.8)}
+.logo{width:76px;height:76px;border-radius:20px;margin:0 auto 16px;background-size:cover;background-position:center;
+  box-shadow:0 8px 26px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.14)}
+h1{font-size:22px;font-weight:800;margin:0 0 6px}
+.sub{font-size:12px;color:#a0aab4;margin:0 0 22px;line-height:1.8}
+.spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.18);border-top-color:#34d399;border-radius:50%;
+  margin:0 auto 6px;animation:s .9s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+.hint{font-size:11px;color:#7c8792;margin:0 0 24px}
+.links{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.links a{
+  display:inline-flex;align-items:center;gap:7px;text-decoration:none;cursor:pointer;
+  border-radius:12px;padding:10px 16px;font-size:13px;font-weight:700;transition:transform .15s ease;
+}
+.links a:hover{transform:translateY(-1px)}
+a.mob{background:linear-gradient(180deg,#34d399,#10b981);color:#06251b;box-shadow:0 6px 18px rgba(16,185,129,.3)}
+a.desk{border:1px solid rgba(255,255,255,.14);color:#e8ecf0;background:rgba(255,255,255,.05)}
+.brand{margin-top:22px;font-size:10px;letter-spacing:2.5px;color:#5c6771;font-weight:700}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo" id="logo" aria-hidden="true"></div>
+  <h1>رصدگر دلار</h1>
+  <p class="sub">داشبورد رصد دلار، طلا و بازار جهانی<br>به‌صورت خودکار به نسخه مناسب دستگاه شما می‌روید…</p>
+  <div class="spin" aria-hidden="true"></div>
+  <p class="hint" id="hint">در حال تشخیص نسخه مناسب…</p>
+  <div class="links">
+    <a class="mob" id="go-mobile" href="mobile/">📱 نسخه موبایل</a>
+    <a class="desk" id="go-desktop" href="desktop/">🖥 نسخه دسکتاپ</a>
+  </div>
+  <div class="brand">BIG TRADER</div>
+</div>
+<script>
+(function () {
+  var LOGO = '__PAGES_LOGO_B64__';
+  if (LOGO.length > 100) document.getElementById('logo').style.backgroundImage = 'url(data:image/png;base64,' + LOGO + ')';
+
+  var w = window.innerWidth || document.documentElement.clientWidth;
+  var touch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  var narrow = w <= 820;
+  var isMobile = narrow || (touch && narrow);
+  var target = isMobile ? 'mobile/' : 'desktop/';
+  var m = document.getElementById('go-mobile'), d = document.getElementById('go-desktop');
+  if (isMobile) { m.style.order = -1; } else { d.style.order = -1; }
+  document.getElementById('hint').textContent = isMobile
+    ? 'نسخه موبایل برای شما مناسب‌تر است…'
+    : 'نسخه دسکتاپ برای شما مناسب‌تر است…';
+  setTimeout(function () { window.location.replace(target); }, 900);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+/* ============================================================
+   لایه دسکتاپ «رصدگر دلار» — بازنویسی قاب گوشی به داشبورد سایت
+   این CSS پس از استایل موبایل اضافه می‌شود و ظاهر را تغییر می‌دهد
+   ============================================================ */
+
+/* پنهان‌سازی عناصر گوشی (موتور JS به آن‌ها نیاز دارد، پس حذف نمی‌شوند) */
+#wall,#statusbar,#pages,#dots,#dock,#homebar,#hint,#wiggle-done,#drag-ghost,#sb-clock{display:none!important}
+#device{touch-action:auto}
+
+/* صحنه: تمام‌صفحه بدون قاب گوشی */
+#device{
+  width:100%!important;height:100dvh!important;max-width:none!important;
+  border-radius:0!important;border:0!important;box-shadow:none!important;
+  background:radial-gradient(140% 110% at 85% -10%,rgba(13,148,136,.14),transparent 55%),
+             radial-gradient(120% 90% at 10% 110%,rgba(52,211,153,.07),transparent 55%),#0a0e13!important;
+}
+body{user-select:text;-webkit-user-select:text}
+
+/* ---------- هدر ---------- */
+#dt-header{
+  position:absolute;top:0;left:0;right:0;height:58px;z-index:50;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:0 18px;border-bottom:1px solid rgba(255,255,255,.08);
+  background:rgba(13,18,24,.82);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+}
+.dt-brand{display:flex;align-items:center;gap:11px;min-width:0}
+.dt-logo{
+  width:38px;height:38px;border-radius:12px;flex:0 0 auto;
+  background-size:cover;background-position:center;
+  box-shadow:0 4px 14px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.12);
+}
+.dt-brand-t{display:flex;flex-direction:column;line-height:1.3;min-width:0}
+.dt-brand-t b{font-size:15px;font-weight:800;color:var(--fg);white-space:nowrap}
+.dt-brand-t span{font-size:10px;color:var(--mutedfg);letter-spacing:.2px;white-space:nowrap}
+.dt-brand-t span b{font-size:10px}
+.dt-status{display:flex;align-items:center;gap:14px}
+.dt-chips{display:flex;align-items:center;gap:8px}
+.dt-chip{
+  display:flex;align-items:center;gap:7px;border-radius:11px;padding:5px 10px;
+  border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.045);
+}
+.dt-chip .dt-chip-ic{width:24px;height:24px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+.dt-chip.gold .dt-chip-ic{background:rgba(251,191,36,.14);color:var(--amber)}
+.dt-chip.dji .dt-chip-ic{background:rgba(56,189,248,.13);color:var(--sky)}
+.dt-chip .dt-chip-t{display:flex;flex-direction:column;line-height:1.25;text-align:right}
+.dt-chip .dt-chip-l{font-size:9px;color:var(--mutedfg)}
+.dt-chip .dt-chip-v{font-size:12px;font-weight:800;direction:ltr;font-family:ui-monospace,'SF Mono',Menlo,monospace}
+.dt-chip .dt-chip-c{font-size:9px;font-weight:700;direction:ltr}
+.dt-chip .dt-chip-c.bull{color:var(--emerald)}
+.dt-chip .dt-chip-c.bear{color:var(--rose)}
+.dt-chip .dt-chip-c.neut{color:var(--mutedfg)}
+.dt-clock{
+  font-size:13px;font-weight:700;color:var(--fg);direction:ltr;
+  font-family:ui-monospace,'SF Mono',Menlo,monospace;
+  border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:5px 10px;background:rgba(255,255,255,.045);
+}
+#dt-menu{
+  width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+  border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.045);color:var(--fg);cursor:pointer;
+  transition:background .2s;
+}
+#dt-menu:hover{background:rgba(255,255,255,.1)}
+
+/* ---------- تب‌ها ---------- */
+#dt-tabs{
+  position:absolute;top:58px;left:0;right:0;height:46px;z-index:50;
+  display:flex;align-items:center;gap:4px;padding:0 14px;overflow-x:auto;
+  border-bottom:1px solid rgba(255,255,255,.07);
+  background:rgba(13,18,24,.6);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  scrollbar-width:none;
+}
+#dt-tabs::-webkit-scrollbar{display:none}
+.dt-tab{
+  display:flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer;
+  border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;color:var(--mutedfg);
+  border:1px solid transparent;transition:all .18s ease;
+}
+.dt-tab .ic{width:14px;height:14px;stroke-width:2.2}
+.dt-tab:hover{color:var(--fg);background:rgba(255,255,255,.06)}
+.dt-tab.on{
+  color:#06251b;background:linear-gradient(180deg,var(--emerald),var(--emerald-d));
+  border-color:rgba(52,211,153,.4);box-shadow:0 4px 14px rgba(16,185,129,.3);
+}
+.dt-tab .dt-kbd{
+  font-size:8.5px;font-family:ui-monospace,Menlo,monospace;opacity:.55;direction:ltr;
+  border:1px solid currentColor;border-radius:4px;padding:0 3px;line-height:13px;
+}
+
+/* ---------- پنل محتوا (app-sheet) ---------- */
+#app-sheet{
+  top:116px!important;right:14px!important;left:14px!important;bottom:14px!important;
+  border-radius:18px!important;border:1px solid rgba(255,255,255,.09)!important;
+  box-shadow:0 24px 60px -20px rgba(0,0,0,.7)!important;
+  background:linear-gradient(180deg,#131a22,#10161d)!important;
+}
+#app-topbar{height:52px;padding:0 16px;background:transparent;border-bottom:1px solid rgba(255,255,255,.07)}
+#app-topbar #app-title{font-size:15px;font-weight:800}
+#app-back{display:none!important}
+#app-scroll{padding:16px 18px 22px}
+#app-menu{width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.05)}
+
+/* خانه دسکتاپ — شبکه ویجت‌ها */
+.dt-home{display:flex;flex-direction:column;gap:14px}
+.dt-home .banner{margin:0}
+.dt-home-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.dt-home-grid .widget{margin:0}
+.dt-home .widget .w-head-t{font-size:12px}
+.dt-home .w-price-v{font-size:22px}
+.dt-home .icongrid{display:none}
+
+/* اپ‌ها: عرض بهتر در دسکتاپ */
+#app-scroll .app-wrap,#app-scroll .app-root{max-width:1080px;margin:0 auto}
+#app-scroll .grid2{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+#app-scroll .sug-cards{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+#app-scroll .stats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+
+/* منوی جانبی در دسکتاپ */
+#drawer-panel{width:300px}
+
+/* اسکرول‌بار مناسب دسکتاپ */
+#app-scroll::-webkit-scrollbar{width:10px}
+#app-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:99px;border:3px solid transparent;background-clip:padding-box}
+#app-scroll::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.24);background-clip:padding-box}
+#drawer-panel::-webkit-scrollbar{width:10px}
+#drawer-panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:99px;border:3px solid transparent;background-clip:padding-box}
+
+/* واکنش‌گرایی */
+@media (max-width:860px){
+  .dt-chips .dt-chip.dji{display:none}
+  #app-sheet{right:8px!important;left:8px!important;bottom:8px!important}
+  #app-scroll{padding:12px 12px 18px}
+}
+@media (max-width:560px){
+  .dt-chips{display:none}
+  .dt-brand-t span{display:none}
+  #dt-tabs{top:54px}
+  #app-sheet{top:100px!important}
+}
+@media (max-height:600px){
+  #dt-tabs{position:static;margin-top:58px}
+  #app-sheet{top:104px!important;bottom:8px!important}
+}
+
+/* کاهش حرکت */
+@media (prefers-reduced-motion:reduce){
+  .dt-tab,#dt-menu{transition:none}
+}

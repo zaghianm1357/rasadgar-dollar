@@ -33,8 +33,14 @@ async function getSnapshot() {
 }
 
 const snap = await getSnapshot();
-const head = readFileSync(BASE + '/head.html', 'utf8');
+let head = readFileSync(BASE + '/head.html', 'utf8');
 let body = readFileSync(BASE + '/body.html', 'utf8');
+
+/* فونت وزیرمتن متغیر — جاسازی کامل داخل فایل (بدون فونت گوگل؛ در ایران فیلتر است) */
+const vazirB64 = readFileSync(BASE + '/vazirmatn-var-b64.txt', 'utf8').trim();
+if (vazirB64.length < 10000) throw new Error('vazirmatn base64 invalid');
+head = head.split('__VAZIRMATN_VAR_B64__').join(vazirB64);
+if (head.includes('__VAZIRMATN_VAR_B64__')) throw new Error('font placeholder not replaced');
 const js = [
   readFileSync(BASE + '/app.a.js', 'utf8'),
   readFileSync(BASE + '/app.b.js', 'utf8'),

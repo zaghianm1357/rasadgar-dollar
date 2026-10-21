@@ -316,6 +316,7 @@ ccBack.addEventListener('click', closeCC);
 
 /* حرکات کشیدن از بالا/پایین روی سطح قاب */
 device.addEventListener('pointerdown', function (e) {
+  if (window.__SD_DESKTOP__) return;
   if (S.wiggle || S.drag || S.gesture || S.drawerOpen || S.ncOpen || S.ccOpen) return;
   if (e.target.closest('[data-nogesture]')) return;
   var rect = device.getBoundingClientRect();
@@ -402,7 +403,29 @@ window.addEventListener('keydown', function (e) {
   if (S.drawerOpen) closeLayerUI('drawer');
   else if (S.ncOpen) closeLayerUI('nc');
   else if (S.ccOpen) closeLayerUI('cc');
-  else if (S.app) closeLayerUI('app');
+  else if (S.app && !window.__SD_DESKTOP__) closeLayerUI('app');
+});
+/* میانبرهای کیبورد دسکتاپ: ←/→ جابه‌جایی صفحات | اعداد ۱-۸ باز کردن اپ‌ها */
+window.addEventListener('keydown', function (e) {
+  if (window.__SD_DESKTOP__) return; /* در دسکتاپ لایه جداگانه مدیریت می‌کند */
+  if (e.target && e.target.closest && e.target.closest('input,textarea,select')) return;
+  if (S.drawerOpen || S.ncOpen || S.ccOpen) return;
+  var maxAbs = pages.scrollWidth - pages.clientWidth;
+  if (maxAbs > 0 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    e.preventDefault();
+    var atStart = Math.abs(pages.scrollLeft) < 40;
+    var toSecond = (e.key === 'ArrowLeft' && atStart) || (e.key === 'ArrowRight' && !atStart);
+    pages.scrollTo({ left: toSecond ? -maxAbs : 0, behavior: 'smooth' });
+    return;
+  }
+  var appKeys = ['news', 'structure', 'suggestion', 'scalp', 'chart', 'trader', 'analysis', 'about'];
+  var n = parseInt(e.key, 10);
+  if (n >= 1 && n <= appKeys.length) {
+    if (S.wiggle) return;
+    var id = appKeys[n - 1];
+    var el = iconGridEl().querySelector('[data-icon="' + id + '"]');
+    openApp(id, el);
+  }
 });
 
 /* ---------- حالت لرزش و جابه‌جایی آیکون‌ها ---------- */
