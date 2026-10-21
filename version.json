@@ -1,8 +1,8 @@
 {
   "name": "rasadgar-dollar",
   "title": "رصدگر دلار — BIG TRADER",
-  "version": "1.2.1",
-  "tag": "v1.2.1",
+  "version": "1.3.0",
+  "tag": "v1.3.0",
   "repo": "https://github.com/zaghianm1357/rasadgar-dollar",
   "standalone": "download/rasadgar-dollar.html",
   "changelog": "CHANGELOG.md"
