@@ -821,6 +821,7 @@ function renderApp(id, keep) {
   else if (id === 'structure') renderStructureApp();
   else if (id === 'suggestion') renderSuggestionApp();
   else if (id === 'scalp') renderScalpApp();
+  else if (id === 'styles') renderStylesApp();
   else if (id === 'chart') renderChartApp();
   else if (id === 'trader') renderTraderApp();
   else if (id === 'analysis') renderAnalysisApp();

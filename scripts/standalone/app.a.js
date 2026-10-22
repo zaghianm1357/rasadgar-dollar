@@ -31,7 +31,7 @@ function saveSettings() { lsSet(SETTINGS_KEY, JSON.stringify(settings)); }
 var GRID_KEY = 'sd_grid_order_v1';
 var HINT_KEY = 'sd_hint_v1';
 var DISMISS_KEY = 'sd_banner_dismiss_v1';
-var DEFAULT_ORDER = ['news', 'structure', 'suggestion', 'scalp', 'chart', 'trader', 'analysis', 'about'];
+var DEFAULT_ORDER = ['news', 'structure', 'suggestion', 'scalp', 'styles', 'chart', 'trader', 'analysis', 'about'];
 
 /* ---------- توابع تاریخ تهران ---------- */
 var TEHRAN = 'Asia/Tehran';
@@ -191,6 +191,7 @@ var APPS = {
   structure: { label: 'ساختار بازار', cls: 'g-structure', ic: 'activity' },
   suggestion: { label: 'پیشنهاد معامله', cls: 'g-suggestion', ic: 'crosshair' },
   scalp: { label: 'سیگنال اسکلپ اونس', cls: 'g-scalp', ic: 'zap' },
+  styles: { label: 'سبک‌های اسکلپ', cls: 'g-styles', ic: 'layers' },
   chart: { label: 'چارت تریدینگ‌ویو', cls: 'g-chart', ic: 'candles' },
   trader: { label: 'دستیار معامله‌گر', cls: 'g-trader', ic: 'briefcase' },
   analysis: { label: 'تحلیل و پیش‌بینی', cls: 'g-analysis', ic: 'radar' },
@@ -418,7 +419,7 @@ window.addEventListener('keydown', function (e) {
     pages.scrollTo({ left: toSecond ? -maxAbs : 0, behavior: 'smooth' });
     return;
   }
-  var appKeys = ['news', 'structure', 'suggestion', 'scalp', 'chart', 'trader', 'analysis', 'about'];
+  var appKeys = ['news', 'structure', 'suggestion', 'scalp', 'styles', 'chart', 'trader', 'analysis', 'about'];
   var n = parseInt(e.key, 10);
   if (n >= 1 && n <= appKeys.length) {
     if (S.wiggle) return;

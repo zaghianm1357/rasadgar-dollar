@@ -10,6 +10,7 @@ var DT_TABS = [
   { id: 'structure', label: 'ساختار بازار', ic: 'activity' },
   { id: 'suggestion', label: 'پیشنهاد معامله', ic: 'crosshair' },
   { id: 'scalp', label: 'سیگنال اسکلپ', ic: 'zap' },
+  { id: 'styles', label: 'سبک‌های اسکلپ', ic: 'layers' },
   { id: 'chart', label: 'چارت تریدینگ‌ویو', ic: 'candles' },
   { id: 'trader', label: 'دستیار معامله‌گر', ic: 'briefcase' },
   { id: 'analysis', label: 'تحلیل و پیش‌بینی', ic: 'radar' },

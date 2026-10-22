@@ -60,6 +60,7 @@ const js = [
   readFileSync(BASE + '/app.d.js', 'utf8'),
   readFileSync(BASE + '/app.e.js', 'utf8'),
   readFileSync(BASE + '/app.f.js', 'utf8'),
+  readFileSync(BASE + '/app.styles.js', 'utf8'),
   desktopJs,
 ].join('\n');
 
@@ -67,6 +68,23 @@ const js = [
 const analysisSnapshot = existsSync(BASE + '/snapshot-analysis.json')
   ? JSON.parse(readFileSync(BASE + '/snapshot-analysis.json', 'utf8'))
   : null;
+
+/* اسنپ‌شات کندل‌های سبک‌های اسکلپ — از سرور محلی (لایه واحد market-data) */
+async function getStylesSnapshot() {
+  async function bars(tf) {
+    try {
+      const res = await fetch('http://localhost:3000/api/bars?symbol=xau&tf=' + tf, { signal: AbortSignal.timeout(25000) });
+      const j = await res.json();
+      if (j && j.ok && Array.isArray(j.bars) && j.bars.length > 60) return j.bars;
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+  const [b15, b1h] = await Promise.all([bars('15m'), bars('1h')]);
+  if (!b15) return null;
+  return { ok: true, symbol: 'xau', generatedAtISO: new Date().toISOString(), bars15: b15, bars1h: b1h || [] };
+}
+const stylesSnapshot = await getStylesSnapshot();
+console.log('styles snapshot:', stylesSnapshot ? 'yes (bars15=' + stylesSnapshot.bars15.length + ', bars1h=' + stylesSnapshot.bars1h.length + ')' : 'NO (offline fallback unavailable)');
 
 /* لوگوی BIG TRADER (base64) */
 const logoB64 = readFileSync(BASE + '/logo-b64.txt', 'utf8').trim();
@@ -94,9 +112,13 @@ const analysisJson = analysisSnapshot
   ? JSON.stringify(analysisSnapshot).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')
   : JSON.stringify({ generatedAtISO: new Date().toISOString(), lite: { ok: false }, fx: { ok: false, poll: [], items: [] } });
 
+const stylesJson = JSON.stringify(stylesSnapshot || { ok: false })
+  .replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+
 body = body
   .split('__SNAPSHOT__').join(json)
   .split('__SNAPSHOT_ANALYSIS__').join(analysisJson)
+  .split('__SNAPSHOT_STYLES__').join(stylesJson)
   .split('__APP_JS__').join(wrapped);
 const out = head + body;
 writeFileSync(OUT, out);
